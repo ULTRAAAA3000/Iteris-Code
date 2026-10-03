@@ -157,6 +157,7 @@ function lesson(k, n) {
       <h1>${l.t}</h1>
       <div class="lesson-actions"><button class="btn small" data-toggle="${k}:${n}" aria-pressed="${d}">${d ? "Пройдено" : "Позначити пройденим"}</button></div>
       <div class="prose">
+        ${l.easy ? `<div class="callout"><b>Простими словами.</b> ${l.easy}</div>` : ""}
         ${l.p.map(x => `<p>${x}</p>`).join("")}
         <h2>Приклад коду</h2>
         ${l.code.map(x => `<pre class="code">${esc(x)}</pre>`).join("")}
