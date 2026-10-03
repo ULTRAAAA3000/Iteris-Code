@@ -161,6 +161,7 @@ function lesson(k, n) {
         <h2>Приклад коду</h2>
         ${l.code.map(x => `<pre class="code">${esc(x)}</pre>`).join("")}
         <div class="callout"><b>Запам'ятайте.</b> ${l.note}</div>
+        ${l.work ? `<h2>Як це в роботі</h2><p>${l.work}</p>` : ""}
         <h2>Завдання для самоперевірки</h2>
         <ul class="tasks">${l.tasks.map((t, j) => `<li><input type="checkbox" id="t${j}"><label for="t${j}">${t}</label></li>`).join("")}</ul>
       </div>
