@@ -1,0 +1,9 @@
+{
+  "name": "iteris-code",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Iteris Code — платформа для вивчення мов програмування (статичний сайт)",
+  "scripts": {
+    "build": "node build.js"
+  }
+}
