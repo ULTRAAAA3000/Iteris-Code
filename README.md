@@ -1,6 +1,6 @@
 # Iteris Code
 
-Платформа для вивчення мов програмування. Курси: Python, C++, Pascal, HTML, CSS, JavaScript, SQL.
+Платформа для вивчення мов програмування. Курси: Python, Go, Java, C++, Pascal, HTML, CSS, JavaScript, TypeScript, SQL. Уроки згруповані по главах.
 Кожен урок — це пояснення, приклад коду й завдання для самоперевірки.
 
 Статичний сайт без збірки: `index.html` + `lessons.js` (уроки) + `app.js` (логіка).

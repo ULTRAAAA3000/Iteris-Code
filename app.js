@@ -5,8 +5,8 @@ const count = (n, w) => n + " " + pl(n, ...w);
 const esc = s => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 const CATS = {
-  program: { title: "Програмування", desc: "Логічне мислення, алгоритми та мови, з яких починають і на яких працюють.", courses: ["python","cpp","pascal"] },
-  web: { title: "Web-технології", desc: "Розмітка, стилі та скрипти: усе, щоб створити живий сайт з нуля.", courses: ["html","css","js"] },
+  program: { title: "Програмування", desc: "Логічне мислення, алгоритми та мови, з яких починають і на яких працюють.", courses: ["python","go","java","cpp","pascal"] },
+  web: { title: "Web-технології", desc: "Розмітка, стилі та скрипти: усе, щоб створити живий сайт з нуля.", courses: ["html","css","js","ts"] },
   data: { title: "Бази даних", desc: "Зберігання даних і запити до них мовою SQL.", courses: ["sql"] }
 };
 const C = {
@@ -15,7 +15,10 @@ const C = {
   pascal: { name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
   html: { name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: структура, текст, списки, таблиці та форми." },
   css: { name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
-  js: { name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви та керування сторінкою через DOM." },
+  js: { name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви, DOM і запити до сервера.", next: "ts" },
+  go: { name: "Go", badge: "Go", color: "#00ADD8", cat: "program", desc: "Проста й швидка мова від Google: типи, функції та горутини для паралельності." },
+  java: { name: "Java", badge: "Jv", color: "#E76F00", cat: "program", desc: "Мова великих застосунків і Android: класи, змінні, умови та цикли." },
+  ts: { name: "TypeScript", badge: "TS", color: "#3178C6", cat: "web", req: "js", desc: "JavaScript із типами: менше помилок, зрозуміліший код. Продовження курсу JavaScript." },
   sql: { name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: вибірка, фільтрація, групування та об'єднання таблиць." }
 };
 Object.keys(C).forEach(k => { C[k].L = LESSONS[k]; C[k].tasks = LESSONS[k].reduce((s, l) => s + l.tasks.length, 0); });
@@ -122,14 +125,16 @@ function course(k) {
     <span><b>${p}</b> з ${c.L.length} пройдено</span>
     <a class="btn primary small" href="#/lesson/${k}/${next}">${p ? "Продовжити" : "Почати курс"}</a>
   </div>
+  ${c.req ? `<div class="callout"><b>Спершу JavaScript.</b> Цей курс спирається на ${C[c.req].name}. <a href="#/course/${c.req}">Перейти до курсу ${C[c.req].name}</a></div>` : ""}
   <ol class="lessons">
-    ${c.L.map((l, i) => { const n = i + 1, d = isDone(k, n); return `
+    ${c.L.map((l, i) => { const n = i + 1, d = isDone(k, n); return `${i === 0 || l.ch !== c.L[i - 1].ch ? `<li class="chap">Глава: ${l.ch}</li>` : ""}
     <li class="${d ? "done" : ""}">
       <span class="n">${pad(n)}</span>
       <a class="t" href="#/lesson/${k}/${n}">${l.t}</a>
       <span class="row-actions"><button class="icon-btn" data-toggle="${k}:${n}" aria-pressed="${d}" aria-label="Позначити урок ${n} пройденим">${d ? "Пройдено" : "Готово"}</button></span>
     </li>`; }).join("")}
-  </ol>`;
+  </ol>
+  ${c.next ? `<div class="callout"><b>Далі: ${C[c.next].name}.</b> Коли освоїте JavaScript, додайте до нього типи. <a href="#/course/${c.next}">Перейти до курсу ${C[c.next].name}</a></div>` : ""}`;
 }
 
 function lesson(k, n) {
@@ -140,10 +145,10 @@ function lesson(k, n) {
   <div class="lesson-layout">
     <aside class="side" aria-label="Уроки курсу">
       <h4>${c.name}</h4>
-      <ol>${c.L.map((x, j) => `<li><a href="#/lesson/${k}/${j + 1}" ${j === i ? 'aria-current="page"' : ""}><span>${pad(j + 1)}</span>${x.t}</a></li>`).join("")}</ol>
+      <ol>${c.L.map((x, j) => `${j === 0 || x.ch !== c.L[j - 1].ch ? `<li class="sch">${x.ch}</li>` : ""}<li><a href="#/lesson/${k}/${j + 1}" ${j === i ? 'aria-current="page"' : ""}><span>${pad(j + 1)}</span>${x.t}</a></li>`).join("")}</ol>
     </aside>
     <article class="lesson">
-      <div class="meta"><span class="tag" style="background:${c.color};${darkText(k)}">${c.name}</span><span>Урок ${n} з ${c.L.length}</span></div>
+      <div class="meta"><span class="tag" style="background:${c.color};${darkText(k)}">${c.name}</span><span>Урок ${n} з ${c.L.length}</span><span>Глава: ${l.ch}</span></div>
       <h1>${l.t}</h1>
       <div class="lesson-actions"><button class="btn small" data-toggle="${k}:${n}" aria-pressed="${d}">${d ? "Пройдено" : "Позначити пройденим"}</button></div>
       <div class="prose">

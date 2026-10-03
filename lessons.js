@@ -130,3 +130,287 @@ sql: [
   tasks: ["Порахуйте, скільки учнів у кожному класі.", "Виведіть імена учнів разом із назвою курсу через JOIN."] }
 ]
 };
+
+/* ===== Нові уроки ===== */
+LESSONS.python.push(
+{ t: "Рядки",
+  p: ["Рядок — це послідовність символів. Його довжину дає <code>len()</code>, а до окремих символів звертаються за індексом у квадратних дужках, починаючи з нуля.", "Від'ємний індекс рахує з кінця, а зріз <code>s[a:b]</code> бере частину рядка. Зручно вставляти значення в текст через f-рядки."],
+  code: [String.raw`s = "Привіт, Python"
+print(len(s), s.upper(), s.lower())
+print(s[0], s[-1], s[0:6])
+print(s.replace("Python", "світе"))
+
+name = "Олена"
+age = 16
+print(f"{name} має {age} років")
+print("a,b,c".split(","))`],
+  note: "Рядки в Python незмінні: методи на кшталт <code>upper()</code> повертають новий рядок, а не змінюють старий.",
+  tasks: ["Виведіть введене слово задом наперед (підказка: <code>s[::-1]</code>).", "Порахуйте, скільки разів літера «а» зустрічається в слові (метод <code>count</code>)."] },
+{ t: "Списки",
+  p: ["Список зберігає впорядковану колекцію елементів і може змінюватися. Створюють його квадратними дужками, а додають елементи методом <code>append</code>.", "Для перебору використовують <code>for</code>, а для швидкого створення нового списку — генератор списку у квадратних дужках."],
+  code: [String.raw`nums = [5, 2, 9]
+nums.append(7)
+nums.sort()
+print(nums, len(nums), nums[0])
+
+for n in nums:
+    print(n)
+
+print([n * 2 for n in nums])
+print(sum(nums), max(nums))`],
+  note: "Метод <code>sort()</code> змінює сам список, а функція <code>sorted(list)</code> повертає новий відсортований.",
+  tasks: ["Введіть п'ять чисел і виведіть їх у порядку спадання.", "Створіть список квадратів чисел від 1 до 10 одним генератором списку."] },
+{ t: "Функції",
+  p: ["Функція — іменований блок коду, який можна викликати багато разів. Її оголошують словом <code>def</code>, а результат повертають через <code>return</code>.", "Параметри можуть мати значення за замовчуванням, тоді їх можна не передавати під час виклику."],
+  code: [String.raw`def square(x):
+    return x * x
+
+def greet(name="друже"):
+    print("Привіт,", name)
+
+print(square(5))
+greet()
+greet("Олена")`],
+  note: "Змінні, створені всередині функції, існують лише в ній. Це називають локальною областю видимості.",
+  tasks: ["Напишіть функцію, що повертає більше з двох чисел.", "Зробіть функцію is_even(n), що повертає True для парного числа."] }
+);
+LESSONS.js.push(
+{ t: "Проміси, async та fetch",
+  p: ["Деякі дії, наприклад запит до сервера, тривають довго. JavaScript не зупиняє сторінку, а повертає проміс — обіцянку результату, який з'явиться пізніше.", "Результат промісу обробляють методами <code>then</code> і <code>catch</code> або зручніше через <code>async/await</code>."],
+  code: [String.raw`fetch("https://api.github.com/users/octocat")
+  .then(r => r.json())
+  .then(d => console.log(d.name))
+  .catch(e => console.log("Помилка:", e));
+
+async function load() {
+  try {
+    const r = await fetch("https://api.github.com/users/octocat");
+    const d = await r.json();
+    console.log(d.public_repos);
+  } catch (e) {
+    console.log("Помилка:", e);
+  }
+}
+load();`],
+  note: "Слово <code>await</code> можна використовувати лише всередині функції, оголошеної як <code>async</code>.",
+  tasks: ["Виведіть у консоль кількість публічних репозиторіїв будь-якого користувача GitHub.", "Додайте обробку помилки на випадок, якщо мережі немає."] }
+);
+LESSONS.go = [
+{ t: "Перша програма на Go",
+  p: ["Go — проста й швидка мова від Google, яку люблять за зрозумілий синтаксис і вбудовану підтримку паралельності. Кожна програма належить до пакета: виконувані програми живуть у пакеті <code>main</code>.", "Бібліотеки підключає <code>import</code>, а виводить текст пакет <code>fmt</code>. Запуск: команда <code>go run main.go</code>."],
+  code: [String.raw`package main
+
+import "fmt"
+
+func main() {
+	fmt.Println("Привіт, світе!")
+	fmt.Println("2 + 3 =", 2+3)
+}`],
+  note: "Якщо підключити пакет і не використати його, Go не скомпілює програму. Це свідоме правило мови.",
+  tasks: ["Виведіть своє ім'я та вік двома рядками.", "Обчисліть і виведіть значення виразу (8 + 4) * 3."] },
+{ t: "Змінні та типи",
+  p: ["Змінну оголошують через <code>var</code> із типом або коротким записом <code>:=</code>, який сам визначає тип. Короткий запис працює лише всередині функцій.", "Основні типи: <code>int</code>, <code>float64</code>, <code>string</code>, <code>bool</code>. Тип змінної змінити не можна."],
+  code: [String.raw`package main
+
+import "fmt"
+
+func main() {
+	var age int = 16
+	name := "Олена"
+	height := 1.75
+	isStudent := true
+
+	fmt.Println(name, age, height, isStudent)
+	fmt.Printf("%T %T %T\n", age, name, height)
+}`],
+  note: "Невикористана змінна теж викликає помилку компіляції. Для тимчасового значення використовують <code>_</code>.",
+  tasks: ["Збережіть у змінних два числа й виведіть їхню суму та різницю.", "Виведіть тип змінної, створеної записом <code>x := 3.0</code>."] },
+{ t: "Умови, цикли та функції",
+  p: ["У Go є лише один цикл — <code>for</code>, але він замінює і while. Умови в <code>if</code> пишуть без круглих дужок.", "Функція може повертати кілька значень одразу. Так прийнято повертати результат разом із ознакою успіху або помилкою."],
+  code: [String.raw`package main
+
+import "fmt"
+
+func divide(a, b int) (int, bool) {
+	if b == 0 {
+		return 0, false
+	}
+	return a / b, true
+}
+
+func main() {
+	for i := 1; i <= 3; i++ {
+		fmt.Println("Крок", i)
+	}
+	if res, ok := divide(10, 2); ok {
+		fmt.Println("Результат:", res)
+	} else {
+		fmt.Println("Ділення на нуль")
+	}
+}`],
+  note: "Відкриваючу фігурну дужку потрібно ставити в тому ж рядку, що й <code>if</code>, <code>for</code> або <code>func</code>.",
+  tasks: ["Виведіть парні числа від 1 до 20.", "Напишіть функцію, що повертає суму й добуток двох чисел."] },
+{ t: "Горутини та канали",
+  p: ["Горутина — легкий потік виконання. Щоб запустити функцію паралельно, перед її викликом пишуть слово <code>go</code>.", "Горутини обмінюються даними через канали. <code>sync.WaitGroup</code> дозволяє дочекатися, поки всі горутини закінчать роботу."],
+  code: [String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var wg sync.WaitGroup
+	ch := make(chan int, 3)
+	for i := 1; i <= 3; i++ {
+		wg.Add(1)
+		go func(n int) {
+			defer wg.Done()
+			ch <- n * n
+		}(i)
+	}
+	wg.Wait()
+	close(ch)
+	for v := range ch {
+		fmt.Println(v)
+	}
+}`],
+  note: "Порядок виведення може відрізнятися між запусками: горутини виконуються паралельно й незалежно.",
+  tasks: ["Запустіть три горутини, кожна з яких надсилає в канал своє число.", "Підсумуйте всі значення з каналу після завершення горутин."] }
+];
+LESSONS.ts = [
+{ t: "Від JavaScript до TypeScript",
+  p: ["TypeScript — це JavaScript із типами. Будь-який код на JavaScript уже є правильним TypeScript, а типи додаються зверху й перевіряються до запуску програми.", "Типи записують після імені через двокрапку. Компілятор <code>tsc</code> знаходить помилки ще до виконання і перетворює файл <code>.ts</code> на звичайний <code>.js</code>."],
+  code: [String.raw`// JavaScript: помилку видно лише під час запуску
+function greet(name) {
+  return "Привіт, " + name;
+}
+
+// TypeScript: ті самі дії, але з типами
+function greetTyped(name: string): string {
+  return "Привіт, " + name;
+}
+
+let age: number = 16;
+let isStudent: boolean = true;
+age = "шістнадцять"; // помилка: string не можна присвоїти number`],
+  note: "Після компіляції типи зникають: у браузері виконується звичайний JavaScript.",
+  tasks: ["Додайте типи до функції add(a, b), що повертає суму двох чисел.", "Спробуйте передати рядок замість числа й подивіться на повідомлення компілятора."] },
+{ t: "Union-типи та літерали",
+  p: ["Змінна може допускати кілька типів: їх перелічують через <code>|</code>. Усередині функції потрібно перевірити, який саме тип прийшов, і тоді компілятор дозволить відповідні дії.", "Літеральний тип обмежує значення конкретним набором, наприклад <code>\"ok\" | \"error\"</code>."],
+  code: [String.raw`let id: number | string = 42;
+id = "A-17";
+
+function show(v: number | string): string {
+  if (typeof v === "string") {
+    return v.toUpperCase();
+  }
+  return v.toFixed(2);
+}
+
+type Status = "ok" | "error";
+const s: Status = "ok";
+// const bad: Status = "wait"; // помилка`],
+  note: "Перевірка <code>typeof</code> звужує тип: у кожній гілці компілятор точно знає, з чим працює.",
+  tasks: ["Напишіть функцію, що приймає число або рядок і повертає його довжину або саме число.", "Створіть тип Direction зі значеннями «up», «down», «left», «right»."] },
+{ t: "Інтерфейси та об'єкти",
+  p: ["Інтерфейс описує форму об'єкта: які в нього поля й яких вони типів. Поле зі знаком <code>?</code> необов'язкове.", "Так TypeScript ловить помилки на кшталт опечатки в назві поля, які в JavaScript залишилися б непоміченими."],
+  code: [String.raw`interface User {
+  id: number;
+  name: string;
+  email?: string;
+}
+
+const u: User = { id: 1, name: "Олена" };
+
+function info(user: User): string {
+  return user.id + ": " + user.name;
+}
+
+const list: User[] = [u, { id: 2, name: "Артем", email: "a@x.ua" }];
+console.log(list.map(info));`],
+  note: "Інтерфейси існують лише на етапі компіляції й не потрапляють у фінальний JavaScript.",
+  tasks: ["Опишіть інтерфейс Product із назвою, ціною та необов'язковим описом.", "Напишіть функцію, що повертає загальну вартість масиву товарів."] },
+{ t: "Узагальнення (generics)",
+  p: ["Узагальнення дозволяють написати функцію або тип, що працює з будь-яким типом, але зберігає точну інформацію про нього. Тип-параметр записують у кутових дужках, зазвичай <code>T</code>.", "Компілятор сам виводить, чим є T, за переданими аргументами."],
+  code: [String.raw`function first<T>(arr: T[]): T | undefined {
+  return arr[0];
+}
+
+const n = first([1, 2, 3]);      // number | undefined
+const s = first(["a", "b"]);     // string | undefined
+
+interface Box<T> {
+  value: T;
+}
+const b: Box<number> = { value: 5 };`],
+  note: "Масив <code>number[]</code> можна записати також як <code>Array&lt;number&gt;</code>: це та сама ідея.",
+  tasks: ["Напишіть узагальнену функцію last, що повертає останній елемент масиву.", "Створіть тип Pair<A, B> із двома полями різних типів."] }
+];
+LESSONS.java = [
+{ t: "Перша програма на Java",
+  p: ["Java — одна з найпоширеніших мов для великих застосунків і Android. Увесь код живе в класах, а запуск починається з методу <code>main</code>.", "Вивід у консоль робить <code>System.out.println</code>. Назва файлу має збігатися з назвою публічного класу."],
+  code: [String.raw`public class Main {
+    public static void main(String[] args) {
+        System.out.println("Привіт, світе!");
+        System.out.println("2 + 3 = " + (2 + 3));
+    }
+}`],
+  note: "Java чутлива до регістру: <code>Main</code> і <code>main</code> — це різні імена.",
+  tasks: ["Виведіть три рядки: ім'я, клас, місто.", "Виведіть результат виразу 17 / 5 та 17 % 5."] },
+{ t: "Змінні та ввід",
+  p: ["Тип змінної вказують явно: <code>int</code>, <code>double</code>, <code>boolean</code>, <code>String</code>. Рядок <code>String</code> пишеться з великої літери, бо це клас.", "Читати дані з клавіатури допомагає клас <code>Scanner</code>."],
+  code: [String.raw`import java.util.Scanner;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        System.out.print("Ім'я: ");
+        String name = sc.nextLine();
+        System.out.print("Вік: ");
+        int age = sc.nextInt();
+        System.out.println(name + ", через 5 років вам буде " + (age + 5));
+    }
+}`],
+  note: "Ділення двох цілих чисел дає ціле: для дробового результату хоча б одне з них має бути <code>double</code>.",
+  tasks: ["Прочитайте два числа й виведіть їхню суму.", "Обчисліть площу прямокутника за введеними сторонами."] },
+{ t: "Умови та цикли",
+  p: ["Умовний оператор <code>if / else</code> і цикли <code>for</code> та <code>while</code> записуються так само, як у C++. Тіло блока беруть у фігурні дужки.", "Для перебору масиву існує зручний цикл <code>for-each</code>."],
+  code: [String.raw`public class Main {
+    public static void main(String[] args) {
+        int[] nums = {4, 7, 1, 9};
+        int sum = 0;
+        for (int n : nums) {
+            if (n % 2 == 1) {
+                sum += n;
+            }
+        }
+        System.out.println("Сума непарних: " + sum);
+
+        int i = 1;
+        while (i <= 3) {
+            System.out.println("Крок " + i);
+            i++;
+        }
+    }
+}`],
+  note: "Порівнювати рядки потрібно методом <code>equals</code>, а не знаком <code>==</code>.",
+  tasks: ["Знайдіть найбільше число в масиві.", "Виведіть таблицю множення на 6."] }
+];
+
+const CHAPTERS = {
+  python: [["Основи", 0], ["Керування програмою", 2], ["Рядки, списки, функції", 4]],
+  cpp: [["Основи", 0], ["Керування програмою", 2]],
+  pascal: [["Основи", 0], ["Керування програмою", 2]],
+  html: [["Структура сторінки", 0], ["Вміст і форми", 1]],
+  css: [["Основи стилів", 0], ["Макет", 1]],
+  js: [["Основи", 0], ["Дані та браузер", 2], ["Асинхронність", 4]],
+  sql: [["Вибірка даних", 0], ["Підсумки й зв'язки", 2]],
+  go: [["Основи", 0], ["Керування й функції", 2], ["Паралельність", 3]],
+  ts: [["Типи", 0], ["Структури даних", 2], ["Узагальнення", 3]],
+  java: [["Основи", 0], ["Керування програмою", 2]]
+};
+Object.keys(CHAPTERS).forEach(k => CHAPTERS[k].forEach(([name, from], i, a) => {
+  const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[k].length;
+  for (let j = from; j < to; j++) LESSONS[k][j].ch = name;
+}));
