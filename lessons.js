@@ -414,3 +414,216 @@ Object.keys(CHAPTERS).forEach(k => CHAPTERS[k].forEach(([name, from], i, a) => {
   const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[k].length;
   for (let j = from; j < to; j++) LESSONS[k][j].ch = name;
 }));
+
+/* ===== PHP, Git, Bash ===== */
+LESSONS.php = [
+{ t: "Перша програма на PHP",
+  p: ["PHP — мова для серверної частини сайтів: на ній працює WordPress та значна частина вебу. Код PHP виконується на сервері, а браузер отримує вже готовий HTML.", "PHP-код пишуть між тегами <code>&lt;?php</code> і <code>?&gt;</code>. Вивід на сторінку робить <code>echo</code>. Локальний сервер запускають командою <code>php -S localhost:8000</code>."],
+  code: [String.raw`<?php
+// це коментар
+echo "Привіт, світе!";
+echo "<p>2 + 3 = " . (2 + 3) . "</p>";
+?>`],
+  note: "Кожна інструкція завершується крапкою з комою, а склеювання рядків виконує крапка <code>.</code>, а не плюс.",
+  tasks: ["Виведіть на сторінку заголовок і два абзаци за допомогою echo.", "Запустіть вбудований сервер і відкрийте файл у браузері."] },
+{ t: "Змінні та типи даних",
+  p: ["Імена змінних у PHP починаються зі знака долара. Тип визначається автоматично за значенням: <code>int</code>, <code>float</code>, <code>string</code>, <code>bool</code>.", "У рядках у подвійних лапках змінні підставляються прямо в текст, а в одинарних лапках виводиться буквальний текст."],
+  code: [String.raw`<?php
+$name = "Олена";
+$age = 16;
+$height = 1.75;
+$isStudent = true;
+
+echo "Привіт, $name! Вам $age років.<br>";
+echo 'У одинарних лапках: $name<br>';
+var_dump($age, $height, $isStudent);
+echo gettype($name);
+?>`],
+  note: "Функція <code>var_dump</code> показує і значення, і тип. Це головний інструмент налагодження для початківця.",
+  tasks: ["Обчисліть площу кола за радіусом і виведіть її з двома знаками (<code>round($s, 2)</code>).", "Виведіть тип значень 7, 7.0 і \"7\" через gettype."] },
+{ t: "Умови та цикли",
+  p: ["Умови записують через <code>if / elseif / else</code>. Цикли <code>for</code> і <code>while</code> працюють так само, як у C-подібних мовах.", "Для спрощення вибору з багатьох варіантів є <code>match</code>, який повертає значення."],
+  code: [String.raw`<?php
+$score = 85;
+
+if ($score >= 90) {
+    echo "Відмінно";
+} elseif ($score >= 75) {
+    echo "Добре";
+} else {
+    echo "Потрібно підтягнути";
+}
+
+for ($i = 1; $i <= 5; $i++) {
+    echo "Крок $i<br>";
+}
+
+$day = 3;
+echo match ($day) {
+    1 => "Понеділок",
+    2 => "Вівторок",
+    3 => "Середа",
+    default => "Інший день",
+};
+?>`],
+  note: "Оператор <code>===</code> порівнює значення разом із типом, тому <code>0 === \"0\"</code> дає false.",
+  tasks: ["Виведіть парні числа від 1 до 20.", "Визначте за номером місяця пору року через match."] },
+{ t: "Масиви",
+  p: ["Масив у PHP — універсальна структура. Індексований масив зберігає значення за номерами, асоціативний — за ключами-рядками.", "Перебирають масиви циклом <code>foreach</code>. Корисні функції: <code>count</code>, <code>in_array</code>, <code>array_map</code>, <code>sort</code>."],
+  code: [String.raw`<?php
+$langs = ["PHP", "Go", "Python"];
+$langs[] = "Java";
+echo count($langs);
+
+$user = ["name" => "Олена", "age" => 16];
+echo $user["name"];
+
+foreach ($user as $key => $value) {
+    echo "$key: $value<br>";
+}
+
+$nums = [3, 1, 2];
+sort($nums);
+$sq = array_map(fn($n) => $n * $n, $nums);
+print_r($sq);
+?>`],
+  note: "Додати елемент у кінець масиву можна коротким записом <code>$arr[] = значення</code>.",
+  tasks: ["Створіть асоціативний масив товару з назвою та ціною й виведіть його циклом.", "Підрахуйте суму чисел масиву за допомогою foreach."] },
+{ t: "Функції та обробка форм",
+  p: ["Функції оголошують словом <code>function</code>. Для типів параметрів і результату можна додавати анотації, це робить код надійнішим.", "Дані з форми приходять у суперглобальний масив <code>$_POST</code>. Будь-який введений користувачем текст перед виведенням обов'язково екранують функцією <code>htmlspecialchars</code>, щоб захиститись від XSS."],
+  code: [String.raw`<?php
+function greet(string $name): string {
+    return "Привіт, " . htmlspecialchars($name) . "!";
+}
+
+if ($_SERVER["REQUEST_METHOD"] === "POST") {
+    $name = trim($_POST["name"] ?? "");
+    echo $name !== "" ? greet($name) : "Введіть ім'я";
+}
+?>
+<form method="post">
+  <input type="text" name="name">
+  <button>Надіслати</button>
+</form>`],
+  note: "Ніколи не виводьте дані користувача на сторінку без екранування: це одна з найпоширеніших вразливостей.",
+  tasks: ["Зробіть форму з двома числами, що виводить їхню суму.", "Додайте перевірку, що поле не порожнє."] }
+];
+LESSONS.git = [
+{ t: "Що таке Git і перші коміти",
+  p: ["Git — система контролю версій: вона запам'ятовує всі зміни коду, дозволяє повернутися до будь-якого стану й працювати над проєктом удвох чи більше людей. Без Git не обходиться жодна команда розробників.", "Основний цикл простий: змінюєте файли, додаєте їх у індекс командою <code>add</code> і фіксуєте стан командою <code>commit</code>."],
+  code: [String.raw`git config --global user.name "Ваше Ім'я"
+git config --global user.email "you@example.com"
+
+git init
+echo "# Мій проєкт" > README.md
+git status
+git add README.md
+git commit -m "Додав README"
+git log --oneline`],
+  note: "Повідомлення коміту має коротко пояснювати, що змінилося й навіщо. Це перше, що читають колеги.",
+  tasks: ["Створіть репозиторій, додайте два файли двома окремими комітами.", "Виведіть історію командою <code>git log --oneline</code>."] },
+{ t: "Гілки та злиття",
+  p: ["Гілка — окрема лінія розвитку проєкту. Нову функцію пишуть у власній гілці, щоб не зламати основну <code>main</code>.", "Коли робота готова, гілку зливають в основну командою <code>merge</code>."],
+  code: [String.raw`git switch -c feature-login
+# ...змінюємо файли...
+git add .
+git commit -m "Додав форму входу"
+
+git switch main
+git merge feature-login
+git branch -d feature-login
+git branch`],
+  note: "Перш ніж зливати, переконайтеся, що перебуваєте в тій гілці, У яку хочете влити зміни.",
+  tasks: ["Створіть гілку, зробіть у ній коміт і злийте в main.", "Подивіться список гілок командою <code>git branch</code>."] },
+{ t: "Віддалений репозиторій: GitHub",
+  p: ["Віддалений репозиторій зберігає код на сервері, наприклад на GitHub. Копію проєкту отримують командою <code>clone</code>, відправляють зміни командою <code>push</code>, а забирають чужі зміни командою <code>pull</code>.", "Для зручності віддалений адрес отримує коротке ім'я, зазвичай <code>origin</code>."],
+  code: [String.raw`git clone https://github.com/user/project.git
+cd project
+
+git remote -v
+git pull
+# ...змінюємо файли...
+git add .
+git commit -m "Виправив помилку у формі"
+git push origin main`],
+  note: "Перед <code>push</code> завжди виконуйте <code>pull</code>: так ви уникнете зайвих конфліктів.",
+  tasks: ["Створіть репозиторій на GitHub, склонуйте його й відправте перший коміт.", "Змініть файл у браузері на GitHub і заберіть зміни командою pull."] },
+{ t: "Командна робота: pull request і конфлікти",
+  p: ["У командах зміни зазвичай не пушать у main напряму. Створюють гілку, відправляють її на GitHub і відкривають <b>pull request</b> — запит на злиття, який переглядають колеги.", "Якщо двоє змінили той самий рядок, виникає конфлікт. Git позначає його маркерами у файлі, а ви залишаєте правильний варіант і робите коміт."],
+  code: [String.raw`git switch -c fix-header
+git add .
+git commit -m "Виправив шапку сайту"
+git push -u origin fix-header
+# далі відкрийте Pull Request на GitHub
+
+# приклад маркерів конфлікту у файлі:
+# <<<<<<< HEAD
+# <h1>Привіт</h1>
+# =======
+# <h1>Вітаю</h1>
+# >>>>>>> fix-header
+
+git add index.html
+git commit -m "Розв'язав конфлікт"
+
+# файл .gitignore: що не потрапляє в репозиторій
+# node_modules
+# .env`],
+  note: "Файли з паролями та ключами (наприклад <code>.env</code>) ніколи не додавайте в репозиторій. Занесіть їх у <code>.gitignore</code>.",
+  tasks: ["Відкрийте pull request у своєму репозиторії зі зміною README.", "Спеціально створіть і розв'яжіть конфлікт у двох гілках."] }
+];
+LESSONS.bash = [
+{ t: "Командний рядок: файли та папки",
+  p: ["Командний рядок (термінал) — основний інструмент розробника. У ньому швидко переміщуються по папках, створюють і копіюють файли. На Linux і macOS це Bash, а на Windows його можна отримати через WSL або Git Bash.", "Найважливіші команди: <code>pwd</code> показує поточну папку, <code>ls</code> — вміст, <code>cd</code> переходить, <code>mkdir</code> створює папку."],
+  code: [String.raw`pwd
+ls -la
+mkdir project
+cd project
+touch index.html style.css
+cp index.html backup.html
+mv backup.html old.html
+rm old.html
+cd ..`],
+  note: "Команда <code>rm</code> видаляє назавжди, без кошика. Перш ніж запускати її, перевірте шлях двічі.",
+  tasks: ["Створіть структуру папок site/css і site/js та по файлу в кожній.", "Скопіюйте папку разом з вмістом командою <code>cp -r</code>."] },
+{ t: "Перегляд тексту, пошук і конвеєри",
+  p: ["Вміст файлу показує <code>cat</code>, початок — <code>head</code>, кінець — <code>tail</code>. Пошук по тексту виконує <code>grep</code>.", "Символ <code>|</code> передає вивід однієї команди на вхід іншої, а <code>&gt;</code> записує результат у файл. З таких простих деталей збирають потужні команди."],
+  code: [String.raw`cat notes.txt
+head -n 5 notes.txt
+tail -n 5 notes.txt
+
+grep "error" server.log
+grep -i -n "warning" server.log
+
+ls | wc -l
+cat server.log | grep "error" | wc -l
+ls -la > files.txt`],
+  note: "Прапорець <code>-i</code> у grep ігнорує регістр, а <code>-n</code> показує номери рядків.",
+  tasks: ["Порахуйте кількість рядків із словом «error» у лог-файлі.", "Збережіть список файлів поточної папки у файл files.txt."] },
+{ t: "Права доступу та перші скрипти",
+  p: ["Кожен файл має права на читання, запис і виконання для власника, групи та інших. Змінити їх можна командою <code>chmod</code>.", "Скрипт — це файл із командами, який запускається одним викликом. Перший рядок <code>#!/bin/bash</code> каже системі, чим його виконувати."],
+  code: [String.raw`#!/bin/bash
+# файл backup.sh
+name="project"
+echo "Копіюю $name..."
+
+for f in *.txt; do
+    cp "$f" "backup_$f"
+    echo "Скопійовано $f"
+done
+
+# запуск:
+# chmod +x backup.sh
+# ./backup.sh`],
+  note: "Змінну у Bash створюють без пробілів навколо знака <code>=</code>: <code>name=\"x\"</code> працює, а <code>name = \"x\"</code> — ні.",
+  tasks: ["Напишіть скрипт, що створює папку з поточною датою (<code>date +%F</code>).", "Додайте скрипту права на виконання й запустіть його."] }
+];
+Object.assign(CHAPTERS, {
+  php: [["Основи", 0], ["Керування й дані", 2], ["Веб і форми", 4]],
+  git: [["Основи Git", 0], ["Робота в команді", 2]],
+  bash: [["Файли й папки", 0], ["Текст і скрипти", 1]]
+});
+["php", "git", "bash"].forEach(k => CHAPTERS[k].forEach(([name, from], i, a) => {
+  const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[k].length;
+  for (let j = from; j < to; j++) LESSONS[k][j].ch = name;
+}));
