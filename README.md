@@ -11,3 +11,6 @@
 
 ## Деплой
 Netlify: Add new site → Import from Git, Build command порожня, Publish directory `.`
+
+## Особистий кабінет
+Вхід через Google, прогрес і дашборд працюють через Cloudflare Pages Functions та D1. Налаштування: [SETUP.md](SETUP.md).

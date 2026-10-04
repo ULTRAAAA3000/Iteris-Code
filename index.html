@@ -217,6 +217,53 @@ footer p{margin:10px 0 0;color:var(--muted);max-width:32ch}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
 @keyframes blink{50%{outline-color:transparent}}
 td.sel{animation:blink 1.4s steps(1) 3}
+
+/* особистий кабінет */
+.acct{display:flex;align-items:center;gap:10px;flex:none}
+.acct-user{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;max-width:180px}
+.acct-user span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.avatar{display:inline-block;width:34px;height:34px;border-radius:50%;border:2px solid var(--ink);object-fit:cover;background:var(--grid);flex:none}
+.avatar.big{width:72px;height:72px}
+@media (max-width:640px){.acct-user span:last-child{display:none}}
+.dash{display:grid;gap:24px}
+.dash h3{margin:0 0 12px;font-size:1.05rem}
+.dash-head{display:flex;flex-wrap:wrap;gap:18px;align-items:center}
+.dash-head h1{font-size:clamp(1.4rem,3.4vw,2.1rem);margin:0}
+.dash-head p{margin:4px 0 0;color:var(--muted)}
+.dash-head .grow{flex:1 1 240px}
+.plan-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.plan{display:inline-block;padding:4px 12px;border-radius:99px;border:2px solid var(--ink);font-weight:800;font-size:.8rem}
+.plan.free{background:var(--grid)}
+.plan.pro{background:linear-gradient(135deg,#2F5BEA,#7B61FF);color:#fff;border-color:transparent}
+.dash-grid{display:grid;gap:24px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.dash-muted{color:var(--muted)}
+.dash-focus{font-weight:700;margin:6px 0 14px}
+.dash-guest{max-width:560px;display:grid;gap:14px}
+.dash-guest h1{font-size:clamp(1.5rem,3.5vw,2.2rem);margin:0}
+.streak{display:flex;align-items:center;gap:14px;margin-bottom:8px}
+.streak span:first-child{font-size:2rem}
+.streak b{font-family:var(--display);font-size:2.6rem;line-height:1}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center}
+.stats3 strong{display:block;font-family:var(--display);font-size:1.8rem}
+.stats3 span{color:var(--muted);font-size:.85rem}
+.skills{display:grid;gap:20px;grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.skill h3{display:flex;justify-content:space-between;gap:10px}
+.skill .bar{flex:none;height:12px;margin-bottom:12px}
+.skill ul{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:.92rem}
+.skill li{display:flex;justify-content:space-between;gap:8px}
+.skill li a{font-weight:600;text-decoration:none}
+.locked{color:var(--muted);font-size:.82rem;margin:12px 0 0}
+.heat-wrap{overflow-x:auto;padding-bottom:6px}
+.heat{display:grid;grid-template-rows:repeat(7,12px);grid-auto-flow:column;grid-auto-columns:12px;gap:3px;width:max-content}
+.heat i,.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;background:var(--grid);border:1px solid var(--line)}
+.heat .l1,.legend .l1{background:#B9D7C4}.heat .l2,.legend .l2{background:#7FC49A}
+.heat .l3,.legend .l3{background:#3FA96B}.heat .l4,.legend .l4{background:#1E8E4E}
+.legend{display:flex;align-items:center;gap:4px;margin:10px 0 0;font-size:.82rem}
+.legend i{margin:0 1px}
+.subs{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.subs li{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.s-ok{color:var(--ok);font-weight:700}.s-fail{color:var(--margin);font-weight:700}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:10px;z-index:50;max-width:90vw;font-weight:600}
 </style>
 </head>
 <body>
@@ -236,6 +283,7 @@ td.sel{animation:blink 1.4s steps(1) 3}
     <button class="theme" id="theme" aria-label="Перемкнути тему">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>
     </button>
+    <div class="acct" id="acct"></div>
   </div>
 </header>
 
@@ -267,6 +315,7 @@ td.sel{animation:blink 1.4s steps(1) 3}
 </footer>
 
 <script src="lessons.js"></script>
+<script src="account.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

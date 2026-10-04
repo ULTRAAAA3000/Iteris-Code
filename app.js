@@ -36,7 +36,7 @@ const store = {
 };
 let done = store.get("ic-done", {});
 const isDone = (k, n) => (done[k] || []).includes(n);
-function toggle(k, n) { const s = new Set(done[k] || []); s.has(n) ? s.delete(n) : s.add(n); done[k] = [...s].sort((a, b) => a - b); store.set("ic-done", done); }
+function toggle(k, n) { const s = new Set(done[k] || []); s.has(n) ? s.delete(n) : s.add(n); done[k] = [...s].sort((a, b) => a - b); store.set("ic-done", done); Auth.syncLesson(k, n, isDone(k, n)); }
 const progress = k => (done[k] || []).length;
 
 const app = document.getElementById("app");
@@ -186,6 +186,7 @@ function render() {
   else if (CATS[a]) { html = dir(a); active = a; title = CATS[a].title + " — " + BRAND; }
   else if (a === "course" && C[b]) { html = course(b); active = C[b].cat; title = C[b].name + " — " + BRAND; }
   else if (a === "lesson" && C[b] && C[b].L[(+c) - 1]) { html = lesson(b, +c); active = C[b].cat; title = C[b].L[c - 1].t + " — " + BRAND; }
+  else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
   else html = notFound();
   app.innerHTML = html;
   document.title = title;
@@ -224,3 +225,4 @@ document.getElementById("theme").addEventListener("click", () => {
   root.setAttribute("data-theme", next); store.set("ic-theme", next);
 });
 render();
+Auth.init();
