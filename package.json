@@ -1,10 +1,18 @@
 {
   "name": "iteris-code",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
-  "description": "Iteris Code — платформа для вивчення мов програмування (статичний сайт)",
+  "type": "module",
+  "description": "Iteris Code — платформа для вивчення мов програмування",
   "scripts": {
-    "build": "node build.js",
-    "test": "node tests/api.test.mjs"
+    "build": "node build.mjs",
+    "check": "tsc -p tsconfig.json && tsc -p functions/tsconfig.json",
+    "test": "node tests/api.test.mjs && node tests/runner.test.mjs",
+    "test:ui": "node tests/ui.test.mjs"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20250101.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.8.0"
   }
 }

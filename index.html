@@ -218,6 +218,26 @@ footer p{margin:10px 0 0;color:var(--muted);max-width:32ch}
 @keyframes blink{50%{outline-color:transparent}}
 td.sel{animation:blink 1.4s steps(1) 3}
 
+
+/* екран уроку з редактором */
+.ws{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;align-items:start}
+.ws-left{max-height:calc(100vh - 150px);overflow:auto;padding-right:8px}
+.ws-right{position:sticky;top:90px;display:grid;gap:10px}
+.ws-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ws-tab{font-family:var(--mono,monospace);font-weight:700;padding:4px 10px;border:2px solid var(--ink);border-radius:8px;background:var(--grid)}
+.ws-spacer{flex:1}
+.ws-editor{height:min(420px,50vh);border:2px solid var(--ink);border-radius:10px;overflow:hidden;background:var(--paper)}
+.ws-plain{width:100%;height:100%;box-sizing:border-box;border:0;padding:12px;resize:none;font:14px/1.5 var(--mono,monospace);background:#0B1020;color:#EAEFFC;tab-size:2}
+.ws-term{margin:0;min-height:120px;max-height:260px;overflow:auto;padding:12px 14px;border-radius:10px;background:#0B1020;color:#EAEFFC;font:13px/1.55 var(--mono,monospace);white-space:pre-wrap}
+.t-ok{color:#5BD68A}.t-fail{color:#FF8A80}.t-dim{color:#9AA6C5}
+.task-brief{margin-top:28px;padding-top:8px;border-top:2px dashed var(--line)}
+.paywall{padding:14px 16px;border:2px solid var(--ink);border-radius:10px;background:linear-gradient(135deg,rgba(47,91,234,.14),rgba(123,97,255,.14))}
+.paywall p{margin:6px 0 10px}
+.ws-win{display:flex;gap:12px;align-items:center;padding:12px 16px;border-radius:10px;border:2px solid #1E8E4E;background:rgba(30,142,78,.14);animation:ws-pop .45s cubic-bezier(.2,1.4,.4,1)}
+.ws-win-icon{font-size:2rem}
+@keyframes ws-pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+@media (prefers-reduced-motion:reduce){.ws-win{animation:none}}
+@media (max-width:900px){.ws{grid-template-columns:1fr}.ws-left{max-height:none;overflow:visible;padding:0}.ws-right{position:static}}
 /* особистий кабінет */
 .acct{display:flex;align-items:center;gap:10px;flex:none}
 .acct-user{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;max-width:180px}
@@ -314,8 +334,6 @@ td.sel{animation:blink 1.4s steps(1) 3}
   </div>
 </footer>
 
-<script src="lessons.js"></script>
-<script src="account.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

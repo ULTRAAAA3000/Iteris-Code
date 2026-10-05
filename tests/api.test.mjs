@@ -3,12 +3,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
-import { createSession, readSession, bumpStreak, effectiveStreak, isProActive } from "../lib/session.js";
-import { onRequestPost as google } from "../functions/api/auth/google.js";
-import { onRequestPost as logout } from "../functions/api/auth/logout.js";
-import { onRequestGet as me } from "../functions/api/me.js";
-import { onRequestGet as dashboard } from "../functions/api/dashboard.js";
-import { onRequestGet as progressGet, onRequestPost as progressPost } from "../functions/api/progress.js";
+import { createSession, readSession, bumpStreak, effectiveStreak, isProActive } from "../lib/session.ts";
+import { onRequestPost as google } from "../functions/api/auth/google.ts";
+import { onRequestPost as logout } from "../functions/api/auth/logout.ts";
+import { onRequestGet as me } from "../functions/api/me.ts";
+import { onRequestGet as dashboard } from "../functions/api/dashboard.ts";
+import { onRequestGet as progressGet, onRequestPost as progressPost } from "../functions/api/progress.ts";
+import { onRequestPost as complete } from "../functions/api/progress/complete.ts";
 
 const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
@@ -119,6 +120,46 @@ await test("дашборд: уроки, остання активність, к�
   const today = new Date().toISOString().slice(0, 10);
   assert.equal(r.data.activity[today], 4 + 2);
   assert.equal(r.data.user.streak, 1);
+});
+await test("завдання: авторизація, валідація, перевірка Pro на сервері", async () => {
+  const C = (body, o = {}) => call(complete, req("/api/progress/complete", { method: "POST", body, cookie, ...o }));
+  assert.equal((await call(complete, req("/api/progress/complete", { method: "POST", body: { taskId: "js-safe-city", code: "x", passed: true } }))).status, 401);
+  assert.equal((await C({ taskId: "nope", code: "x", passed: true })).status, 400);
+  assert.equal((await C({ taskId: "js-safe-city", code: "x".repeat(20001), passed: true })).status, 400);
+  assert.equal((await C({ taskId: "js-safe-city", code: "x" })).status, 400);
+  assert.equal((await C({ taskId: "js-safe-city", code: "x", passed: true }, { origin: "https://evil.example" })).status, 403);
+  // преміум-завдання без підписки
+  const denied = await C({ taskId: "js-cart-total", code: "x", passed: true });
+  assert.equal(denied.status, 402);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM task_submissions WHERE task_id = 'js-cart-total'").get().c, 0);
+  // безкоштовне завдання: перше розв'язання дає XP, повторне — ні
+  const first = await C({ taskId: "js-safe-city", code: "ok", passed: true });
+  assert.equal(first.status, 200);
+  assert.equal(first.data.firstSolve, true); assert.equal(first.data.xp, 20); assert.equal(first.data.streak, 1);
+  const again = await C({ taskId: "js-safe-city", code: "ok2", passed: true });
+  assert.equal(again.data.firstSolve, false); assert.equal(again.data.xp, 0);
+  // невдала спроба не дає XP і не рахується розв'язаною
+  const fail = await C({ taskId: "js-counter-bug", code: "bad", passed: false });
+  assert.equal(fail.data.firstSolve, false);
+  // з активним Pro преміум відкривається
+  sqlite.prepare("UPDATE users SET is_pro = 1, pro_until = '2999-01-01 00:00:00' WHERE id = 'g-123'").run();
+  assert.equal((await C({ taskId: "js-cart-total", code: "ok", passed: true })).data.xp, 30);
+  // термін Pro минув — знову 402
+  sqlite.prepare("UPDATE users SET pro_until = '2020-01-01 00:00:00' WHERE id = 'g-123'").run();
+  assert.equal((await C({ taskId: "js-group-by", code: "ok", passed: true })).status, 402);
+  sqlite.prepare("UPDATE users SET is_pro = 0, pro_until = NULL WHERE id = 'g-123'").run();
+});
+await test("дашборд повертає розв'язані завдання", async () => {
+  const r = await call(dashboard, req("/api/dashboard", { cookie }));
+  assert.deepEqual(r.data.passedTasks.sort(), ["js-cart-total", "js-safe-city", "js-sum"]);
+  assert.equal(r.data.tasksPassed, 3);
+});
+await test("ліміт відправок: не більше 20 за хвилину", async () => {
+  const ins = sqlite.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES (?, 'g-123', 'rate', 'x', 0)");
+  for (let i = 0; i < 20; i++) ins.run("r" + i);
+  const r = await call(complete, req("/api/progress/complete", { method: "POST", body: { taskId: "js-safe-city", code: "x", passed: true }, cookie }));
+  assert.equal(r.status, 429);
+  sqlite.prepare("DELETE FROM task_submissions WHERE task_id = 'rate'").run();
 });
 await test("вихід очищає cookie; видалення користувача каскадом чистить дані", async () => {
   const r = await call(logout, req("/api/auth/logout", { method: "POST" }));

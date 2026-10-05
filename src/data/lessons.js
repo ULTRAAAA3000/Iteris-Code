@@ -869,3 +869,5 @@ Object.assign(CHAPTERS, {
     for (let j = from; j < to; j++) LESSONS[key][j].ch = name;
   });
 })();
+
+export { LESSONS, CHAPTERS };
