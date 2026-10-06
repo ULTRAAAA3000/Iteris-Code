@@ -9,7 +9,7 @@ export function runInWorker(code: string, tests: string, onLog: (line: string) =
   return new Promise((resolve) => {
     let worker: Worker;
     try {
-      worker = new Worker(new URL("runner.worker.js", document.baseURI));
+      worker = new Worker(new URL((window as { __IC_WORKER__?: string }).__IC_WORKER__ ?? "runner.worker.js", document.baseURI));
     } catch {
       resolve({ results: [], error: "Цей браузер не дозволяє запускати код у безпечному режимі" });
       return;

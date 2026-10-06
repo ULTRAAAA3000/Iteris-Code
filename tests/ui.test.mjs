@@ -1,13 +1,14 @@
 // Запуск: npm run build && npm i --no-save jsdom && node tests/ui.test.mjs
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { runSuite } from "../src/runner/core.ts";
 import { SOLUTIONS } from "./solutions.mjs";
 
 let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
 
-const bundle = readFileSync(new URL("../dist/app.js", import.meta.url), "utf8");
-const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8").replace(/<script src="[^"]+"><\/script>/g, "");
+const appFile = readdirSync(new URL("../dist/", import.meta.url)).find((f) => /^main-.*\.js$/.test(f));
+const bundle = readFileSync(new URL("../dist/" + appFile, import.meta.url), "utf8");
+const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8").replace(/<script src="[^"]+"><\/script>/g, "").replace(/<script>[\s\S]*?<\/script>/g, (m) => (m.includes("__IC_WORKER__") ? "" : m));
 const today = new Date().toISOString().slice(0, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
