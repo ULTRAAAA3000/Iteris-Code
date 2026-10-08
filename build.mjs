@@ -31,12 +31,29 @@ const html = readFileSync("index.html", "utf8");
 if (!html.includes('<script src="app.js"></script>')) throw new Error("index.html: не знайдено тег <script src=\"app.js\">");
 writeFileSync("dist/index.html", html.replace('<script src="app.js"></script>', boot));
 
-// Головна сторінка завжди перевіряється заново, файли з хешем кешуються назавжди
+// Сумісність зі старими закешованими сторінками: вони все ще просять app.js.
+// Цей файл один раз оновлює кеш головної сторінки й перезавантажує її (петлі немає: прапорець у sessionStorage).
+writeFileSync("dist/app.js", `(function () {
+  try {
+    if (sessionStorage.getItem("ic-refreshed")) return;
+    sessionStorage.setItem("ic-refreshed", "1");
+  } catch (e) { return; }
+  fetch("/", { cache: "reload" }).then(function () { location.reload(); }, function () {});
+})();
+`);
+
+// Головна сторінка завжди перевіряється заново, файли з хешем кешуються назавжди.
+// Правила без перетину шаблонів: інакше Cloudflare склеює заголовки з кількох правил.
 writeFileSync("dist/_headers", `/
   Cache-Control: no-cache
 /index.html
   Cache-Control: no-cache
-/*.js
+/app.js
+  Cache-Control: no-store
+  Clear-Site-Data: "cache"
+/${app}
+  Cache-Control: public, max-age=31536000, immutable
+/${worker}
   Cache-Control: public, max-age=31536000, immutable
 `);
 console.log(`dist: ${app}, ${worker}`);
