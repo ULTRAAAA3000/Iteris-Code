@@ -2,3 +2,8 @@ node_modules
 dist
 .dev.vars
 .wrangler
+/index.html
+/app.js
+/main-*.js
+/worker-*.js
+/_headers

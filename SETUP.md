@@ -25,7 +25,7 @@ npx wrangler d1 execute iteris-code --remote --file=schema.sql
   - `GOOGLE_CLIENT_ID` (обычная переменная)
   - `GOOGLE_CLIENT_SECRET` (**Secret**)
   - `SESSION_SECRET` (**Secret**, случайная строка: `openssl rand -base64 48`)
-- Build command `npm run build`, output directory `dist` (как сейчас). Папка `functions/` подхватывается автоматически.
+- **Build command** `npm run build`, **Build output directory** `dist` (рекомендуется). Если там стоит `/`, сайт тоже заработает: при сборке в Cloudflare готовые файлы дублируются в корень. Папка `functions/` подхватывается автоматически.
 
 После этого сделайте новый деплой. Кнопка «Увійти» в шапке должна открывать окно Google.
 

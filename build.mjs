@@ -1,7 +1,7 @@
 // Збірка: TypeScript → dist/ (esbuild). Тип-перевірка окремо: npm run check
 // Файли отримують хеш у назві, тому браузер ніколи не змішає стару та нову версії сайту.
 import { build } from "esbuild";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename } from "node:path";
 
 rmSync("dist", { recursive: true, force: true });
@@ -27,8 +27,8 @@ addEventListener("error", function (e) {
 </script>
 <noscript><p style="padding:24px">Для роботи сайту потрібен JavaScript.</p></noscript>
 <script src="${app}"></script>`;
-const html = readFileSync("index.html", "utf8");
-if (!html.includes('<script src="app.js"></script>')) throw new Error("index.html: не знайдено тег <script src=\"app.js\">");
+const html = readFileSync("src/index.template.html", "utf8");
+if (!html.includes('<script src="app.js"></script>')) throw new Error("src/index.template.html: не знайдено тег <script src=\"app.js\">");
 writeFileSync("dist/index.html", html.replace('<script src="app.js"></script>', boot));
 
 // Сумісність зі старими закешованими сторінками: вони все ще просять app.js.
@@ -57,3 +57,11 @@ writeFileSync("dist/_headers", `/
   Cache-Control: public, max-age=31536000, immutable
 `);
 console.log(`dist: ${app}, ${worker}`);
+
+// У Cloudflare Pages (CF_PAGES=1) дублюємо готові файли в корінь репозиторію.
+// Так сайт працює незалежно від того, чи в налаштуваннях Build output directory вказано "dist" чи "/".
+// Ці файли створюються лише під час збірки на сервері й не потрапляють у git (.gitignore).
+if (process.env.CF_PAGES) {
+  for (const f of readdirSync("dist")) copyFileSync("dist/" + f, f);
+  console.log("CF_PAGES: готові файли скопійовано в корінь");
+}
