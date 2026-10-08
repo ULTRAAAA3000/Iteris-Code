@@ -10,7 +10,10 @@ CREATE TABLE IF NOT EXISTS users (
   pro_until DATETIME,
   streak_count INTEGER DEFAULT 0,
   last_active_at DATETIME,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  portal_url TEXT,                   -- ссылка на управление подпиской у платёжки
+  subscription_id TEXT,
+  billing_updated_at TEXT            -- время последнего применённого платёжного события
 );
 
 -- Прогресс прохождения уроков (lesson_id вида "python/3")
@@ -35,3 +38,12 @@ CREATE TABLE IF NOT EXISTS task_submissions (
 
 CREATE INDEX IF NOT EXISTS idx_progress_user_time ON user_progress(user_id, completed_at);
 CREATE INDEX IF NOT EXISTS idx_submissions_user_time ON task_submissions(user_id, created_at);
+
+-- Журнал платёжных событий (идемпотентность вебхука)
+CREATE TABLE IF NOT EXISTS payment_events (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  event_name TEXT,
+  user_id TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

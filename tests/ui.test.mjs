@@ -12,7 +12,8 @@ const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8"
 const today = new Date().toISOString().slice(0, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function page({ me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null } = {}) {
+async function page(opts = {}) {
+  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null } = opts;
   const calls = [];
   const dom = new JSDOM(html, { url: "https://iteris-code.pages.dev/" + search + hash, runScripts: "outside-only", pretendToBeVisual: true });
   const w = dom.window;
@@ -20,9 +21,12 @@ async function page({ me = null, dash = null, hash = "#/dashboard", search = "",
   if (state) w.sessionStorage.setItem("ic-oauth-state", state);
   const reply = (status, body) => ({ ok: status < 400, status, json: async () => body });
   w.fetch = async (url, o = {}) => {
+    o = { ...o, billing: opts.billing };
     calls.push({ method: o.method || "GET", url, body: o.body ? JSON.parse(o.body) : null });
     if (url === "/api/me") return reply(200, { user: me });
     if (url === "/api/dashboard") return dash ? reply(200, dash) : reply(500, {});
+    if (url === "/api/billing/checkout") return (o.billing ?? (() => reply(200, { url: "https://iteris.lemonsqueezy.com/checkout/buy/x?checkout[custom][user_id]=g1" })))();
+    if (url === "/api/billing/portal") return opts.portal ? reply(200, { url: "https://iteris.lemonsqueezy.com/billing" }) : reply(404, { error: "not_found" });
     if (url === "/api/progress/complete") return complete ? complete() : reply(200, { ok: true, streak: 4, firstSolve: true, xp: 30 });
     if (url === "/api/progress" && !o.method) return reply(200, { lessonIds: ["js/1", "js/2"] });
     if (url === "/api/progress") return reply(200, { ok: true, streak: 2 });
@@ -136,6 +140,37 @@ again.type(SOLUTIONS["js-safe-city"]);
 await again.run();
 t("повторне розв'язання: XP не нараховується", again.$(".ws-win")?.textContent.includes("вже розв'язували"));
 
+
+/* ---- оплата ---- */
+const payFree = await page({ me: user, dash });
+payFree.w.window_open = [];
+payFree.$("[data-act=upgrade]").click();
+await sleep(60);
+t("оплата: «Перейти на Pro» запитує посилання на оплату в сервера", payFree.calls.some((c) => c.method === "POST" && c.url === "/api/billing/checkout"));
+const payOff = await page({ me: user, dash, billing: () => ({ ok: false, status: 503, json: async () => ({ error: "not_configured" }) }) });
+payOff.$("[data-act=upgrade]").click();
+await sleep(60);
+t("оплата не налаштована (503): зрозуміле повідомлення", payOff.w.document.querySelector(".toast")?.textContent.includes("Оплату ще не налаштовано"));
+t("кабінет Free: є кнопка «Оновити статус» після оплати", payFree.html().includes("Оновити статус"));
+const proDash = { ...dash, user: { ...user, isPro: true, proUntil: "2999-05-01 00:00:00" } };
+const payPro = await page({ me: { ...user, isPro: true }, dash: proDash, portal: true });
+let opened = null;
+payPro.w.open = (u, target, feat) => { opened = [u, target, feat]; };
+payPro.$("[data-act=manage]").click();
+await sleep(60);
+t("Pro: «Керування підпискою» відкриває портал у новій вкладці без opener", opened && opened[0].startsWith("https://iteris.lemonsqueezy.com/") && opened[2] === "noopener");
+const payNoPortal = await page({ me: { ...user, isPro: true }, dash: proDash });
+payNoPortal.$("[data-act=manage]").click();
+await sleep(60);
+t("немає порталу (404): повідомлення замість тиші", payNoPortal.w.document.querySelector(".toast")?.textContent.includes("недоступне"));
+const paid = await page({ me: user, dash: proDash, hash: "#/lesson/js/8" });
+await sleep(60);
+t("після оплати статус Pro з кабінету зніме пейвол у завданні", paid.$(".paywall") !== null);
+paid.w.location.hash = "#/dashboard";
+await sleep(150);
+paid.w.location.hash = "#/lesson/js/8";
+await sleep(150);
+t("кабінет оновив статус: пейвол зник", paid.$(".paywall") === null && paid.$("#ws-run").disabled === false);
 const nav = await page({ me: null, hash: "#/lesson/js/3" });
 nav.w.location.hash = "#/";
 await sleep(60);

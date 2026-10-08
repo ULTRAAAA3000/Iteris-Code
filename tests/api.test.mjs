@@ -1,5 +1,6 @@
 // Запуск: node tests/api.test.mjs  (Node 22+, использует node:sqlite как локальный D1)
 import assert from "node:assert/strict";
+import { createHmac } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 
@@ -10,19 +11,38 @@ import { onRequestGet as me } from "../functions/api/me.ts";
 import { onRequestGet as dashboard } from "../functions/api/dashboard.ts";
 import { onRequestGet as progressGet, onRequestPost as progressPost } from "../functions/api/progress.ts";
 import { onRequestPost as complete } from "../functions/api/progress/complete.ts";
+import { onRequestPost as webhook } from "../functions/api/webhooks/payment.ts";
+import { onRequestPost as checkout } from "../functions/api/billing/checkout.ts";
+import { onRequestGet as portal } from "../functions/api/billing/portal.ts";
+import { entitlementFor, verifySignature } from "../lib/billing.ts";
 
 const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
+const isSelect = (q) => /^\s*select/i.test(q);
 const stmt = (q) => ({
-  p: [],
+  q, p: [],
   bind(...a) { this.p = a; return this; },
   async first() { return sqlite.prepare(q).get(...this.p) ?? null; },
   async all() { return { results: sqlite.prepare(q).all(...this.p) }; },
-  async run() { sqlite.prepare(q).run(...this.p); return { success: true }; },
+  async run() { const r = sqlite.prepare(q).run(...this.p); return { success: true, meta: { changes: Number(r.changes) } }; },
 });
-const DB = { prepare: stmt, batch: (list) => Promise.all(list.map((s) => s.all())) };   // batch використовується лише для SELECT
+const DB = {
+  prepare: stmt,
+  async batch(list) {            // як D1: усі запити одним блоком, при помилці відкочується все
+    sqlite.exec("BEGIN");
+    try {
+      const out = [];
+      for (const s of list) out.push(isSelect(s.q) ? await s.all() : await s.run());
+      sqlite.exec("COMMIT");
+      return out;
+    } catch (e) { sqlite.exec("ROLLBACK"); throw e; }
+  },
+};
 
-const env = { DB, SESSION_SECRET: "s".repeat(40), GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "sec" };
+const WH_SECRET = "whsec_test";
+const CHECKOUT = "https://iteris.lemonsqueezy.com/checkout/buy/abc-123";
+const env = { DB, SESSION_SECRET: "s".repeat(40), GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "sec",
+  LEMONSQUEEZY_WEBHOOK_SECRET: WH_SECRET, LEMONSQUEEZY_CHECKOUT_URL: CHECKOUT, LEMONSQUEEZY_VARIANT_ID: "555" };
 const ORIGIN = "https://iteris-code.pages.dev";
 const req = (path, { method = "GET", body, cookie, origin = ORIGIN } = {}) =>
   new Request(ORIGIN + path, {
@@ -160,6 +180,130 @@ await test("ліміт відправок: не більше 20 за хвили�
   const r = await call(complete, req("/api/progress/complete", { method: "POST", body: { taskId: "js-safe-city", code: "x", passed: true }, cookie }));
   assert.equal(r.status, 429);
   sqlite.prepare("DELETE FROM task_submissions WHERE task_id = 'rate'").run();
+});
+
+/* ---------- Оплата (Lemon Squeezy) ---------- */
+const sign = (body, secret = WH_SECRET) => createHmac("sha256", secret).update(body).digest("hex");
+let tick = 0;
+const stamp = () => new Date(Date.now() + 1000 * ++tick).toISOString();
+const inDays = (n) => new Date(Date.now() + n * 864e5).toISOString();
+const evBody = (name, o = {}) => JSON.stringify({
+  meta: { event_name: name, custom_data: { user_id: o.user ?? "g-123" } },
+  data: { type: "subscriptions", id: o.id ?? "sub1", attributes: {
+    status: o.status ?? "active", renews_at: o.renews ?? inDays(30), ends_at: o.ends ?? null, updated_at: o.at ?? stamp(),
+    variant_id: o.variant ?? 555, urls: { customer_portal: o.portal ?? "https://iteris.lemonsqueezy.com/billing?s=1" } } },
+});
+const hook = (body, o = {}) => call(webhook, new Request(ORIGIN + "/api/webhooks/payment", {
+  method: "POST", body, headers: { "X-Signature": o.sig ?? sign(body), "X-Event-Name": o.name ?? "subscription_created" } }));
+const userRow = () => sqlite.prepare("SELECT is_pro, pro_until, portal_url, subscription_id FROM users WHERE id = 'g-123'").get();
+const meNow = async () => (await call(me, req("/api/me", { cookie }))).data.user;
+
+await test("вебхук: підпис перевіряється (відсутній, чужий, підроблене тіло)", async () => {
+  const body = evBody("subscription_created");
+  assert.equal((await call(webhook, new Request(ORIGIN + "/api/webhooks/payment", { method: "POST", body }))).status, 401);
+  assert.equal((await hook(body, { sig: sign(body, "інший-секрет") })).status, 401);
+  assert.equal((await hook(body, { sig: "zz" })).status, 401);
+  assert.equal((await hook(body.replace('"active"', '"expired"'), { sig: sign(body) })).status, 401);
+  assert.equal(await verifySignature("k", "x", sign("x", "k")), true);
+  assert.equal(await verifySignature("k", "x", null), false);
+  const noSecret = await webhook({ request: new Request(ORIGIN + "/", { method: "POST", body }), env: { ...env, LEMONSQUEEZY_WEBHOOK_SECRET: undefined } });
+  assert.equal(noSecret.status, 500);
+  assert.equal(userRow().is_pro, 0, "без правильного підпису Pro не видається");
+});
+await test("вебхук: нова підписка видає Pro до кінця оплаченого періоду", async () => {
+  const renews = inDays(30);
+  const r = await hook(evBody("subscription_created", { renews }));
+  assert.equal(r.status, 200); assert.equal(r.data.isPro, true);
+  const row = userRow();
+  assert.equal(row.is_pro, 1);
+  assert.equal(row.pro_until, renews.slice(0, 19).replace("T", " "));
+  assert.equal(row.portal_url, "https://iteris.lemonsqueezy.com/billing?s=1");
+  assert.equal((await meNow()).isPro, true);
+});
+await test("вебхук: Pro-завдання тепер доступне через сервер", async () => {
+  const r = await call(complete, req("/api/progress/complete", { method: "POST", body: { taskId: "js-group-by", code: "ok", passed: true }, cookie }));
+  assert.equal(r.status, 200);
+});
+await test("вебхук: повторна доставка тієї самої події не змінює нічого", async () => {
+  const body = evBody("subscription_updated", { renews: inDays(60) });
+  assert.equal((await hook(body, { name: "subscription_updated" })).data.isPro, true);
+  const before = userRow().pro_until;
+  const again = await hook(body, { name: "subscription_updated" });
+  assert.equal(again.data.duplicate, true);
+  assert.equal(userRow().pro_until, before);
+});
+await test("вебхук: запізніла стара подія не скасовує новішу", async () => {
+  const old = await hook(evBody("subscription_expired", { status: "expired", at: "2001-01-01T00:00:00.000Z" }), { name: "subscription_expired" });
+  assert.equal(old.data.ignored, "stale");
+  assert.equal(userRow().is_pro, 1);
+});
+await test("вебхук: скасування зберігає доступ до кінця періоду, потім знімає", async () => {
+  await hook(evBody("subscription_cancelled", { status: "cancelled", ends: inDays(10), renews: null }), { name: "subscription_cancelled" });
+  assert.equal((await meNow()).isPro, true, "користувач оплатив період і ще має доступ");
+  await hook(evBody("subscription_cancelled", { status: "cancelled", ends: inDays(-1), renews: null }), { name: "subscription_cancelled" });
+  assert.equal(userRow().is_pro, 0);
+  assert.equal((await meNow()).isPro, false);
+  assert.equal((await call(complete, req("/api/progress/complete", { method: "POST", body: { taskId: "js-retry", code: "ok", passed: true }, cookie }))).status, 402);
+});
+await test("вебхук: відновлення, пауза і закінчення", async () => {
+  assert.equal((await hook(evBody("subscription_resumed"), { name: "subscription_resumed" })).data.isPro, true);
+  await hook(evBody("subscription_paused", { status: "paused" }), { name: "subscription_paused" });
+  assert.equal(userRow().is_pro, 0);
+  await hook(evBody("subscription_unpaused"), { name: "subscription_unpaused" });
+  assert.equal(userRow().is_pro, 1);
+  await hook(evBody("subscription_expired", { status: "expired", ends: inDays(-2) }), { name: "subscription_expired" });
+  assert.equal(userRow().is_pro, 0);
+});
+await test("вебхук: невідомий користувач, чужий товар, інші події та сміття не ламають нічого", async () => {
+  assert.equal((await hook(evBody("subscription_created", { user: "нема" }))).data.ignored, "unknown_user");
+  assert.equal((await hook(evBody("subscription_created", { variant: 999 }))).data.ignored, "variant");
+  assert.equal((await hook(evBody("subscription_created", { status: "дивний" }))).data.ignored, "status");
+  const order = JSON.stringify({ meta: { event_name: "order_created" }, data: {} });
+  assert.equal((await hook(order, { name: "order_created" })).data.ignored, "event");
+  assert.equal((await hook("{не json", { name: "subscription_created" })).status, 400);
+  assert.equal((await hook(JSON.stringify({ meta: { event_name: "subscription_created" }, data: { id: 1, attributes: {} } }))).status, 400);
+  assert.equal(userRow().is_pro, 0);
+});
+await test("тарифи: перетворення статусів на доступ", () => {
+  const now = Date.parse("2026-10-10T00:00:00Z");
+  assert.deepEqual(entitlementFor("active", "2026-11-10T00:00:00Z", null, now), { isPro: true, proUntil: "2026-11-10 00:00:00" });
+  assert.equal(entitlementFor("on_trial", "2026-10-17T00:00:00Z", null, now).isPro, true);
+  assert.equal(entitlementFor("past_due", "2026-10-10T00:00:00Z", null, now).proUntil, "2026-10-13 00:00:00");
+  assert.equal(entitlementFor("cancelled", null, "2026-10-20T00:00:00Z", now).isPro, true);
+  assert.equal(entitlementFor("cancelled", null, "2026-10-01T00:00:00Z", now).isPro, false);
+  assert.equal(entitlementFor("unpaid", null, null, now).isPro, false);
+  assert.equal(entitlementFor("щось", null, null, now), null);
+});
+await test("оплата: посилання на checkout (авторизація, CSRF, налаштування, домен)", async () => {
+  const C = (o = {}, e = env) => checkout({ request: req("/api/billing/checkout", { method: "POST", cookie: o.cookie, origin: o.origin }), env: e }).then(async (r) => ({ status: r.status, data: await r.json() }));
+  assert.equal((await C({})).status, 401);
+  assert.equal((await C({ cookie, origin: "https://evil.example" })).status, 403);
+  assert.equal((await C({ cookie }, { ...env, LEMONSQUEEZY_CHECKOUT_URL: undefined })).status, 503);
+  assert.equal((await C({ cookie }, { ...env, LEMONSQUEEZY_CHECKOUT_URL: "https://evil.example/checkout" })).status, 503);
+  assert.equal((await C({ cookie }, { ...env, LEMONSQUEEZY_CHECKOUT_URL: "http://iteris.lemonsqueezy.com/x" })).status, 503);
+  const ok = await C({ cookie });
+  assert.equal(ok.status, 200);
+  const u = new URL(ok.data.url);
+  assert.equal(u.origin + u.pathname, CHECKOUT);
+  assert.equal(u.searchParams.get("checkout[custom][user_id]"), "g-123");
+  assert.equal(u.searchParams.get("checkout[email]"), "o@x.ua");
+});
+await test("оплата: посилання на керування підпискою", async () => {
+  assert.equal((await call(portal, req("/api/billing/portal"))).status, 401);
+  assert.equal((await call(portal, req("/api/billing/portal", { cookie }))).data.url, "https://iteris.lemonsqueezy.com/billing?s=1");
+  sqlite.prepare("UPDATE users SET portal_url = 'https://evil.example/x' WHERE id = 'g-123'").run();
+  assert.equal((await call(portal, req("/api/billing/portal", { cookie }))).status, 404, "чужі домени не віддаємо");
+  sqlite.prepare("UPDATE users SET portal_url = NULL, subscription_id = NULL, billing_updated_at = NULL WHERE id = 'g-123'").run();
+});
+await test("міграція 0002 оновлює стару базу й не ламає дані", () => {
+  const old = new DatabaseSync(":memory:");
+  old.exec("CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT, avatar_url TEXT, is_pro INTEGER DEFAULT 0, pro_until DATETIME, streak_count INTEGER DEFAULT 0, last_active_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP); INSERT INTO users (id, email) VALUES ('a', 'a@x.ua');");
+  old.exec(readFileSync(new URL("../migrations/0002_payments.sql", import.meta.url), "utf8"));
+  const cols = old.prepare("PRAGMA table_info(users)").all().map((c) => c.name);
+  for (const c of ["portal_url", "subscription_id", "billing_updated_at"]) assert.ok(cols.includes(c), c);
+  assert.equal(old.prepare("SELECT email FROM users").get().email, "a@x.ua");
+  old.prepare("INSERT INTO payment_events (id, provider) VALUES ('e1', 'x')").run();
+  assert.throws(() => old.prepare("INSERT INTO payment_events (id, provider) VALUES ('e1', 'x')").run(), /UNIQUE/);
 });
 await test("вихід очищає cookie; видалення користувача каскадом чистить дані", async () => {
   const r = await call(logout, req("/api/auth/logout", { method: "POST" }));

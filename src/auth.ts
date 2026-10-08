@@ -115,6 +115,19 @@ export async function completeTask(taskId: string, code: string): Promise<Comple
   return { ok: r.ok, status: r.status, ...(r.data ?? {}) };
 }
 
+async function startCheckout(): Promise<void> {
+  if (!st.user) return void login();
+  const r = await post<{ url?: string }>("/api/billing/checkout");
+  if (r.ok && r.data?.url) { location.href = r.data.url; return; }
+  toast(r.status === 503 ? "Оплату ще не налаштовано. Спробуйте пізніше" : "Не вдалося перейти до оплати. Спробуйте ще раз");
+}
+
+async function openPortal(): Promise<void> {
+  const r = await api<{ url?: string }>("/api/billing/portal");
+  if (r.ok && r.data?.url) window.open(r.data.url, "_blank", "noopener");
+  else toast("Керування підпискою поки недоступне. Якщо ви щойно оплатили, зачекайте хвилину й оновіть кабінет");
+}
+
 async function logout(): Promise<void> {
   await post("/api/auth/logout");
   st.user = null; st.dash = null;
@@ -140,7 +153,10 @@ async function loadDash(): Promise<void> {
   const r = await api<DashboardData>("/api/dashboard");
   st.loading = false;
   if (r.status === 401) { st.user = null; st.dash = null; updateHeader(); }
-  else st.dash = r.ok && r.data ? r.data : { error: true };
+  else {
+    st.dash = r.ok && r.data ? r.data : { error: true };
+    if (r.ok && r.data && st.user) { st.user = r.data.user; updateHeader(); ui.notifyAuth(); }   // статус Pro міг змінитися після оплати
+  }
   if (/^#\/dashboard/.test(location.hash)) ui.render();
 }
 
@@ -208,7 +224,7 @@ function full(d: DashboardData): string {
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
   const plan = u.isPro
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`
-    : `<span class="plan free">Free</span> <button class="btn primary small" data-act="upgrade">Перейти на Pro за $5</button>`;
+    : `<span class="plan free">Free</span> <button class="btn primary small" data-act="upgrade">Перейти на Pro за $5</button> <button class="btn small" data-act="retry">Оновити статус</button>`;
   return `<div class="dash">
       <section class="card dash-head">${avatar(u, true)}
         <div class="grow"><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p></div>
@@ -246,6 +262,7 @@ document.addEventListener("click", (e) => {
   if (a === "login") void login();
   else if (a === "logout") void logout();
   else if (a === "retry") { st.dash = null; ui.render(); }
-  else if (a === "upgrade" || a === "manage") toast("Оплата та керування підпискою будуть доступні найближчим часом");
+  else if (a === "upgrade") void startCheckout();
+  else if (a === "manage") void openPortal();
 });
 

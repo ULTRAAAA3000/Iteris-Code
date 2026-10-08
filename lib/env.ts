@@ -4,6 +4,12 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   SESSION_SECRET?: string;
+  /** Lemon Squeezy: секрет подписи вебхука */
+  LEMONSQUEEZY_WEBHOOK_SECRET?: string;
+  /** Lemon Squeezy: ссылка на оплату тарифа Pro, например https://магазин.lemonsqueezy.com/checkout/buy/<id> */
+  LEMONSQUEEZY_CHECKOUT_URL?: string;
+  /** Необязательно: принимать события только для этого варианта товара */
+  LEMONSQUEEZY_VARIANT_ID?: string;
 }
 
 export interface UserRow {
