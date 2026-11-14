@@ -58,7 +58,7 @@ globalThis.fetch = async (url, opts = {}) => {
 const tokenFrom = (mail, kind) => mail.text.match(new RegExp("#/" + kind + "/([A-Za-z0-9_-]+)"))[1];
 const lastMail = () => mails[mails.length - 1];
 const reg = (over = {}) => call(register, req("/api/auth/register", { body: { email: "Ann@Example.com", password: "correct-horse", name: "Ann", turnstile: OK, ...over } }));
-const log = (over = {}) => call(login, req("/api/auth/login", { body: { email: "ann@example.com", password: "correct-horse", turnstile: OK, ...over } }));
+const log = (over = {}, e = env) => call(login, req("/api/auth/login", { body: { email: "ann@example.com", password: "correct-horse", turnstile: OK, ...over } }), e);
 
 let passed = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok  -", name); };
@@ -73,11 +73,12 @@ await test("пароль: формат PBKDF2, різна сіль, переві
   for (const bad of ["", "plain", "pbkdf2$sha256$0$a$b", "pbkdf2$sha256$999999999$a$b", "bcrypt$x$1$a$b"]) assert.equal(await verifyPassword("x", bad), false);
 });
 
-await test("конфіг: ключ Turnstile віддається лише коли налаштовано все", async () => {
-  assert.equal((await call(config, req("/api/auth/config", { method: "GET" }))).data.turnstileSiteKey, "site-key");
-  for (const k of ["TURNSTILE_SECRET_KEY", "RESEND_API_KEY", "MAIL_FROM", "SESSION_SECRET"]) {
-    assert.equal((await call(config, req("/api/auth/config", { method: "GET" }), { ...env, [k]: undefined })).data.turnstileSiteKey, null, k);
-  }
+await test("конфіг: Google, Turnstile і пошта з'являються лише коли налаштовані", async () => {
+  const cfg = async (e) => (await call(config, req("/api/auth/config", { method: "GET" }), e)).data;
+  assert.deepEqual(await cfg(env), { clientId: "cid", turnstileSiteKey: "site-key", mail: true });
+  for (const k of ["TURNSTILE_SECRET_KEY", "TURNSTILE_SITE_KEY"]) assert.equal((await cfg({ ...env, [k]: undefined })).turnstileSiteKey, null, k);
+  for (const k of ["RESEND_API_KEY", "MAIL_FROM"]) assert.equal((await cfg({ ...env, [k]: undefined })).mail, false, k);
+  assert.equal((await cfg({ ...env, GOOGLE_CLIENT_ID: undefined })).clientId, null);
 });
 
 await test("реєстрація: відмови (Origin, пошта, слабкий пароль, Turnstile, конфіг)", async () => {
@@ -87,8 +88,7 @@ await test("реєстрація: відмови (Origin, пошта, слабк
   assert.equal((await reg({ password: "x".repeat(129) })).data.error, "weak_password");
   assert.equal((await reg({ turnstile: "bad" })).data.error, "captcha_failed");
   assert.equal((await reg({ turnstile: undefined })).data.error, "captcha_failed");
-  assert.equal((await call(register, req("/api/auth/register", { body: { email: "a@b.ua", password: "correct-horse", turnstile: OK } }), { ...env, TURNSTILE_SECRET_KEY: undefined })).status, 503);
-  assert.equal((await call(register, req("/api/auth/register", { body: { email: "a@b.ua", password: "correct-horse", turnstile: OK } }), { ...env, RESEND_API_KEY: undefined })).status, 503);
+  assert.equal((await call(register, req("/api/auth/register", { body: { email: "a@b.ua", password: "correct-horse", turnstile: OK } }), { ...env, SESSION_SECRET: undefined })).status, 503);
   assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM users").get().c, 0);
 });
 
@@ -243,6 +243,38 @@ await test("Google і пошта: акаунт за паролем прив'яз
   assert.equal(gn.email, "new@example.com"); assert.equal(gn.v, 1);
   // Google-акаунт без пароля не пускає за паролем
   assert.equal((await log({ email: "new@example.com", password: "anything-here" })).status, 401);
+});
+
+await test("без Turnstile форми працюють без токена (захист вмикається лише з обома ключами)", async () => {
+  const open = { ...env, TURNSTILE_SITE_KEY: undefined, TURNSTILE_SECRET_KEY: undefined };
+  const justSecret = { ...env, TURNSTILE_SITE_KEY: undefined };
+  const r = await call(register, req("/api/auth/register", { body: { email: "free@example.com", password: "correct-horse" } }), open);
+  assert.equal(r.status, 200);
+  const v = tokenFrom(lastMail(), "verify");
+  assert.equal((await call(verify, req("/api/auth/verify", { body: { token: v } }), open)).status, 200);
+  assert.equal((await call(login, req("/api/auth/login", { body: { email: "free@example.com", password: "correct-horse" } }), open)).status, 200);
+  assert.equal((await call(login, req("/api/auth/login", { body: { email: "free@example.com", password: "correct-horse" } }), justSecret)).status, 200);
+  assert.equal((await call(login, req("/api/auth/login", { body: { email: "free@example.com", password: "correct-horse" } }))).data.error, "captcha_failed");   // з обома ключами токен обов'язковий
+});
+
+await test("без пошти: реєстрація одразу відкриває сесію, дубль 409, відновлення вимкнено", async () => {
+  const nomail = { ...env, RESEND_API_KEY: undefined };
+  const n = mails.length;
+  const r = await call(register, req("/api/auth/register", { body: { email: "nomail@example.com", password: "correct-horse", turnstile: OK } }), nomail);
+  assert.equal(r.status, 200); assert.equal(r.data.signedIn, true);
+  const c = r.headers.get("Set-Cookie").split(";")[0];
+  assert.equal((await call(me, req("/api/me", { method: "GET", cookie: c }))).data.user.email, "nomail@example.com");
+  assert.equal(mails.length, n);
+  const row = () => sqlite.prepare("SELECT password_hash, email_verified v FROM users WHERE email = 'nomail@example.com'").get();
+  const before = row();
+  assert.equal(before.v, 0);
+  assert.equal((await log({ email: "nomail@example.com" }, nomail)).status, 200);   // без пошти підтвердження не вимагається
+  const dup = await call(register, req("/api/auth/register", { body: { email: "nomail@example.com", password: "attacker-password", turnstile: OK } }), nomail);
+  assert.equal(dup.status, 409); assert.equal(dup.data.error, "email_taken");
+  assert.equal(row().password_hash, before.password_hash);
+  assert.equal((await call(forgot, req("/api/auth/forgot", { body: { email: "nomail@example.com", turnstile: OK } }), nomail)).status, 503);
+  // коли пошту ввімкнуть, такий акаунт має підтвердити адресу (через «забули пароль»)
+  assert.equal((await log({ email: "nomail@example.com" })).data.error, "email_not_verified");
 });
 
 console.log(`\nУсі тести пароля пройдено: ${passed}`);

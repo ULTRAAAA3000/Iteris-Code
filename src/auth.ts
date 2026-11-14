@@ -7,7 +7,7 @@ import type { DashboardData, PublicUser } from "./types.ts";
 import { escA, pl } from "./util.ts";
 
 type DashState = DashboardData | { error: true } | null;
-const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null; siteKey: string | null } = { user: null, ready: false, dash: null, loading: false, clientId: null, siteKey: null };
+const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null; siteKey: string | null; mail: boolean } = { user: null, ready: false, dash: null, loading: false, clientId: null, siteKey: null, mail: false };
 
 const GROUPS = [
   { t: "Frontend", courses: ["html", "css", "js", "ts"] },
@@ -47,10 +47,10 @@ export const getUser = (): PublicUser | null => st.user;
 export const invalidate = (): void => { st.dash = null; };
 
 export const isReady = (): boolean => st.ready;
-export const getAuthConfig = (): { clientId: string | null; siteKey: string | null } => ({ clientId: st.clientId, siteKey: st.siteKey });
+export const getAuthConfig = (): { clientId: string | null; siteKey: string | null; mail: boolean } => ({ clientId: st.clientId, siteKey: st.siteKey, mail: st.mail });
 
-// Кнопка входу показується лише тоді, коли на сервері налаштовано хоча б один спосіб входу (без заглушок)
-const loginBtn = (cls: string, label: string): string => (st.clientId || st.siteKey ? `<button class="${cls}" data-act="login">${label}</button>` : "");
+// Форма входу за поштою є завжди; Google, Turnstile і листи з'являються в ній лише коли налаштовані на сервері
+const loginBtn = (cls: string, label: string): string => `<button class="${cls}" data-act="login">${label}</button>`;
 
 export function updateHeader(): void {
   const el = document.getElementById("acct");
@@ -72,10 +72,9 @@ export function loginGoogle(): void {
   });
 }
 
-// Кнопка «Увійти»: форма входу за поштою, а якщо вона не налаштована, одразу Google
+// Кнопка «Увійти» відкриває форму входу
 function openLogin(): void {
-  if (st.siteKey) location.hash = "#/login";
-  else loginGoogle();
+  location.hash = "#/login";
 }
 
 // Після успішного входу за поштою: підтягуємо користувача, зливаємо прогрес і відкриваємо кабінет
@@ -160,9 +159,10 @@ async function logout(): Promise<void> {
 
 export async function init(): Promise<void> {
   await handleCallback();
-  const [cfg, r] = await Promise.all([api<{ clientId: string | null; turnstileSiteKey: string | null }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
+  const [cfg, r] = await Promise.all([api<{ clientId: string | null; turnstileSiteKey: string | null; mail: boolean }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
   st.clientId = cfg.ok && typeof cfg.data?.clientId === "string" && cfg.data.clientId ? cfg.data.clientId : null;
   st.siteKey = cfg.ok && typeof cfg.data?.turnstileSiteKey === "string" && cfg.data.turnstileSiteKey ? cfg.data.turnstileSiteKey : null;
+  st.mail = cfg.ok && cfg.data?.mail === true;
   st.user = r.ok && r.data ? r.data.user : null;
   if (st.user) await syncLocal();
   st.ready = true;
@@ -187,8 +187,8 @@ async function loadDash(): Promise<void> {
 /* ---------- Дашборд ---------- */
 const skeleton = `<div class="card"><p class="dash-muted">Завантаження кабінету…</p></div>`;
 const guestCard = (): string => `<div class="card dash-guest"><h1>Особистий кабінет</h1>
-    <p>${st.clientId || st.siteKey ? "Увійдіть, щоб зберігати прогрес на всіх пристроях, бачити серію занять і карту навичок." : "Прогрес зберігається в цьому браузері. Вхід для синхронізації між пристроями з'явиться тут."}</p>
-    ${loginBtn("btn primary", st.siteKey ? "Увійти" : "Увійти через Google")}</div>`;
+    <p>Увійдіть, щоб зберігати прогрес на всіх пристроях, бачити серію занять і карту навичок.</p>
+    ${loginBtn("btn primary", "Увійти")}</div>`;
 const errorCard = (): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
     <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="retry">Спробувати ще раз</button></div>`;
 

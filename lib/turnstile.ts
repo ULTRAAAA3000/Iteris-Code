@@ -1,12 +1,14 @@
-// Cloudflare Turnstile: перевірка токена віджета на сервері (захист форм від ботів)
+// Cloudflare Turnstile: перевірка токена віджета на сервері (захист форм від ботів).
+// Захист вмикається лише тоді, коли задано обидва ключі (site key для віджета і secret для перевірки); інакше форми працюють без нього.
 import type { Env } from "./env.ts";
 
-export type TurnstileResult = "ok" | "failed" | "not_configured";
+type Keys = Pick<Env, "TURNSTILE_SITE_KEY" | "TURNSTILE_SECRET_KEY">;
+export const turnstileEnabled = (env: Keys): boolean => Boolean(env.TURNSTILE_SITE_KEY && env.TURNSTILE_SECRET_KEY);
 
-export async function verifyTurnstile(env: Pick<Env, "TURNSTILE_SECRET_KEY">, token: unknown, ip: string | null): Promise<TurnstileResult> {
-  if (!env.TURNSTILE_SECRET_KEY) return "not_configured";
+export async function verifyTurnstile(env: Keys, token: unknown, ip: string | null): Promise<"ok" | "failed"> {
+  if (!turnstileEnabled(env)) return "ok";
   if (typeof token !== "string" || !token || token.length > 2048) return "failed";
-  const body = new URLSearchParams({ secret: env.TURNSTILE_SECRET_KEY, response: token });
+  const body = new URLSearchParams({ secret: env.TURNSTILE_SECRET_KEY as string, response: token });
   if (ip) body.set("remoteip", ip);
   try {
     const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body });

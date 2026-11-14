@@ -7,7 +7,6 @@ import { verifyTurnstile } from "../../../lib/turnstile.ts";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!sameOrigin(request)) return json({ error: "forbidden" }, 403);
-  if (!env.TURNSTILE_SECRET_KEY) return json({ error: "not_configured" }, 503);
 
   const b = await readBody(request);
   if (!validPassword(b.password)) return json({ error: "weak_password" }, 400);   // перевіряємо до споживання токена, щоб слабкий пароль його не «спалив»
