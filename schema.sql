@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   portal_url TEXT,                   -- ссылка на управление подпиской у платёжки
   subscription_id TEXT,
-  billing_updated_at TEXT            -- время последнего применённого платёжного события
+  billing_updated_at TEXT,           -- время последнего применённого платёжного события
+  password_hash TEXT,                -- PBKDF2-SHA256 (вход по почте и паролю), NULL у Google-аккаунтов
+  email_verified INTEGER DEFAULT 1   -- 0 = регистрация по паролю, почта ещё не подтверждена
 );
 
 -- Прогресс прохождения уроков (lesson_id вида "python/3")
@@ -46,4 +48,21 @@ CREATE TABLE IF NOT EXISTS payment_events (
   event_name TEXT,
   user_id TEXT,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Одноразовые токены из писем: подтверждение почты и сброс пароля (хранится только SHA-256 токена)
+CREATE TABLE IF NOT EXISTS email_tokens (
+  token_hash TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  kind TEXT NOT NULL,                -- verify | reset
+  expires_at INTEGER NOT NULL,       -- unix-время, сек
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_email_tokens_user ON email_tokens(user_id, kind);
+
+-- Ограничение частоты попыток (вход, регистрация, письма)
+CREATE TABLE IF NOT EXISTS auth_throttle (
+  key TEXT PRIMARY KEY,
+  count INTEGER NOT NULL,
+  reset_at INTEGER NOT NULL          -- unix-время, сек
 );

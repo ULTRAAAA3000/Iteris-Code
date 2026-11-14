@@ -13,7 +13,7 @@ const today = new Date().toISOString().slice(0, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function page(opts = {}) {
-  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null, clientId = "cid" } = opts;
+  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null, clientId = "cid", siteKey = null, auth = null, noCaptcha = false } = opts;
   const calls = [];
   const dom = new JSDOM(html, { url: "https://iteris-code.pages.dev/" + search + hash, runScripts: "outside-only", pretendToBeVisual: true });
   const w = dom.window;
@@ -30,7 +30,8 @@ async function page(opts = {}) {
     if (url === "/api/progress/complete") return complete ? complete() : reply(200, { ok: true, streak: 4, firstSolve: true, xp: 30 });
     if (url === "/api/progress" && !o.method) return reply(200, { lessonIds: ["js/1", "js/2"] });
     if (url === "/api/progress") return reply(200, { ok: true, streak: 2 });
-    if (url === "/api/auth/config") return reply(200, { clientId });
+    if (url === "/api/auth/config") return reply(200, { clientId, turnstileSiteKey: siteKey });
+    if (auth && url.startsWith("/api/auth/") && url !== "/api/auth/google") { const r = auth(url, o.body ? JSON.parse(o.body) : null); if (r) return reply(r[0], r[1]); }
     if (url === "/api/auth/google") return reply(200, { ok: true });
     return reply(404, {});
   };
@@ -43,6 +44,8 @@ async function page(opts = {}) {
     }
     terminate() {}
   };
+  // Turnstile у jsdom не завантажується: підміняємо віджет, який одразу видає токен (або мовчить, якщо noCaptcha)
+  w.turnstile = { resets: 0, render(_el, o) { if (!noCaptcha) o.callback("ok-token"); return "w1"; }, reset() { this.resets++; } };
   w.eval(bundle);
   await sleep(80);
   const $ = (s) => w.document.querySelector(s);
@@ -179,4 +182,68 @@ const nav = await page({ me: null, hash: "#/lesson/js/3" });
 nav.w.location.hash = "#/";
 await sleep(60);
 t("перехід зі сторінки завдання не лишає сміття", nav.html().includes("Вчимося кодити") && !nav.$("#editor"));
+/* ---- вхід за поштою ---- */
+const fill = (pg, vals) => { for (const [k, v] of Object.entries(vals)) pg.$(`#af [name=${k}]`).value = v; };
+const submit = async (pg) => { pg.$("#af").dispatchEvent(new pg.w.Event("submit", { cancelable: true, bubbles: true })); await sleep(80); };
+const posted = (pg, url) => pg.calls.filter((c) => c.method === "POST" && c.url === url);
+
+let em = await page({ me: null, hash: "#/dashboard", siteKey: "sk" });
+em.$('[data-act="login"]').click();
+await sleep(40);
+t("пошта: «Увійти» відкриває форму входу з Turnstile, Google і посиланнями", em.w.location.hash === "#/login" && !!em.$("#af [name=email]") && !!em.$("#af [name=password]") && !!em.$("#af-ts")
+  && em.html().includes('data-act="google"') && em.html().includes("#/forgot") && em.html().includes("#/register") && em.$("#af [name=password]").getAttribute("autocomplete") === "current-password");
+em = await page({ me: null, hash: "#/login", siteKey: "sk", auth: (url) => (url === "/api/auth/login" ? [200, { ok: true }] : null) });
+fill(em, { email: "a@x.ua", password: "correct-horse" });
+await submit(em);
+const lp = posted(em, "/api/auth/login");
+t("вхід: на сервер іде пошта, пароль і токен Turnstile; далі кабінет", lp.length === 1 && lp[0].body.email === "a@x.ua" && lp[0].body.password === "correct-horse" && lp[0].body.turnstile === "ok-token"
+  && em.calls.some((c) => c.url === "/api/me" && c.method === "GET") && em.w.location.hash === "#/dashboard");
+
+const badLogin = await page({ me: null, hash: "#/login", siteKey: "sk", auth: () => [401, { error: "invalid_credentials" }] });
+fill(badLogin, { email: "a@x.ua", password: "wrong-password" });
+await submit(badLogin);
+t("вхід: хибний пароль показує повідомлення, кнопка знову активна, Turnstile скинуто", badLogin.$("#af-msg").textContent === "Невірна пошта або пароль" && badLogin.$("#af button[type=submit]").disabled === false && badLogin.w.turnstile.resets === 1 && badLogin.w.location.hash === "#/login");
+
+const nocap = await page({ me: null, hash: "#/login", siteKey: "sk", noCaptcha: true });
+fill(nocap, { email: "a@x.ua", password: "correct-horse" });
+await submit(nocap);
+t("вхід: без пройденого Turnstile запит не надсилається", posted(nocap, "/api/auth/login").length === 0 && nocap.$("#af-msg").textContent.includes("перевірки"));
+
+const rg = await page({ me: null, hash: "#/register", siteKey: "sk", auth: (url) => (url === "/api/auth/register" ? [200, { ok: true }] : null) });
+t("реєстрація: поля ім'я, пошта, пароль (new-password, мін. 8)", !!rg.$("#af [name=name]") && rg.$("#af [name=password]").getAttribute("autocomplete") === "new-password" && rg.$("#af [name=password]").getAttribute("minlength") === "8");
+fill(rg, { name: "Олена", email: "o@x.ua", password: "correct-horse" });
+await submit(rg);
+const rp = posted(rg, "/api/auth/register");
+t("реєстрація: дані та токен Turnstile надіслано, форма замінюється повідомленням про лист", rp.length === 1 && rp[0].body.name === "Олена" && rp[0].body.turnstile === "ok-token"
+  && rg.$("#af").hidden === true && rg.$("#af-msg").textContent.includes("o@x.ua") && rg.$("#af-msg").className.includes("ok"));
+
+const fg = await page({ me: null, hash: "#/forgot", siteKey: "sk", auth: (url) => (url === "/api/auth/forgot" ? [200, { ok: true }] : null) });
+fill(fg, { email: "o@x.ua" });
+await submit(fg);
+t("відновлення: однакове повідомлення, що не розкриває наявність акаунта", posted(fg, "/api/auth/forgot")[0].body.turnstile === "ok-token" && fg.$("#af-msg").textContent.startsWith("Якщо акаунт"));
+
+const rs = await page({ me: null, hash: "#/reset/abcdefghijklmnopqrstuv", siteKey: "sk", auth: (url) => (url === "/api/auth/reset" ? [200, { ok: true }] : null) });
+fill(rs, { password: "brand-new-password" });
+await submit(rs);
+const rsp = posted(rs, "/api/auth/reset");
+t("новий пароль: токен із посилання передається, потім форма входу", rsp.length === 1 && rsp[0].body.token === "abcdefghijklmnopqrstuv" && rsp[0].body.password === "brand-new-password" && rs.w.location.hash === "#/login");
+
+const rsBad = await page({ me: null, hash: "#/reset/abcdefghijklmnopqrstuv", siteKey: "sk", auth: () => [400, { error: "invalid_token" }] });
+fill(rsBad, { password: "brand-new-password" });
+await submit(rsBad);
+t("новий пароль: недійсний токен пояснено", rsBad.$("#af-msg").textContent.includes("недійсне"));
+
+const vf = await page({ me: null, hash: "#/verify/abcdefghijklmnopqrstuv", siteKey: "sk", auth: (url) => (url === "/api/auth/verify" ? [200, { ok: true }] : null) });
+await sleep(60);
+t("підтвердження пошти: токен надсилається один раз, далі кабінет", posted(vf, "/api/auth/verify").length === 1 && posted(vf, "/api/auth/verify")[0].body.token === "abcdefghijklmnopqrstuv" && vf.w.location.hash === "#/dashboard");
+const vfBad = await page({ me: null, hash: "#/verify/abcdefghijklmnopqrstuv", siteKey: "sk", auth: () => [400, { error: "invalid_token" }] });
+await sleep(60);
+t("підтвердження пошти: недійсне посилання пояснено", vfBad.$("#af-msg").textContent.includes("недійсне") && vfBad.w.location.hash.startsWith("#/verify"));
+
+const g1 = await page({ me: null, hash: "#/login", siteKey: null });
+t("без Turnstile: сторінка входу лише з Google, без форми", !g1.$("#af") && g1.html().includes('data-act="google"'));
+t("без Turnstile: реєстрації й відновлення немає", (await page({ me: null, hash: "#/register", siteKey: null })).html().includes("Такої сторінки немає"));
+t("без Google і Turnstile: кнопки входу в шапці немає", !(await page({ me: null, hash: "", siteKey: null, clientId: null })).head().includes("data-act"));
+t("уже увійшов: форму не показуємо", (await page({ me: user, dash, hash: "#/login", siteKey: "sk" })).html().includes("Ви вже увійшли"));
+
 console.log(`\nПройдено перевірок: ${ok}`);
