@@ -13,7 +13,7 @@ const today = new Date().toISOString().slice(0, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function page(opts = {}) {
-  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null } = opts;
+  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null, clientId = "cid" } = opts;
   const calls = [];
   const dom = new JSDOM(html, { url: "https://iteris-code.pages.dev/" + search + hash, runScripts: "outside-only", pretendToBeVisual: true });
   const w = dom.window;
@@ -30,7 +30,7 @@ async function page(opts = {}) {
     if (url === "/api/progress/complete") return complete ? complete() : reply(200, { ok: true, streak: 4, firstSolve: true, xp: 30 });
     if (url === "/api/progress" && !o.method) return reply(200, { lessonIds: ["js/1", "js/2"] });
     if (url === "/api/progress") return reply(200, { ok: true, streak: 2 });
-    if (url === "/api/auth/config") return reply(200, { clientId: "cid" });
+    if (url === "/api/auth/config") return reply(200, { clientId });
     if (url === "/api/auth/google") return reply(200, { ok: true });
     return reply(404, {});
   };
@@ -61,6 +61,10 @@ const dash = { user, completedLessons: ["python/1", "python/2", "js/1", "js/2", 
 /* ---- кабінет ---- */
 let p = await page({ me: null });
 t("гість: кнопка «Увійти» і запрошення в кабінеті", p.head().includes('data-act="login"') && p.html().includes("Увійти через Google"));
+p.$('[data-act="login"]').click();
+t("вхід: клік запускає OAuth (state збережено), без заглушки-тосту", p.w.sessionStorage.getItem("ic-oauth-state")?.length === 32 && p.$(".toast") === null);
+const noCfg = await page({ me: null, clientId: null });
+t("Google не налаштовано: кнопки входу немає, тосту-заглушки немає", !noCfg.head().includes("data-act=\"login\"") && !noCfg.html().includes("data-act=\"login\"") && noCfg.$(".toast") === null);
 p = await page({ me: user, dash });
 let h = p.html();
 t("кабінет: ім'я екрановано, фокус на наступному уроці, серія 3 дні", h.includes("Олена &lt;b&gt;Коваль&lt;/b&gt;") && !h.includes("<b>Коваль</b>") && h.includes("#/lesson/js/4") && h.includes("дні поспіль"));
