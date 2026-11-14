@@ -7,7 +7,7 @@ import { verifyTurnstile } from "../../../lib/turnstile.ts";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!sameOrigin(request)) return json({ error: "forbidden" }, 403);
-  if (!env.TURNSTILE_SECRET_KEY || !mailConfigured(env)) return json({ error: "not_configured" }, 503);
+  if (!mailConfigured(env)) return json({ error: "not_configured" }, 503);
 
   const b = await readBody(request);
   const email = normEmail(b.email);

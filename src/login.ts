@@ -24,6 +24,7 @@ const ERRORS: Record<string, string> = {
   invalid_email: "Перевірте адресу пошти",
   weak_password: "Пароль має містити від 8 до 128 символів",
   invalid_token: "Посилання недійсне або застаріле",
+  email_taken: "Акаунт із такою поштою вже є. Увійдіть",
 };
 const GENERIC = "Не вдалося виконати запит. Спробуйте пізніше";
 
@@ -47,25 +48,21 @@ const pass = (auto: "current-password" | "new-password", label = "Пароль",
   fld("password", label, "password", `autocomplete="${auto}" minlength="${auto === "new-password" ? 8 : 1}" maxlength="128" required`, hint);
 const rule = "Щонайменше 8 символів";
 const form = (fields: string, submit: string): string =>
-  `<form id="af">${fields}<div class="ts-slot" id="af-ts"></div><button class="btn primary" type="submit">${submit}</button></form><p class="form-msg" id="af-msg" role="alert"></p>`;
+  `<form id="af">${fields}${getAuthConfig().siteKey ? '<div class="ts-slot" id="af-ts"></div>' : ""}<button class="btn primary" type="submit">${submit}</button></form><p class="form-msg" id="af-msg" role="alert"></p>`;
 const googleBtn = (): string =>
   getAuthConfig().clientId ? `<div class="auth-or"><span>або</span></div><button class="btn" type="button" data-act="google">Увійти через Google</button>` : "";
 
 export function renderAuthPage(kind: Kind): string {
-  const { clientId, siteKey } = getAuthConfig();
+  const { mail } = getAuthConfig();
   if (!isReady()) return `<div class="card auth-card"><p class="dash-muted">Завантаження…</p></div>`;
   if (getUser()) return `<div class="card auth-card"><h1>Ви вже увійшли</h1><a class="btn primary" href="#/dashboard">Особистий кабінет</a></div>`;
-  if (!siteKey) {
-    return kind === "login" && clientId
-      ? `<div class="card auth-card"><h1>Вхід</h1><button class="btn primary" type="button" data-act="google">Увійти через Google</button></div>`
-      : notFound();
-  }
+  if (!mail && kind !== "login" && kind !== "register") return notFound();   // відновлення пароля й підтвердження пошти потребують листів
   const h = (t: string): string => `<h1>${t}</h1>`;
   const card = (inner: string): string => `<div class="card auth-card">${inner}</div>`;
   switch (kind) {
     case "login":
       return card(h("Вхід") + form(email + pass("current-password"), "Увійти") + googleBtn() +
-        `<p class="auth-links"><a href="#/forgot">Забули пароль?</a><a href="#/register">Створити акаунт</a></p>`);
+        `<p class="auth-links">${mail ? '<a href="#/forgot">Забули пароль?</a>' : ""}<a href="#/register">Створити акаунт</a></p>`);
     case "register":
       return card(h("Реєстрація") + form(fld("name", "Ім'я (необов'язково)", "text", 'autocomplete="name" maxlength="60"') + email + pass("new-password", "Пароль", rule), "Створити акаунт") +
         googleBtn() + `<p class="auth-links"><a href="#/login">Вже є акаунт? Увійти</a></p>`);
@@ -80,8 +77,8 @@ export function renderAuthPage(kind: Kind): string {
 }
 
 export function mountAuthPage(kind: Kind, token = ""): void {
-  const { siteKey } = getAuthConfig();
-  if (!siteKey || !isReady() || getUser()) return;
+  const { siteKey, mail } = getAuthConfig();
+  if (!isReady() || getUser() || (!mail && kind !== "login" && kind !== "register")) return;
   const msg = document.getElementById("af-msg");
   const say = (t: string, ok = false): void => { if (msg) { msg.textContent = t; msg.className = "form-msg" + (ok ? " ok" : ""); } };
 
@@ -94,36 +91,37 @@ export function mountAuthPage(kind: Kind, token = ""): void {
   }
 
   const f = document.getElementById("af") as HTMLFormElement | null;
-  const slot = document.getElementById("af-ts");
-  if (!f || !slot) return;
+  const slot = document.getElementById("af-ts");     // є лише коли Turnstile налаштовано
+  if (!f) return;
   const btn = f.querySelector<HTMLButtonElement>("button[type=submit]") as HTMLButtonElement;
   let wid: string | undefined, captcha = "";
-  void loadTurnstile().then((ts) => {
-    if (!ts) return say("Не вдалося завантажити перевірку від ботів. Вимкніть блокувальники реклами й оновіть сторінку");
-    if (!slot.isConnected) return;
-    wid = ts.render(slot, { sitekey: siteKey, callback: (t) => { captcha = t; }, "expired-callback": () => { captcha = ""; }, "error-callback": () => { captcha = ""; } });
-  });
+  if (slot && siteKey) {
+    void loadTurnstile().then((ts) => {
+      if (!ts) return say("Не вдалося завантажити перевірку від ботів. Вимкніть блокувальники реклами й оновіть сторінку");
+      if (!slot.isConnected) return;
+      wid = ts.render(slot, { sitekey: siteKey, callback: (t) => { captcha = t; }, "expired-callback": () => { captcha = ""; }, "error-callback": () => { captcha = ""; } });
+    });
+  }
 
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (!captcha) return say("Дочекайтеся завершення перевірки на бота");
+    if (slot && !captcha) return say("Дочекайтеся завершення перевірки на бота");
     const body: Record<string, string> = Object.fromEntries(Array.from(new FormData(f), ([k, v]) => [k, String(v)]));
-    body.turnstile = captcha;
+    if (slot) body.turnstile = captcha;
     if (kind === "reset") body.token = token;
     btn.disabled = true;
     say("");
-    const r = await post<{ error?: string }>("/api/auth/" + kind, body);
+    const r = await post<{ error?: string; signedIn?: boolean }>("/api/auth/" + kind, body);
     if (!r.ok) {
       captcha = "";                       // токен Turnstile одноразовий
-      window.turnstile?.reset(wid);
+      if (slot) window.turnstile?.reset(wid);
       btn.disabled = false;
       const code = r.data?.error ?? "";
       return say(code === "invalid_token" && kind === "reset" ? ERRORS.invalid_token + ". Запросіть нове на сторінці відновлення пароля" : ERRORS[code] ?? GENERIC);
     }
-    if (kind === "login") return void (await completeSignIn());
+    if (kind === "login" || r.data?.signedIn) return void (await completeSignIn());   // signedIn: реєстрація без листів одразу відкриває сесію
     if (kind === "reset") { toast("Пароль змінено. Тепер увійдіть"); location.hash = "#/login"; return; }
     f.hidden = true;
-    slot.hidden = true;
     say(kind === "register"
       ? `Ми надіслали лист на ${body.email}. Перейдіть за посиланням у ньому, щоб підтвердити пошту. Якщо листа немає, перевірте «Спам».`
       : "Якщо акаунт із такою поштою існує, ми надіслали лист із посиланням для відновлення пароля.", true);

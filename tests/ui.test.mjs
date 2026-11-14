@@ -13,7 +13,7 @@ const today = new Date().toISOString().slice(0, 10);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function page(opts = {}) {
-  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null, clientId = "cid", siteKey = null, auth = null, noCaptcha = false } = opts;
+  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null, clientId = "cid", siteKey = null, mail = true, auth = null, noCaptcha = false } = opts;
   const calls = [];
   const dom = new JSDOM(html, { url: "https://iteris-code.pages.dev/" + search + hash, runScripts: "outside-only", pretendToBeVisual: true });
   const w = dom.window;
@@ -30,7 +30,7 @@ async function page(opts = {}) {
     if (url === "/api/progress/complete") return complete ? complete() : reply(200, { ok: true, streak: 4, firstSolve: true, xp: 30 });
     if (url === "/api/progress" && !o.method) return reply(200, { lessonIds: ["js/1", "js/2"] });
     if (url === "/api/progress") return reply(200, { ok: true, streak: 2 });
-    if (url === "/api/auth/config") return reply(200, { clientId, turnstileSiteKey: siteKey });
+    if (url === "/api/auth/config") return reply(200, { clientId, turnstileSiteKey: siteKey, mail });
     if (auth && url.startsWith("/api/auth/") && url !== "/api/auth/google") { const r = auth(url, o.body ? JSON.parse(o.body) : null); if (r) return reply(r[0], r[1]); }
     if (url === "/api/auth/google") return reply(200, { ok: true });
     return reply(404, {});
@@ -63,11 +63,13 @@ const dash = { user, completedLessons: ["python/1", "python/2", "js/1", "js/2", 
 
 /* ---- кабінет ---- */
 let p = await page({ me: null });
-t("гість: кнопка «Увійти» і запрошення в кабінеті", p.head().includes('data-act="login"') && p.html().includes("Увійти через Google"));
+t("гість: кнопка «Увійти» і запрошення в кабінеті", p.head().includes('data-act="login"') && p.html().includes('data-act="login"'));
 p.$('[data-act="login"]').click();
-t("вхід: клік запускає OAuth (state збережено), без заглушки-тосту", p.w.sessionStorage.getItem("ic-oauth-state")?.length === 32 && p.$(".toast") === null);
-const noCfg = await page({ me: null, clientId: null });
-t("Google не налаштовано: кнопки входу немає, тосту-заглушки немає", !noCfg.head().includes("data-act=\"login\"") && !noCfg.html().includes("data-act=\"login\"") && noCfg.$(".toast") === null);
+await sleep(40);
+p.$('[data-act="google"]').click();
+t("вхід через Google зі сторінки входу: state збережено, без заглушки-тосту", p.w.sessionStorage.getItem("ic-oauth-state")?.length === 32 && p.$(".toast") === null);
+const noCfg = await page({ me: null, clientId: null, hash: "#/login" });
+t("Google не налаштовано: форма є, кнопки Google немає, тосту-заглушки немає", !!noCfg.$("#af [name=email]") && !!noCfg.$("#af [name=password]") && !noCfg.html().includes('data-act="google"') && noCfg.$(".toast") === null);
 p = await page({ me: user, dash });
 let h = p.html();
 t("кабінет: ім'я екрановано, фокус на наступному уроці, серія 3 дні", h.includes("Олена &lt;b&gt;Коваль&lt;/b&gt;") && !h.includes("<b>Коваль</b>") && h.includes("#/lesson/js/4") && h.includes("дні поспіль"));
@@ -240,10 +242,22 @@ const vfBad = await page({ me: null, hash: "#/verify/abcdefghijklmnopqrstuv", si
 await sleep(60);
 t("підтвердження пошти: недійсне посилання пояснено", vfBad.$("#af-msg").textContent.includes("недійсне") && vfBad.w.location.hash.startsWith("#/verify"));
 
-const g1 = await page({ me: null, hash: "#/login", siteKey: null });
-t("без Turnstile: сторінка входу лише з Google, без форми", !g1.$("#af") && g1.html().includes('data-act="google"'));
-t("без Turnstile: реєстрації й відновлення немає", (await page({ me: null, hash: "#/register", siteKey: null })).html().includes("Такої сторінки немає"));
-t("без Google і Turnstile: кнопки входу в шапці немає", !(await page({ me: null, hash: "", siteKey: null, clientId: null })).head().includes("data-act"));
+const g1 = await page({ me: null, hash: "#/login", siteKey: null, clientId: null, mail: false, auth: (url) => (url === "/api/auth/login" ? [200, { ok: true }] : null) });
+t("нічого не налаштовано: форма входу є, без Turnstile, Google і «Забули пароль»", !!g1.$("#af") && !g1.$("#af-ts") && !g1.html().includes('data-act="google"') && !g1.html().includes("#/forgot") && g1.head().includes('data-act="login"'));
+fill(g1, { email: "a@x.ua", password: "correct-horse" });
+await submit(g1);
+t("без Turnstile: вхід надсилається без токена перевірки", posted(g1, "/api/auth/login").length === 1 && !("turnstile" in posted(g1, "/api/auth/login")[0].body) && g1.w.location.hash === "#/dashboard");
+const gg = await page({ me: null, hash: "#/login", siteKey: null, clientId: "cid", mail: true });
+t("налаштовано Google і пошту: з'являються кнопка Google та «Забули пароль»", gg.html().includes('data-act="google"') && gg.html().includes("#/forgot"));
+t("без пошти: відновлення пароля й підтвердження недоступні", (await page({ me: null, hash: "#/forgot", mail: false })).html().includes("Такої сторінки немає") && (await page({ me: null, hash: "#/verify/abcdefghijklmnopqrstuv", mail: false })).html().includes("Такої сторінки немає"));
+const nm = await page({ me: null, hash: "#/register", mail: false, auth: (url) => (url === "/api/auth/register" ? [200, { ok: true, signedIn: true }] : null) });
+fill(nm, { email: "o@x.ua", password: "correct-horse" });
+await submit(nm);
+t("реєстрація без пошти: одразу вхід у кабінет", posted(nm, "/api/auth/register").length === 1 && nm.w.location.hash === "#/dashboard" && !nm.$("#af"));
+const taken = await page({ me: null, hash: "#/register", mail: false, auth: () => [409, { error: "email_taken" }] });
+fill(taken, { email: "o@x.ua", password: "correct-horse" });
+await submit(taken);
+t("реєстрація: пошта вже зайнята, пояснено", taken.$("#af-msg").textContent.includes("вже є"));
 t("уже увійшов: форму не показуємо", (await page({ me: user, dash, hash: "#/login", siteKey: "sk" })).html().includes("Ви вже увійшли"));
 
 console.log(`\nПройдено перевірок: ${ok}`);
