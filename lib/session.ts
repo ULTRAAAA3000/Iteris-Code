@@ -4,9 +4,9 @@ import type { Env, PublicUser, UserRow } from "./env.ts";
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 
-const toB64u = (buf: ArrayBuffer | Uint8Array): string =>
+export const toB64u = (buf: ArrayBuffer | Uint8Array): string =>
   btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-const fromB64u = (s: string): Uint8Array<ArrayBuffer> =>
+export const fromB64u = (s: string): Uint8Array<ArrayBuffer> =>
   Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 const hmacKey = (secret: string): Promise<CryptoKey> =>
   crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);

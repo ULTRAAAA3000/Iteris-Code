@@ -7,7 +7,7 @@ import type { DashboardData, PublicUser } from "./types.ts";
 import { escA, pl } from "./util.ts";
 
 type DashState = DashboardData | { error: true } | null;
-const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null } = { user: null, ready: false, dash: null, loading: false, clientId: null };
+const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null; siteKey: string | null } = { user: null, ready: false, dash: null, loading: false, clientId: null, siteKey: null };
 
 const GROUPS = [
   { t: "Frontend", courses: ["html", "css", "js", "ts"] },
@@ -25,7 +25,7 @@ const fmtDate = (s: string): string => {
 };
 
 interface ApiResult<T> { ok: boolean; status: number; data: T | null }
-async function api<T = unknown>(path: string, opts: RequestInit = {}): Promise<ApiResult<T>> {
+export async function api<T = unknown>(path: string, opts: RequestInit = {}): Promise<ApiResult<T>> {
   try {
     const r = await fetch(path, { credentials: "same-origin", ...opts });
     let data: T | null = null;
@@ -35,7 +35,7 @@ async function api<T = unknown>(path: string, opts: RequestInit = {}): Promise<A
     return { ok: false, status: 0, data: null };
   }
 }
-const post = <T = unknown>(path: string, body: unknown = {}) =>
+export const post = <T = unknown>(path: string, body: unknown = {}) =>
   api<T>(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 const avatar = (u: PublicUser, big = false): string =>
@@ -46,8 +46,11 @@ const avatar = (u: PublicUser, big = false): string =>
 export const getUser = (): PublicUser | null => st.user;
 export const invalidate = (): void => { st.dash = null; };
 
-// Кнопка входу показується лише тоді, коли Google OAuth налаштовано на сервері (без заглушок)
-const loginBtn = (cls: string, label: string): string => (st.clientId ? `<button class="${cls}" data-act="login">${label}</button>` : "");
+export const isReady = (): boolean => st.ready;
+export const getAuthConfig = (): { clientId: string | null; siteKey: string | null } => ({ clientId: st.clientId, siteKey: st.siteKey });
+
+// Кнопка входу показується лише тоді, коли на сервері налаштовано хоча б один спосіб входу (без заглушок)
+const loginBtn = (cls: string, label: string): string => (st.clientId || st.siteKey ? `<button class="${cls}" data-act="login">${label}</button>` : "");
 
 export function updateHeader(): void {
   const el = document.getElementById("acct");
@@ -58,7 +61,7 @@ export function updateHeader(): void {
     : loginBtn("btn small", "Увійти");
 }
 
-function login(): void {
+export function loginGoogle(): void {
   const id = st.clientId;
   if (!id) return;
   const s = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
@@ -67,6 +70,23 @@ function login(): void {
     client_id: id, redirect_uri: location.origin + "/", response_type: "code",
     scope: "openid email profile", state: s, prompt: "select_account",
   });
+}
+
+// Кнопка «Увійти»: форма входу за поштою, а якщо вона не налаштована, одразу Google
+function openLogin(): void {
+  if (st.siteKey) location.hash = "#/login";
+  else loginGoogle();
+}
+
+// Після успішного входу за поштою: підтягуємо користувача, зливаємо прогрес і відкриваємо кабінет
+export async function completeSignIn(): Promise<void> {
+  const r = await api<{ user: PublicUser | null }>("/api/me");
+  st.user = r.ok && r.data ? r.data.user : null;
+  if (st.user) await syncLocal();
+  updateHeader();
+  ui.notifyAuth();
+  location.hash = "#/dashboard";
+  ui.render();
 }
 
 async function handleCallback(): Promise<void> {
@@ -118,7 +138,7 @@ export async function completeTask(taskId: string, code: string): Promise<Comple
 }
 
 async function startCheckout(): Promise<void> {
-  if (!st.user) return login();
+  if (!st.user) return openLogin();
   const r = await post<{ url?: string }>("/api/billing/checkout");
   if (r.ok && r.data?.url) { location.href = r.data.url; return; }
   toast(r.status === 503 ? "Оплату ще не налаштовано. Спробуйте пізніше" : "Не вдалося перейти до оплати. Спробуйте ще раз");
@@ -140,14 +160,15 @@ async function logout(): Promise<void> {
 
 export async function init(): Promise<void> {
   await handleCallback();
-  const [cfg, r] = await Promise.all([api<{ clientId: string | null }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
+  const [cfg, r] = await Promise.all([api<{ clientId: string | null; turnstileSiteKey: string | null }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
   st.clientId = cfg.ok && typeof cfg.data?.clientId === "string" && cfg.data.clientId ? cfg.data.clientId : null;
+  st.siteKey = cfg.ok && typeof cfg.data?.turnstileSiteKey === "string" && cfg.data.turnstileSiteKey ? cfg.data.turnstileSiteKey : null;
   st.user = r.ok && r.data ? r.data.user : null;
   if (st.user) await syncLocal();
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^#\/dashboard/.test(location.hash)) ui.render();
+  if (/^#\/(dashboard|login|register|forgot|reset|verify)/.test(location.hash)) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -166,8 +187,8 @@ async function loadDash(): Promise<void> {
 /* ---------- Дашборд ---------- */
 const skeleton = `<div class="card"><p class="dash-muted">Завантаження кабінету…</p></div>`;
 const guestCard = (): string => `<div class="card dash-guest"><h1>Особистий кабінет</h1>
-    <p>${st.clientId ? "Увійдіть через Google, щоб зберігати прогрес на всіх пристроях, бачити серію занять і карту навичок." : "Прогрес зберігається в цьому браузері. Вхід для синхронізації між пристроями з'явиться тут."}</p>
-    ${loginBtn("btn primary", "Увійти через Google")}</div>`;
+    <p>${st.clientId || st.siteKey ? "Увійдіть, щоб зберігати прогрес на всіх пристроях, бачити серію занять і карту навичок." : "Прогрес зберігається в цьому браузері. Вхід для синхронізації між пристроями з'явиться тут."}</p>
+    ${loginBtn("btn primary", st.siteKey ? "Увійти" : "Увійти через Google")}</div>`;
 const errorCard = (): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
     <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="retry">Спробувати ще раз</button></div>`;
 
@@ -262,7 +283,8 @@ document.addEventListener("click", (e) => {
   const b = (e.target as Element).closest<HTMLElement>("[data-act]");
   if (!b) return;
   const a = b.dataset.act;
-  if (a === "login") login();
+  if (a === "login") openLogin();
+  else if (a === "google") loginGoogle();
   else if (a === "logout") void logout();
   else if (a === "retry") { st.dash = null; ui.render(); }
   else if (a === "upgrade") void startCheckout();

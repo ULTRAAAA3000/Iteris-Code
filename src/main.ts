@@ -1,5 +1,6 @@
 import { init as initAuth, renderDashboard, syncLesson } from "./auth.ts";
 import { C, CATS } from "./data.ts";
+import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
 import { hooks, toggle } from "./progress.ts";
 import { taskForLesson } from "./tasks/index.ts";
 import type { Task } from "./tasks/types.ts";
@@ -24,6 +25,7 @@ function render(): void {
     task = taskForLesson(`${b}/${Number(c)}`);
   }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
+  else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
   else html = notFound();
   app.innerHTML = html;
   document.title = title;
@@ -31,6 +33,7 @@ function render(): void {
   window.scrollTo(0, 0);
   if (!a) initHome();
   if (task) void mountWorkspace(task);
+  if (isAuthRoute(a)) mountAuthPage(a, b);
 }
 ui.render = render;
 hooks.onToggle = syncLesson;

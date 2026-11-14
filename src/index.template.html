@@ -276,6 +276,21 @@ pre.code,.ws-term{max-width:100%;overflow-x:auto}
 .dash-focus{font-weight:700;margin:6px 0 14px}
 .dash-guest{max-width:560px;display:grid;gap:14px}
 .dash-guest h1{font-size:clamp(1.5rem,3.5vw,2.2rem);margin:0}
+.auth-card{max-width:460px;display:grid;gap:14px}
+.auth-card h1{font-size:clamp(1.5rem,3.5vw,2.2rem);margin:0}
+.auth-card form{display:grid;gap:14px}
+.auth-card form[hidden]{display:none}
+.fld{display:grid;gap:6px;font-weight:600;font-size:.95rem}
+.fld input{width:100%;padding:11px 12px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);font:inherit;font-weight:400;color:inherit}
+.fld input:focus{outline:2px solid var(--pen);outline-offset:2px}
+.fld small{font-weight:400;color:var(--muted)}
+.form-msg{margin:0;font-weight:600;color:var(--margin);overflow-wrap:anywhere}
+.form-msg.ok{color:var(--ok)}
+.form-msg:empty{display:none}
+.ts-slot{min-height:65px}
+.auth-links{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0;font-size:.95rem}
+.auth-or{display:flex;align-items:center;gap:12px;color:var(--muted);font-size:.9rem}
+.auth-or::before,.auth-or::after{content:"";flex:1;border-top:1px solid var(--line)}
 .streak{display:flex;align-items:center;gap:14px;margin-bottom:8px}
 .streak span:first-child{font-size:2rem}
 .streak b{font-family:var(--display);font-size:2.6rem;line-height:1}
