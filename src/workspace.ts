@@ -20,6 +20,7 @@ export function workspaceHTML(v: View): string {
       ${v.meta}
       <h1>${v.title}</h1>
       ${v.actions}
+      <button class="btn small ws-jump" data-scroll="editor">До редактора ↓</button>
       <div class="prose">
         ${v.prose}
         <section class="task-brief" id="task">

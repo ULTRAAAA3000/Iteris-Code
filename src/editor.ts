@@ -83,7 +83,9 @@ function plainEditor(host: HTMLElement, value: string): CodeEditor {
 }
 
 export async function createEditor(host: HTMLElement, opts: { value: string; language: string }): Promise<CodeEditor> {
-  if ((window as MonacoWindow).__IC_PLAIN_EDITOR) return plainEditor(host, opts.value);
+  // На телефонах Monaco працює погано (клавіатура, прокручування): беремо простий редактор
+  const narrow = typeof matchMedia === "function" && matchMedia("(max-width: 700px)").matches;
+  if ((window as MonacoWindow).__IC_PLAIN_EDITOR || narrow) return plainEditor(host, opts.value);
   host.textContent = "Завантаження редактора…";
   try {
     const monaco = await loadMonaco();

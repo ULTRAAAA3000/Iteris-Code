@@ -14,3 +14,6 @@ Cloudflare Pages: Build command `npm run build`, output directory `dist`.
 
 ## Особистий кабінет
 Вхід через Google, прогрес і дашборд працюють через Cloudflare Pages Functions та D1. Налаштування: [SETUP.md](SETUP.md).
+
+## Документація
+План розробки та опис платформи: [Documentation/main-plan.md](Documentation/main-plan.md), [Documentation/about.md](Documentation/about.md).
