@@ -27,6 +27,10 @@ const ERRORS: Record<string, string> = {
   email_taken: "Акаунт із такою поштою вже є. Увійдіть",
 };
 const GENERIC = "Не вдалося виконати запит. Спробуйте пізніше";
+// Збій самого сервера (5xx, відповідь без JSON) або відсутність зв'язку: показуємо код, щоб його можна було передати розробнику
+const serverFailure = (status: number, code?: string): string =>
+  status === 0 ? "Немає зв'язку із сервером. Перевірте інтернет і спробуйте ще раз"
+    : `Помилка сервера (код ${status}${code ? ", " + code : ""}). Спробуйте ще раз трохи пізніше`;
 
 let tsLoad: Promise<TurnstileApi | null> | null = null;
 function loadTurnstile(): Promise<TurnstileApi | null> {
@@ -107,8 +111,9 @@ export function mountAuthPage(kind: Kind, token = ""): void {
   const say = (t: string, ok = false): void => { if (msg) { msg.textContent = t; msg.className = "form-msg" + (ok ? " ok" : ""); } };
 
   if (kind === "verify") {
-    void post("/api/auth/verify", { token }).then(async (r) => {
+    void post<{ code?: string }>("/api/auth/verify", { token }).then(async (r) => {
       if (r.ok) { toast("Пошту підтверджено"); await completeSignIn(); }
+      else if (r.status === 0 || r.status >= 500) say(serverFailure(r.status, r.data?.code));
       else say(ERRORS.invalid_token + ". Зареєструйтеся ще раз, і ми надішлемо новий лист");
     });
     return;
@@ -157,7 +162,7 @@ export function mountAuthPage(kind: Kind, token = ""): void {
     btn.classList.add("is-loading");
     btn.setAttribute("aria-busy", "true");
     say("");
-    const r = await post<{ error?: string; signedIn?: boolean }>("/api/auth/" + kind, body);
+    const r = await post<{ error?: string; code?: string; signedIn?: boolean }>("/api/auth/" + kind, body);
     if (!r.ok) {
       captcha = "";                       // токен Turnstile одноразовий
       if (slot) window.turnstile?.reset(wid);
@@ -169,6 +174,7 @@ export function mountAuthPage(kind: Kind, token = ""): void {
       f.classList.remove("shake");
       void f.offsetWidth;                 // перезапуск анімації, якщо помилка повторилась
       f.classList.add("shake");
+      if (r.status === 0 || r.status >= 500 || !r.data) return say(serverFailure(r.status, r.data?.code));
       return say(code === "invalid_token" && kind === "reset" ? ERRORS.invalid_token + ". Запросіть нове на сторінці відновлення пароля" : ERRORS[code] ?? GENERIC);
     }
     if (kind === "login" || r.data?.signedIn) return void (await completeSignIn());   // signedIn: реєстрація без листів одразу відкриває сесію
