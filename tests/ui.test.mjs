@@ -291,6 +291,22 @@ an.$("#af").dispatchEvent(new an.w.Event("animationend", { bubbles: true }));
 t("помилка: клас shake знімається після анімації", !an.$("#af").classList.contains("shake"));
 const vwait = await page({ me: null, hash: "#/verify/abcdefghijklmnopqrstuv", siteKey: "sk", auth: () => new Promise(() => {}) });
 t("підтвердження пошти: поки триває перевірка, показано спінер, а не галочку", vwait.$("#af-msg").className.includes("wait") && !vwait.$("#af-msg").className.includes("ok"));
+/* ---- збої сервера: зрозуміле повідомлення з кодом замість загального ---- */
+const srv = await page({ me: null, hash: "#/register", siteKey: null, auth: () => [500, { error: "server_error", code: "db_schema" }] });
+fill(srv, { email: "o@x.ua", password: "correct-horse" });
+await submit(srv);
+t("збій сервера 500: повідомлення з кодом, кнопка знову активна", srv.$("#af-msg").textContent.includes("Помилка сервера") && srv.$("#af-msg").textContent.includes("500") && srv.$("#af-msg").textContent.includes("db_schema") && !srv.$("#af button[type=submit]").disabled);
+const srv2 = await page({ me: null, hash: "#/login", siteKey: null, auth: () => [502, null] });
+fill(srv2, { email: "o@x.ua", password: "correct-horse" });
+await submit(srv2);
+t("відповідь без JSON (502 від Cloudflare): теж «Помилка сервера» з кодом, а не загальний текст", srv2.$("#af-msg").textContent.includes("Помилка сервера") && srv2.$("#af-msg").textContent.includes("502"));
+const off = await page({ me: null, hash: "#/login", siteKey: null, auth: () => { throw new Error("offline"); } });
+fill(off, { email: "o@x.ua", password: "correct-horse" });
+await submit(off);
+t("немає зв'язку: окреме повідомлення про інтернет", off.$("#af-msg").textContent.includes("Немає зв'язку"));
+const vErr = await page({ me: null, hash: "#/verify/abcdefghijklmnopqrstuv", siteKey: null, auth: () => [500, { error: "server_error", code: "server_error" }] });
+await sleep(60);
+t("підтвердження пошти: збій сервера не видається за недійсне посилання", vErr.$("#af-msg").textContent.includes("Помилка сервера") && !vErr.$("#af-msg").textContent.includes("недійсне"));
 t("уже увійшов: форму не показуємо", (await page({ me: user, dash, hash: "#/login", siteKey: "sk" })).html().includes("Ви вже увійшли"));
 
 console.log(`\nПройдено перевірок: ${ok}`);
