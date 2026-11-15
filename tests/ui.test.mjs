@@ -31,7 +31,7 @@ async function page(opts = {}) {
     if (url === "/api/progress" && !o.method) return reply(200, { lessonIds: ["js/1", "js/2"] });
     if (url === "/api/progress") return reply(200, { ok: true, streak: 2 });
     if (url === "/api/auth/config") return reply(200, { clientId, turnstileSiteKey: siteKey, mail });
-    if (auth && url.startsWith("/api/auth/") && url !== "/api/auth/google") { const r = auth(url, o.body ? JSON.parse(o.body) : null); if (r) return reply(r[0], r[1]); }
+    if (auth && url.startsWith("/api/auth/") && url !== "/api/auth/google") { const r = await auth(url, o.body ? JSON.parse(o.body) : null); if (r) return reply(r[0], r[1]); }
     if (url === "/api/auth/google") return reply(200, { ok: true });
     return reply(404, {});
   };
@@ -258,6 +258,39 @@ const taken = await page({ me: null, hash: "#/register", mail: false, auth: () =
 fill(taken, { email: "o@x.ua", password: "correct-horse" });
 await submit(taken);
 t("реєстрація: пошта вже зайнята, пояснено", taken.$("#af-msg").textContent.includes("вже є"));
+/* ---- ефекти форм: показ пароля, індикатор надійності, стани завантаження й помилки ---- */
+const an = await page({ me: null, hash: "#/register", siteKey: "sk", auth: () => [400, { error: "weak_password" }] });
+const pwi = an.$("#af [name=password]"), tog = an.$("#af .pw-toggle");
+t("пароль: кнопка показу є, поле приховане, підпис і aria-pressed коректні", pwi.type === "password" && tog.getAttribute("aria-pressed") === "false" && tog.getAttribute("aria-label") === "Показати пароль" && tog.type === "button");
+tog.click();
+t("пароль: клік показує текст і міняє підпис", pwi.type === "text" && tog.getAttribute("aria-pressed") === "true" && tog.getAttribute("aria-label") === "Сховати пароль");
+tog.click();
+t("пароль: повторний клік знову ховає", pwi.type === "password" && tog.getAttribute("aria-pressed") === "false");
+const setPw = (v) => { pwi.value = v; pwi.dispatchEvent(new an.w.Event("input", { bubbles: true })); };
+const mt = () => an.$("#af .pw-meter").dataset.s;
+t("індикатор надійності: порожньо 0", mt() === "0" && an.$("#af .pw-meter-t").textContent === "");
+setPw("abc");
+t("індикатор надійності: короткий пароль слабкий (1)", mt() === "1" && an.$("#af .pw-meter-t").textContent === "Слабкий пароль");
+setPw("correct-horse-battery");
+t("індикатор надійності: довгий пароль росте (3)", mt() === "3");
+setPw("Str0ng!Passw0rd-2026");
+t("індикатор надійності: максимум (4)", mt() === "4" && an.$("#af .pw-meter-t").textContent === "Надійний пароль");
+setPw("");
+t("індикатор надійності: після очищення знову 0", mt() === "0" && an.$("#af .pw-meter-t").textContent === "");
+t("вхід: у полі пароля немає індикатора надійності, але є кнопка показу", (await page({ me: null, hash: "#/login", siteKey: "sk" })).$("#af .pw-meter") === null && !!(await page({ me: null, hash: "#/login", siteKey: "sk" })).$("#af .pw-toggle"));
+fill(an, { email: "o@x.ua", password: "short" });
+an.$("#af").dispatchEvent(new an.w.Event("submit", { cancelable: true, bubbles: true }));
+const sb = an.$("#af button[type=submit]");
+t("завантаження: під час запиту кнопка блокується, показує спінер і aria-busy", sb.disabled && sb.classList.contains("is-loading") && sb.getAttribute("aria-busy") === "true");
+await sleep(80);
+t("помилка: кнопка розблокована, поле пароля підсвічено, форма трясеться, повідомлення показано", !sb.disabled && !sb.classList.contains("is-loading") && !sb.hasAttribute("aria-busy")
+  && an.$("#af [name=password]").getAttribute("aria-invalid") === "true" && !an.$("#af [name=email]").hasAttribute("aria-invalid") && an.$("#af").classList.contains("shake") && an.$("#af-msg").textContent.includes("8"));
+an.$("#af [name=password]").dispatchEvent(new an.w.Event("input", { bubbles: true }));
+t("помилка: підсвічування зникає, щойно користувач редагує поле", !an.$("#af [name=password]").hasAttribute("aria-invalid"));
+an.$("#af").dispatchEvent(new an.w.Event("animationend", { bubbles: true }));
+t("помилка: клас shake знімається після анімації", !an.$("#af").classList.contains("shake"));
+const vwait = await page({ me: null, hash: "#/verify/abcdefghijklmnopqrstuv", siteKey: "sk", auth: () => new Promise(() => {}) });
+t("підтвердження пошти: поки триває перевірка, показано спінер, а не галочку", vwait.$("#af-msg").className.includes("wait") && !vwait.$("#af-msg").className.includes("ok"));
 t("уже увійшов: форму не показуємо", (await page({ me: user, dash, hash: "#/login", siteKey: "sk" })).html().includes("Ви вже увійшли"));
 
 console.log(`\nПройдено перевірок: ${ok}`);

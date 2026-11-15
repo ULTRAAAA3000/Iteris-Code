@@ -42,10 +42,34 @@ function loadTurnstile(): Promise<TurnstileApi | null> {
 }
 
 const fld = (name: string, label: string, type: string, attrs: string, hint = ""): string =>
-  `<label class="fld"><span>${label}</span><input name="${name}" type="${type}" ${attrs}>${hint ? `<small>${hint}</small>` : ""}</label>`;
+  `<label class="fld"><span class="lbl">${label}</span><input name="${name}" type="${type}" ${attrs}>${hint ? `<small>${hint}</small>` : ""}</label>`;
+const SVG = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+const EYE = `<svg class="on" ${SVG}><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>`;
+const EYE_OFF = `<svg class="off" ${SVG}><path d="M3 3l18 18M10.6 6.1A9.9 9.9 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4M6.5 6.6C3.8 8.3 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>`;
 const email = fld("email", "Пошта", "email", 'autocomplete="email" maxlength="254" required');
-const pass = (auto: "current-password" | "new-password", label = "Пароль", hint = ""): string =>
-  fld("password", label, "password", `autocomplete="${auto}" minlength="${auto === "new-password" ? 8 : 1}" maxlength="128" required`, hint);
+const pass = (auto: "current-password" | "new-password", label = "Пароль", hint = ""): string => {
+  const isNew = auto === "new-password";
+  return `<label class="fld"><span class="lbl">${label}</span><span class="pw"><input name="password" type="password" autocomplete="${auto}" minlength="${isNew ? 8 : 1}" maxlength="128" required>`
+    + `<button class="pw-toggle" type="button" aria-label="Показати пароль" aria-pressed="false">${EYE}${EYE_OFF}</button></span>`
+    + (hint ? `<small>${hint}</small>` : "")
+    + (isNew ? `<span class="pw-meter" data-s="0" aria-hidden="true"><i></i><i></i><i></i><i></i></span><small class="pw-meter-t" aria-live="polite"></small>` : "")
+    + `</label>`;
+};
+const STRENGTH = ["", "Слабкий пароль", "Непоганий пароль", "Добрий пароль", "Надійний пароль"];
+// Орієнтовна оцінка надійності лише для підказки; справжня перевірка (довжина) робиться на сервері
+export function strength(p: string): number {
+  if (!p) return 0;
+  let s = 0;
+  if (p.length >= 8) s++;
+  if (p.length >= 12) s++;
+  if ((/\p{L}/u.test(p) && /\d/.test(p)) || (/\p{Lu}/u.test(p) && /\p{Ll}/u.test(p))) s++;
+  if (/[^\p{L}\d]/u.test(p)) s++;
+  return Math.max(1, s);
+}
+// Які поля підсвічувати червоним для кожної помилки
+const BAD_FIELDS: Record<string, string[]> = {
+  invalid_credentials: ["email", "password"], email_not_verified: ["email"], invalid_email: ["email"], weak_password: ["password"], email_taken: ["email"],
+};
 const rule = "Щонайменше 8 символів";
 const form = (fields: string, submit: string): string =>
   `<form id="af">${fields}${getAuthConfig().siteKey ? '<div class="ts-slot" id="af-ts"></div>' : ""}<button class="btn primary" type="submit">${submit}</button></form><p class="form-msg" id="af-msg" role="alert"></p>`;
@@ -54,7 +78,7 @@ const googleBtn = (): string =>
 
 export function renderAuthPage(kind: Kind): string {
   const { mail } = getAuthConfig();
-  if (!isReady()) return `<div class="card auth-card"><p class="dash-muted">Завантаження…</p></div>`;
+  if (!isReady()) return `<div class="card auth-card" aria-busy="true" aria-label="Завантаження"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
   if (getUser()) return `<div class="card auth-card"><h1>Ви вже увійшли</h1><a class="btn primary" href="#/dashboard">Особистий кабінет</a></div>`;
   if (!mail && kind !== "login" && kind !== "register") return notFound();   // відновлення пароля й підтвердження пошти потребують листів
   const h = (t: string): string => `<h1>${t}</h1>`;
@@ -72,7 +96,7 @@ export function renderAuthPage(kind: Kind): string {
     case "reset":
       return card(h("Новий пароль") + form(pass("new-password", "Новий пароль", rule), "Зберегти пароль"));
     case "verify":
-      return card(h("Підтвердження пошти") + `<p class="form-msg ok" id="af-msg" role="status">Перевіряємо посилання…</p>`);
+      return card(h("Підтвердження пошти") + `<p class="form-msg wait" id="af-msg" role="status">Перевіряємо посилання…</p>`);
   }
 }
 
@@ -95,6 +119,26 @@ export function mountAuthPage(kind: Kind, token = ""): void {
   if (!f) return;
   const btn = f.querySelector<HTMLButtonElement>("button[type=submit]") as HTMLButtonElement;
   let wid: string | undefined, captcha = "";
+  const bad = (names: string[]): void => f.querySelectorAll<HTMLInputElement>("input").forEach((i) => { if (names.includes(i.name)) i.setAttribute("aria-invalid", "true"); });
+  f.addEventListener("input", (e) => (e.target as HTMLElement).removeAttribute("aria-invalid"));
+  f.addEventListener("animationend", (e) => { if (e.target === f) f.classList.remove("shake"); });
+  f.querySelectorAll<HTMLButtonElement>(".pw-toggle").forEach((b) => b.addEventListener("click", () => {
+    const input = b.parentElement?.querySelector("input");
+    if (!input) return;
+    const show = input.type === "password";
+    input.type = show ? "text" : "password";
+    b.setAttribute("aria-pressed", String(show));
+    b.setAttribute("aria-label", show ? "Сховати пароль" : "Показати пароль");
+    input.focus();
+  }));
+  const meter = f.querySelector<HTMLElement>(".pw-meter"), meterText = f.querySelector<HTMLElement>(".pw-meter-t");
+  if (meter) {
+    f.querySelector<HTMLInputElement>("input[name=password]")?.addEventListener("input", (e) => {
+      const s = strength((e.target as HTMLInputElement).value);
+      meter.dataset.s = String(s);
+      if (meterText) meterText.textContent = STRENGTH[s];
+    });
+  }
   if (slot && siteKey) {
     void loadTurnstile().then((ts) => {
       if (!ts) return say("Не вдалося завантажити перевірку від ботів. Вимкніть блокувальники реклами й оновіть сторінку");
@@ -110,13 +154,21 @@ export function mountAuthPage(kind: Kind, token = ""): void {
     if (slot) body.turnstile = captcha;
     if (kind === "reset") body.token = token;
     btn.disabled = true;
+    btn.classList.add("is-loading");
+    btn.setAttribute("aria-busy", "true");
     say("");
     const r = await post<{ error?: string; signedIn?: boolean }>("/api/auth/" + kind, body);
     if (!r.ok) {
       captcha = "";                       // токен Turnstile одноразовий
       if (slot) window.turnstile?.reset(wid);
       btn.disabled = false;
+      btn.classList.remove("is-loading");
+      btn.removeAttribute("aria-busy");
       const code = r.data?.error ?? "";
+      bad(BAD_FIELDS[code] ?? []);
+      f.classList.remove("shake");
+      void f.offsetWidth;                 // перезапуск анімації, якщо помилка повторилась
+      f.classList.add("shake");
       return say(code === "invalid_token" && kind === "reset" ? ERRORS.invalid_token + ". Запросіть нове на сторінці відновлення пароля" : ERRORS[code] ?? GENERIC);
     }
     if (kind === "login" || r.data?.signedIn) return void (await completeSignIn());   // signedIn: реєстрація без листів одразу відкриває сесію

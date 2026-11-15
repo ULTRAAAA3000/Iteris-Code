@@ -185,7 +185,7 @@ async function loadDash(): Promise<void> {
 }
 
 /* ---------- Дашборд ---------- */
-const skeleton = `<div class="card"><p class="dash-muted">Завантаження кабінету…</p></div>`;
+const skeleton = `<div class="card dash-guest" aria-busy="true" aria-label="Завантаження кабінету"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
 const guestCard = (): string => `<div class="card dash-guest"><h1>Особистий кабінет</h1>
     <p>Увійдіть, щоб зберігати прогрес на всіх пристроях, бачити серію занять і карту навичок.</p>
     ${loginBtn("btn primary", "Увійти")}</div>`;
