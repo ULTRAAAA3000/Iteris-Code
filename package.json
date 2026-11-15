@@ -7,8 +7,8 @@
   "scripts": {
     "build": "node build.mjs",
     "check": "tsc -p tsconfig.json && tsc -p functions/tsconfig.json",
-    "test": "node tests/api.test.mjs && node tests/password-auth.test.mjs && node tests/schema.test.mjs && node tests/stage2.test.mjs && node tests/runner.test.mjs",
-    "test:ui": "node tests/ui.test.mjs && node tests/stage2-ui.test.mjs"
+    "test": "node tests/api.test.mjs && node tests/password-auth.test.mjs && node tests/schema.test.mjs && node tests/stage2.test.mjs && node tests/runner.test.mjs && node tests/run.test.mjs && node tests/go-tasks.test.mjs",
+    "test:ui": "node tests/ui.test.mjs && node tests/stage2-ui.test.mjs && node tests/go-ui.test.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250101.0",

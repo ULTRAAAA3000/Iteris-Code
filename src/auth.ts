@@ -132,8 +132,9 @@ export function syncLesson(k: string, n: number, isDoneNow: boolean): void {
 }
 
 export interface CompleteResult { ok: boolean; status: number; streak?: number; firstSolve?: boolean; xp?: number }
-export async function completeTask(taskId: string, code: string): Promise<CompleteResult> {
-  const r = await post<{ streak: number; firstSolve: boolean; xp: number }>("/api/progress/complete", { taskId, code, passed: true });
+/** proof: підпис сервера з /api/run; потрібен для завдань, які запускає сервер (Go та ін.) */
+export async function completeTask(taskId: string, code: string, proof?: string): Promise<CompleteResult> {
+  const r = await post<{ streak: number; firstSolve: boolean; xp: number }>("/api/progress/complete", { taskId, code, passed: true, proof });
   if (r.ok && r.data && st.user) st.user.streak = r.data.streak;
   st.dash = null;
   return { ok: r.ok, status: r.status, ...(r.data ?? {}) };

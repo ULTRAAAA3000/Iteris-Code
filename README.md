@@ -9,6 +9,9 @@
 ## Додати урок
 Додайте об'єкт `{ t, p, code, note, tasks }` у відповідний масив у `src/data/lessons.js`.
 
+## Практика в уроках
+У уроков с практическим заданием справа редактор кода и терминал: JavaScript выполняется в браузере, Go запускается на сервере (`/api/run`, Go Playground), результат проверяется автоматически. Как это устроено и как добавить другой язык: [Documentation/task-runtime.md](Documentation/task-runtime.md).
+
 ## Деплой
 Cloudflare Pages: Build command `npm run build`, output directory `dist`.
 
