@@ -27,4 +27,8 @@ export interface DashboardData {
   tasksPassed: number;
   recentSubmissions: { taskId: string; passed: boolean; at: string }[];
   activity: Record<string, number>;
+  /** Етап 2: сума XP, вибір рівня й курсів (null = ще не обирав), що пройдено в кожен день (UTC) */
+  xp?: number;
+  onboarding?: { level: "beginner" | "intermediate" | "advanced"; courses: string[] } | null;
+  days?: Record<string, { l: string[]; t: string[] }>;
 }
