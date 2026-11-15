@@ -30,7 +30,10 @@ function levelUp(level: number): void {
     <div class="lvl-up-badge">${level}</div><h2>Новий рівень!</h2><p>Ви досягли рівня ${level}. Так тримати!</p><button class="btn primary" type="button">Чудово</button></div>`;
   const prev = document.activeElement as HTMLElement | null;
   const btn = el.querySelector("button") as HTMLButtonElement;
-  const onKey = (e: KeyboardEvent): void => { if (e.key === "Escape") close(); };
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === "Escape") close();
+    else if (e.key === "Tab") { e.preventDefault(); btn.focus(); }   // в окне одна кнопка: фокус не уходит на страницу под ним
+  };
   function close(): void { el.remove(); document.removeEventListener("keydown", onKey); prev?.focus?.(); }
   el.addEventListener("click", (e) => { if (e.target === el) close(); });
   btn.addEventListener("click", close);
