@@ -28,7 +28,12 @@ function render(): void {
     task = taskForLesson(`${b}/${Number(c)}`);
   }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
-  else if (a === "path") { html = renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
+  else if (a === "path") {
+    // Шлях тільки для зареєстрованих: гостя ведемо на форму входу
+    if (isReady() && !getUser()) { history.replaceState(null, "", "#/login"); return render(); }
+    html = !isReady() ? `<div class="card"><p class="dash-muted">Завантаження…</p></div>` : renderPath(b, { onboarding: getOnboarding(), loggedIn: true });
+    active = "path"; title = "Мій шлях — " + BRAND;
+  }
   else if (a === "start") { html = !isReady() ? `<div class="card"><p class="dash-muted">Завантаження…</p></div>` : getUser() ? onboardingHtml() : notFound(); title = "Налаштування шляху — " + BRAND; }
   else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
   else html = notFound();

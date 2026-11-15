@@ -108,15 +108,15 @@ t("календар: Enter на дні відкриває подробиці (к
 
 /* ---- шлях ---- */
 const jsN = LESSONS.js.length;
-const g = await page({ me: null, hash: "#/path/js", done: { js: [1, 2, 3] } });
+const g = await page({ me: user, hash: "#/path/js", done: { js: [1, 2, 3] } });
 const nodes = g.$$(".path-node");
-t("шлях (гість): по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.js).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
+t("шлях: по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.js).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
 t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `#/lesson/js/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
 t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="#/lesson/js/4"]'));
-t("шлях: вкладки курсів, активний позначено, гостю пропонується вхід", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript") && !!g.$('.path-head [data-act="login"]'));
+t("шлях: вкладки курсів, активний позначено, без вибраного рівня пропонується його обрати", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript") && !!g.$('.path-head a[href="#/start"]'));
 const withTask = TASKS.find((x) => x.course === "js");
 t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="#/lesson/${withTask.lesson}"]`));
-t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: null, hash: "#/path/nope" })).$$(".path-node").length > 0);
+t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: user, hash: "#/path/nope" })).$$(".path-node").length > 0);
 t("шлях: пункт «Шлях» є в основній навігації й підсвічується на цій сторінці", g.$$("#nav a").some((a) => a.textContent === "Шлях" && a.getAttribute("aria-current") === "page"));
 
 const lv = await page({ me: user, dash: base, hash: "#/path/js", onboarding: { level: "intermediate", courses: ["js", "python"] } });
@@ -139,7 +139,7 @@ lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Tab", canc
 t("підвищення рівня: Tab не виводить фокус із діалогу", lu.w.document.activeElement === lu.$(".lvl-up button"));
 lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Escape" }));
 t("підвищення рівня: Esc закриває діалог", lu.$(".lvl-up") === null);
-const gu = await page({ me: null, hash: "#/path/js" });
+const gu = await page({ me: null, hash: "#/course/js" });
 gu.w.document.dispatchEvent(new gu.w.Event("ic:progress"));
 await sleep(500);
 t("XP: гість не викликає синхронізацію", posted(gu, "/api/xp/sync").length === 0);
@@ -153,5 +153,16 @@ const hint = (await page({ me: user, dash: { ...base, onboarding: { level: "begi
 t("рівень: підказка про XP береться з констант і завдань, а не з тексту", hint.includes(`+${LESSON_XP} XP`) && hint.includes(`до +${maxXp} XP`));
 const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");
 t("мобільна версія: є правила для 480 і 390 px, довгі назви переносяться", css.includes("max-width:480px") && css.includes("max-width:390px") && /\.path-prac\{[^}]*overflow-wrap:anywhere/.test(css));
+
+/* ---- гості: без «Шляху» в шапці й на сторінці ---- */
+const navPath = (p) => p.$$("#nav a").find((a) => a.textContent === "Шлях");
+const gh = await page({ me: null, hash: "#/" });
+t("гість: пункт «Шлях» у шапці прихований", !!navPath(gh) && navPath(gh).hidden === true);
+const uh = await page({ me: user, hash: "#/" });
+t("зареєстрований: пункт «Шлях» у шапці видно", !!navPath(uh) && navPath(uh).hidden === false);
+for (const h of ["#/path", "#/path/js"]) {
+  const gp = await page({ me: null, hash: h });
+  t(`гість: ${h} не показує шлях, а відкриває форму входу`, gp.w.location.hash === "#/login" && gp.$$(".path-node").length === 0 && !!gp.$("#af"));
+}
 
 console.log(`\nПройдено перевірок Етапу 2 (інтерфейс): ${ok}`);

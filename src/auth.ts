@@ -56,6 +56,8 @@ export const getAuthConfig = (): { clientId: string | null; siteKey: string | nu
 const loginBtn = (cls: string, label: string): string => `<button class="${cls}" data-act="login">${label}</button>`;
 
 export function updateHeader(): void {
+  // Пункти навігації з data-auth (наприклад «Шлях») бачать лише зареєстровані користувачі
+  document.querySelectorAll<HTMLElement>("#nav [data-auth]").forEach((a) => { a.hidden = !st.user; });
   const el = document.getElementById("acct");
   if (!el) return;
   if (!st.ready) { el.innerHTML = ""; return; }
