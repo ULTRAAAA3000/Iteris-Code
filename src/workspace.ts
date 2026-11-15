@@ -24,30 +24,34 @@ export function workspaceHTML(v: View): string {
       ${v.meta}
       <h1>${v.title}</h1>
       ${v.actions}
-      <button class="btn small ws-jump" data-scroll="editor">До редактора ↓</button>
+      <button class="btn small ws-jump" data-scroll="task">До завдання ↓</button>
       <div class="prose">
         ${v.prose}
-        <section class="task-brief" id="task">
+      </div>
+    </article>
+    <article class="ws-task lesson" id="task">
+      <div class="prose">
+        <section class="task-brief">
           <h2>Практичне завдання: ${escA(t.title)} ${badge}</h2>
           <div class="callout"><b>Навіщо це в роботі.</b> ${t.context}</div>
           ${t.brief.map((x) => `<p>${x}</p>`).join("")}
           <p class="dash-muted">Нагорода: ${t.xp} XP${isTaskPassed(t.id) ? " · вже розв'язано ✓" : ""}</p>
         </section>
       </div>
-      ${v.pager}
+      <section class="ws-right" aria-label="Редактор коду">
+        <div class="ws-bar">
+          <span class="ws-tab">${esc(isRemote(t) ? t.file : "solution.js")}</span>
+          <span class="ws-spacer"></span>
+          <button class="btn small" data-ws="reset">Скинути</button>
+          <button class="btn primary small" data-ws="run" id="ws-run">${RUN_LABEL(t)}</button>
+        </div>
+        <div id="ws-paywall"></div>
+        <div id="editor" class="ws-editor"></div>
+        <div id="ws-win" aria-live="polite"></div>
+        <pre id="ws-term" class="ws-term" aria-live="polite" tabindex="0">${isRemote(t) ? "Натисніть «Запустити» (Ctrl+Enter): код виконається на сервері, тут з'являться вивід програми і результат перевірок." : "Натисніть «Запустити тести» (Ctrl+Enter), щоб перевірити рішення."}</pre>
+      </section>
     </article>
-    <section class="ws-right" aria-label="Редактор коду">
-      <div class="ws-bar">
-        <span class="ws-tab">${esc(isRemote(t) ? t.file : "solution.js")}</span>
-        <span class="ws-spacer"></span>
-        <button class="btn small" data-ws="reset">Скинути</button>
-        <button class="btn primary small" data-ws="run" id="ws-run">${RUN_LABEL(t)}</button>
-      </div>
-      <div id="ws-paywall"></div>
-      <div id="editor" class="ws-editor"></div>
-      <div id="ws-win" aria-live="polite"></div>
-      <pre id="ws-term" class="ws-term" aria-live="polite" tabindex="0">${isRemote(t) ? "Натисніть «Запустити» (Ctrl+Enter): код виконається на сервері, тут з'являться вивід програми і результат перевірок." : "Натисніть «Запустити тести» (Ctrl+Enter), щоб перевірити рішення."}</pre>
-    </section>
+    ${v.pager}
   </div>`;
 }
 
