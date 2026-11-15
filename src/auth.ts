@@ -4,6 +4,8 @@ import { done, isDone, persist } from "./progress.ts";
 import { TASKS, taskById } from "./tasks/index.ts";
 import { toast, ui } from "./ui.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
+import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
+import { onboardingHtml, setOnboarding } from "./onboarding.ts";
 import { escA, pl } from "./util.ts";
 
 type DashState = DashboardData | { error: true } | null;
@@ -30,6 +32,7 @@ export async function api<T = unknown>(path: string, opts: RequestInit = {}): Pr
     const r = await fetch(path, { credentials: "same-origin", ...opts });
     let data: T | null = null;
     try { data = (await r.json()) as T; } catch { /* порожня відповідь */ }
+    if (r.ok && opts.method === "POST" && path.startsWith("/api/progress")) document.dispatchEvent(new Event("ic:progress"));   // Етап 2: після дії прогресу нараховується XP
     return { ok: r.ok, status: r.status, data };
   } catch {
     return { ok: false, status: 0, data: null };
@@ -168,7 +171,7 @@ export async function init(): Promise<void> {
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^#\/(dashboard|login|register|forgot|reset|verify)/.test(location.hash)) ui.render();
+  if (/^#\/(dashboard|login|register|forgot|reset|verify|start|path)/.test(location.hash)) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -208,26 +211,14 @@ function focusLesson(set: Set<string>, last: string | null): [string, number] | 
   return null;
 }
 
-function heat(activity: Record<string, number>): { total: number; html: string } {
-  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
-  const start = new Date(today); start.setUTCDate(start.getUTCDate() - 181);
-  start.setUTCDate(start.getUTCDate() - ((start.getUTCDay() + 6) % 7)); // вирівнюємо за понеділком
-  let cells = "", total = 0;
-  for (const d = new Date(start); d <= today; d.setUTCDate(d.getUTCDate() + 1)) {
-    const key = d.toISOString().slice(0, 10), c = activity[key] || 0;
-    total += c;
-    const lv = c === 0 ? 0 : c === 1 ? 1 : c <= 3 ? 2 : c <= 5 ? 3 : 4;
-    cells += `<i class="l${lv}" title="${key}: ${c}"></i>`;
-  }
-  return { total, html: `<div class="heat-wrap"><div class="heat" role="img" aria-label="Графік активності за пів року">${cells}</div></div>` };
-}
-
 function full(d: DashboardData): string {
+  setOnboarding(d.onboarding);
+  if (d.onboarding === null) return onboardingHtml();   // перший вхід: спершу вибір курсів і рівня
   const u = d.user;
   const set = new Set(d.completedLessons.filter((id) => { const [k, n] = id.split("/"); return C[k] && +n >= 1 && +n <= C[k].L.length; }));
   const passed = new Set(d.passedTasks);
   const doneIn = (k: string): number => C[k].L.filter((_, i) => set.has(k + "/" + (i + 1))).length;
-  const f = focusLesson(set, d.lastLesson), h = heat(d.activity || {});
+  const f = focusLesson(set, d.lastLesson);
   const focus = f
     ? `<h3>Продовжити навчання</h3><p class="dash-muted">${escA(C[f[0]].name)} · ${escA(C[f[0]].L[f[1] - 1].ch || "")}</p>
          <p class="dash-focus">Урок ${f[1]}: ${escA(C[f[0]].L[f[1] - 1].t)}</p>
@@ -255,17 +246,16 @@ function full(d: DashboardData): string {
         <button class="btn small" data-act="logout">Вийти</button></section>
       <div class="dash-grid">
         <section class="card">${focus}</section>
-        <section class="card"><h3>Серія занять</h3>
-          <div class="streak"><span aria-hidden="true">🔥</span><b>${u.streak}</b><span>${pl(u.streak, "день", "дні", "днів")} поспіль</span></div>
-          <p class="dash-muted">${u.streak ? "Так тримати! Позначте урок пройденим або розв'яжіть завдання сьогодні, щоб не втратити серію." : "Позначте урок пройденим, щоб почати серію."}</p></section>
+        ${levelCard(d)}
+        ${streakCard(u.streak, d.activity)}
         <section class="card"><h3>Підсумки</h3><div class="stats3">
           <div><strong>${set.size}</strong><span>${pl(set.size, "урок", "уроки", "уроків")}</span></div>
           <div><strong>${d.tasksPassed}</strong><span>${pl(d.tasksPassed, "завдання", "завдання", "завдань")}</span></div>
           <div><strong>${Math.round((set.size / totals.lessons) * 100)}%</strong><span>теорії</span></div></div></section>
+        ${pathCard(d, set)}
       </div>
       <section><h2 class="section-title">Карта навичок</h2><div class="skills">${skills}</div></section>
-      <section class="card"><h3>Активність за півроку: ${h.total}</h3>${h.html}
-        <p class="legend dash-muted">Менше <i class="l0"></i><i class="l1"></i><i class="l2"></i><i class="l3"></i><i class="l4"></i> Більше</p></section>
+      ${calendarCard(d)}
       <div class="dash-grid">
         <section class="card"><h3>Останні відповіді</h3>${subs}</section>
         <section class="card"><h3>Наскрізні проєкти</h3><p class="dash-muted">Mini-SaaS і API-сервіси з'являться тут разом із посиланням, яким можна поділитися.</p><button class="btn small" disabled>Скоро</button></section>

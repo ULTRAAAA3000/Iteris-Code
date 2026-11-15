@@ -29,7 +29,10 @@ addEventListener("error", function (e) {
 <script src="${app}"></script>`;
 const html = readFileSync("src/index.template.html", "utf8");
 if (!html.includes('<script src="app.js"></script>')) throw new Error("src/index.template.html: не знайдено тег <script src=\"app.js\">");
-writeFileSync("dist/index.html", html.replace('<script src="app.js"></script>', boot));
+// Стилі Етапу 2 лежать окремим файлом і вбудовуються в єдиний <style> сторінки
+const stage2css = readFileSync("src/stage2.css", "utf8");
+if (!html.includes("</style>")) throw new Error("src/index.template.html: не знайдено </style>");
+writeFileSync("dist/index.html", html.replace("</style>", () => stage2css + "</style>").replace('<script src="app.js"></script>', boot));
 
 // Сумісність зі старими закешованими сторінками: вони все ще просять app.js.
 // Цей файл один раз оновлює кеш головної сторінки й перезавантажує її (петлі немає: прапорець у sessionStorage).

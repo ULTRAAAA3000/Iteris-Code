@@ -1,7 +1,10 @@
-import { init as initAuth, renderDashboard, syncLesson } from "./auth.ts";
+import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
 import { C, CATS } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
+import { getOnboarding, onboardingHtml } from "./onboarding.ts";
+import { renderPath } from "./path.ts";
 import { hooks, toggle } from "./progress.ts";
+import { initStage2, mountStage2 } from "./stage2.ts";
 import { taskForLesson } from "./tasks/index.ts";
 import type { Task } from "./tasks/types.ts";
 import { ui } from "./ui.ts";
@@ -25,6 +28,8 @@ function render(): void {
     task = taskForLesson(`${b}/${Number(c)}`);
   }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
+  else if (a === "path") { html = renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
+  else if (a === "start") { html = !isReady() ? `<div class="card"><p class="dash-muted">Завантаження…</p></div>` : getUser() ? onboardingHtml() : notFound(); title = "Налаштування шляху — " + BRAND; }
   else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
   else html = notFound();
   app.innerHTML = html;
@@ -34,10 +39,12 @@ function render(): void {
   if (!a) initHome();
   if (task) void mountWorkspace(task);
   if (isAuthRoute(a)) mountAuthPage(a, b);
+  mountStage2(a);
 }
 ui.render = render;
 hooks.onToggle = syncLesson;
 window.addEventListener("hashchange", render);
+initStage2();
 
 document.addEventListener("click", (e) => {
   const target = e.target as Element;
