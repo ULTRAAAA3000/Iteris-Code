@@ -117,6 +117,11 @@ t("шлях: вкладки курсів, активний позначено, �
 const withTask = TASKS.find((x) => x.course === "js");
 t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="#/lesson/${withTask.lesson}"]`));
 t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: null, hash: "#/path/nope" })).$$(".path-node").length > 0);
+const lineEdges = g.$$(".path-line .e");
+t("шлях: лінія з'єднує сусідні вузли, пройдені ділянки суцільні", g.$$(".path-line").length === 1 && lineEdges.length === jsN - 1 && g.$$(".path-line .e.done").length === 3);
+t("шлях: лінія не накопичується при повторному рендері", (() => { g.w.dispatchEvent(new g.w.Event("hashchange")); return g.$$(".path-line").length === 1; })());
+const chapCnt = g.$$(".path-chap .chap-cnt");
+t("шлях: у кожної глави лічильник «пройдено/усього», завершена глава позначена", chapCnt.length === chaptersOf(LESSONS.js).length && chapCnt[0].textContent.includes("/") && g.$$(".path-chap")[0].className.includes("complete") === (chaptersOf(LESSONS.js)[0].to <= 3));
 t("шлях: пункт «Шлях» є в основній навігації й підсвічується на цій сторінці", g.$$("#nav a").some((a) => a.textContent === "Шлях" && a.getAttribute("aria-current") === "page"));
 
 const lv = await page({ me: user, dash: base, hash: "#/path/js", onboarding: { level: "intermediate", courses: ["js", "python"] } });

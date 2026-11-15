@@ -2,6 +2,7 @@
 import { api, getUser, invalidate, post } from "./auth.ts";
 import { mountCabinet } from "./cabinet.ts";
 import { getOnboarding, mountOnboarding, setOnboarding } from "./onboarding.ts";
+import { mountPath } from "./path.ts";
 import { ui } from "./ui.ts";
 import type { Level } from "./xp.ts";
 
@@ -72,6 +73,7 @@ async function saveOnboarding(level: Level, courses: string[]): Promise<boolean>
 /** Викликається після кожного рендеру сторінки */
 export function mountStage2(a: string | undefined): void {
   if (a === "dashboard") mountCabinet();
+  if (a === "path") mountPath();
   if (document.getElementById("onb")) mountOnboarding(saveOnboarding);
   // Шлях і форма зміни рівня потребують збереженого вибору: завантажуємо його один раз і перемальовуємо сторінку
   if ((a === "path" || a === "start") && getUser() && getOnboarding() === undefined && !loadingOnb) {
