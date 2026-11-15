@@ -232,13 +232,16 @@ pre.code,.ws-term{max-width:100%;overflow-x:auto}
   .stats3 strong{font-size:1.5rem}
   .toast{bottom:16px;width:calc(100vw - 32px);text-align:center}
 }
-.ws-jump{display:none;margin:0 0 14px}
-@media (max-width:900px){.ws-jump{display:inline-flex}}
+.ws-jump{display:inline-flex;margin:0 0 14px}
 @media (max-width:640px){.ws-plain{font-size:16px}}
 /* екран уроку з редактором */
-.ws{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:24px;align-items:start}
-.ws-left{max-height:calc(100vh - 150px);overflow:auto;padding-right:8px}
-.ws-right{position:sticky;top:90px;display:grid;gap:10px}
+.ws{display:grid;grid-template-columns:minmax(0,1fr);gap:24px;align-items:start}
+.ws-task{scroll-margin-top:90px}
+.ws-task .task-brief{margin-top:0;padding-top:0;border-top:0}
+.ws-task .task-brief h2{margin-top:0}
+.ws-task .prose{max-width:none}
+.ws-right{display:grid;gap:10px;margin-top:20px}
+.ws>.pager{margin-top:8px}
 .ws-bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .ws-tab{font-family:var(--mono,monospace);font-weight:700;padding:4px 10px;border:2px solid var(--ink);border-radius:8px;background:var(--grid)}
 .ws-spacer{flex:1}
@@ -253,7 +256,6 @@ pre.code,.ws-term{max-width:100%;overflow-x:auto}
 .ws-win-icon{font-size:2rem}
 @keyframes ws-pop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
 @media (prefers-reduced-motion:reduce){.ws-win{animation:none}}
-@media (max-width:900px){.ws{grid-template-columns:minmax(0,1fr)}.ws-left{max-height:none;overflow:visible;padding:0}.ws-right{position:static}}
 /* особистий кабінет */
 .acct{display:flex;align-items:center;gap:10px;flex:none}
 .acct-user{display:flex;align-items:center;gap:8px;text-decoration:none;font-weight:700;max-width:180px}
