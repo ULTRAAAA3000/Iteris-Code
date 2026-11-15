@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { TASKS } from "../src/tasks/index.ts";
 import { LESSONS } from "../src/data/lessons.js";
-import { chaptersOf, startLesson } from "../src/xp.ts";
+import { chaptersOf, LESSON_XP, startLesson } from "../src/xp.ts";
 
 let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
@@ -135,6 +135,8 @@ const lu = await page({ me: user, dash: { ...base, onboarding: { level: "beginne
 lu.w.document.dispatchEvent(new lu.w.Event("ic:progress"));
 await sleep(600);
 t("підвищення рівня: діалог з новим рівнем, фокус на кнопці", lu.$(".lvl-up")?.getAttribute("role") === "dialog" && lu.$(".lvl-up-badge").textContent === "2" && lu.w.document.activeElement === lu.$(".lvl-up button"));
+lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Tab", cancelable: true }));
+t("підвищення рівня: Tab не виводить фокус із діалогу", lu.w.document.activeElement === lu.$(".lvl-up button"));
 lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Escape" }));
 t("підвищення рівня: Esc закриває діалог", lu.$(".lvl-up") === null);
 const gu = await page({ me: null, hash: "#/path/js" });
@@ -145,5 +147,11 @@ const tog = await page({ me: user, hash: "#/course/js", syncReply: { xp: 10, gai
 tog.$("[data-toggle='js:1']").click();
 await sleep(700);
 t("XP: відмітка уроку пройденим на сервері тягне синхронізацію XP й показує «+10 XP»", posted(tog, "/api/progress").length >= 1 && posted(tog, "/api/xp/sync").length === 1 && tog.$(".xp-pop")?.textContent === "+10 XP");
+
+const maxXp = Math.max(...TASKS.map((x) => x.xp));
+const hint = (await page({ me: user, dash: { ...base, onboarding: { level: "beginner", courses: ["js"] }, xp: 0 } })).$(".lvl-hint").textContent;
+t("рівень: підказка про XP береться з констант і завдань, а не з тексту", hint.includes(`+${LESSON_XP} XP`) && hint.includes(`до +${maxXp} XP`));
+const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");
+t("мобільна версія: є правила для 480 і 390 px, довгі назви переносяться", css.includes("max-width:480px") && css.includes("max-width:390px") && /\.path-prac\{[^}]*overflow-wrap:anywhere/.test(css));
 
 console.log(`\nПройдено перевірок Етапу 2 (інтерфейс): ${ok}`);
