@@ -134,11 +134,11 @@ t("сторінка: невідомий проєкт дає «Такої сто�
 
 /* ---- входи до проєкту: урок, шлях, кабінет ---- */
 const ls = await page({ me: user, dash: base, hash: "#/lesson/js/17" });
-t("урок js/17: у кінці картка «Проєкт за ТЗ» з посиланням на проєкт", !!ls.$('.pj-card a[href="#/project/js-todo"]'));
+t("урок js/17: у кінці картка «Проєкт за ТЗ» з посиланням на проєкт", !!ls.$('.pj-card a[href="/project/js-todo"]'));
 const lo = await page({ me: user, dash: base, hash: "#/lesson/js/1" });
 t("інші уроки без проєкту не мають картки", !lo.$(".pj-card"));
 const ph = await page({ me: user, dash: base, hash: "#/path/js" });
-t("шлях: біля уроку 17 чип «Проєкт: …» веде на проєкт", ph.$$(".path-prac").some((a) => a.getAttribute("href") === "#/project/js-todo" && a.textContent.includes("Проєкт: список справ")));
+t("шлях: біля уроку 17 чип «Проєкт: …» веде на проєкт", ph.$$(".path-prac").some((a) => a.getAttribute("href") === "/project/js-todo" && a.textContent.includes("Проєкт: список справ")));
 const ds = await page({ me: user, dash: { ...base, completedLessons: [], passedTasks: ["js-todo"], tasksPassed: 1, recentSubmissions: [{ taskId: "js-todo", passed: true, at: new Date().toISOString() }] } });
 t("кабінет: у списку останніх спроб проєкт показано за назвою", ds.html().includes("Проєкт: список справ"));
 const lvl = await page({ me: user, dash: { ...base, xp: 10 } });

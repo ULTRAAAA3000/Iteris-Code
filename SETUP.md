@@ -11,6 +11,16 @@
    - свой домен, когда подключите его (`https://ваш-домен/`)
 4. Сохраните **Client ID** и **Client secret**.
 
+## 1б. GitHub OAuth (необязательно)
+Кнопка «Увійти через GitHub» появляется на страницах входа и регистрации, только когда заданы обе переменные ниже.
+1. GitHub → **Settings → Developer settings → OAuth Apps → New OAuth App**.
+2. **Authorization callback URL**: адрес сайта с косой чертой в конце, например `https://iteris-code.pages.dev/` (как и для Google, это главная страница).
+3. Сохраните **Client ID** и создайте **Client secret**.
+4. В Cloudflare Pages → Settings → Variables and Secrets добавьте `GITHUB_CLIENT_ID` (обычная) и `GITHUB_CLIENT_SECRET` (**Secret**), затем сделайте новый деплой.
+5. Проверка: `/api/auth/health` покажет `features.github: true`.
+
+Если у человека уже есть аккаунт с той же подтверждённой почтой (Google или по паролю), GitHub привяжется к нему, а не создаст второй. Берётся основная подтверждённая почта GitHub; без неё вход отклоняется.
+
 ## 2. База данных D1
 ```bash
 npx wrangler login
@@ -25,6 +35,7 @@ npx wrangler d1 execute iteris-code --remote --file=schema.sql
   - `GOOGLE_CLIENT_ID` (обычная переменная)
   - `GOOGLE_CLIENT_SECRET` (**Secret**)
   - `SESSION_SECRET` (**Secret**, случайная строка: `openssl rand -base64 48`)
+  - `SITE_URL` (обычная переменная, необязательная): адрес сайта без косой черты, например `https://iteris-code.pages.dev` или ваш домен. Он попадает в `canonical`, Open Graph и `sitemap.xml`. Без неё берётся `https://iteris-code.pages.dev`.
 - **Build command** `npm run build`, **Build output directory** `dist` (рекомендуется). Если там стоит `/`, сайт тоже заработает: при сборке в Cloudflare готовые файлы дублируются в корень. Папка `functions/` подхватывается автоматически.
 
 После этого сделайте новый деплой. Кнопка «Увійти» в шапке должна открывать окно Google.
@@ -39,7 +50,7 @@ npx wrangler d1 execute iteris-code --remote --file=schema.sql
    - придумайте **Signing secret** (длинная случайная строка) и сохраните его как `LEMONSQUEEZY_WEBHOOK_SECRET` (**Secret**);
    - события: `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_resumed`, `subscription_expired`, `subscription_paused`, `subscription_unpaused` (остальные сайт всё равно игнорирует).
 4. По желанию `LEMONSQUEEZY_VARIANT_ID`: ID варианта товара. Тогда сайт принимает события только для него.
-5. В настройках товара укажите адрес возврата после оплаты: `https://iteris-code.pages.dev/#/dashboard`.
+5. В настройках товара укажите адрес возврата после оплаты: `https://iteris-code.pages.dev/dashboard`.
 6. Если база уже создана, один раз выполните миграцию (для новой базы достаточно `schema.sql`):
    ```bash
    npx wrangler d1 execute iteris-code --remote --file=migrations/0002_payments.sql

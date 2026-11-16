@@ -1,4 +1,4 @@
-// Сторінка проєкту за ТЗ (#/project/<id>): умови й вимоги ліворуч, редактор, звіт і попередній перегляд праворуч.
+// Сторінка проєкту за ТЗ (/project/<id>): умови й вимоги ліворуч, редактор, звіт і попередній перегляд праворуч.
 import { completeTask, getUser, invalidate } from "./auth.ts";
 import { C } from "./data.ts";
 import { createEditor } from "./editor.ts";
@@ -14,7 +14,7 @@ import { esc, escA, pl, store } from "./util.ts";
 export function projectHTML(p: Project): string {
   const c = C[p.course], [lk, ln] = p.lesson.split("/");
   const badge = p.premium ? `<span class="plan pro">Pro</span>` : `<span class="plan free">Безкоштовно</span>`;
-  return `<div class="crumbs"><a href="#/">Головна</a> / <a href="#/course/${escA(p.course)}">${escA(c.name)}</a> / Проєкт</div>
+  return `<div class="crumbs"><a href="/">Головна</a> / <a href="/course/${escA(p.course)}">${escA(c.name)}</a> / Проєкт</div>
   <div class="ws pj">
     <article class="ws-left lesson">
       <div class="meta"><span class="tag" style="background:${c.color}">Проєкт за ТЗ</span><span>Курс «${escA(c.name)}»</span></div>
@@ -28,7 +28,7 @@ export function projectHTML(p: Project): string {
         <ul>${p.contract.map((x) => `<li>${x}</li>`).join("")}</ul>
         <h2>Вимоги</h2>
         <ol class="pj-reqs" id="pj-reqs">${p.requirements.map((r) => `<li data-req="${escA(r.id)}"><span class="pj-st" aria-hidden="true">○</span><div><b>${escA(r.id)}.</b> ${r.text}</div></li>`).join("")}</ol>
-        <p class="dash-muted">Нагорода: ${p.xp} XP${isTaskPassed(p.id) ? " · вже виконано ✓" : ""}. Теорія для проєкту: <a href="#/lesson/${escA(lk)}/${escA(ln)}">урок ${escA(ln)}</a>.</p>
+        <p class="dash-muted">Нагорода: ${p.xp} XP${isTaskPassed(p.id) ? " · вже виконано ✓" : ""}. Теорія для проєкту: <a href="/lesson/${escA(lk)}/${escA(ln)}">урок ${escA(ln)}</a>.</p>
       </div>
     </article>
     <section class="ws-right" aria-label="Редактор проєкту">

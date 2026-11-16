@@ -48,7 +48,7 @@ export function pathCard(d: DashboardData, set: Set<string>): string {
   return `<section class="card path-card"><h3>Ваш шлях</h3>
     <p class="dash-muted">${escA(C[k].name)} · ${LEVEL_TEXT[o.level][0]} · старт: «${escA(ch)}»</p>
     <p class="dash-focus">${cur ? `Далі: урок ${cur}, ${escA(L[cur - 1].t)}` : "Курс пройдено"}</p>
-    <p><a class="btn primary small" href="#/path/${k}">Відкрити шлях</a> <a class="btn small" href="#/start">Змінити</a></p></section>`;
+    <p><a class="btn primary small" href="/path/${k}">Відкрити шлях</a> <a class="btn small" href="/start">Змінити</a></p></section>`;
 }
 
 export function calendarCard(d: DashboardData): string {
@@ -76,8 +76,8 @@ export function calendarCard(d: DashboardData): string {
 function dayDetail(key: string, days: Record<string, { l: string[]; t: string[] }>): string {
   const x = days[key];
   if (!x || !(x.l.length + x.t.length)) return `<h4>${escA(dayLabel(key))}</h4><p class="dash-muted">У цей день активності не було.</p>`;
-  const ls = x.l.map((id) => { const [k, n] = id.split("/"), l = C[k]?.L[+n - 1]; return l ? `<li><a href="#/lesson/${k}/${n}">${escA(C[k].name)} · урок ${n}: ${escA(l.t)}</a></li>` : ""; }).join("");
-  const ts = x.t.map((id) => { const t = projectById(id) ?? taskMeta(id); return t ? `<li><a href="${projectById(id) ? "#/project/" + escA(id) : "#/lesson/" + t.lesson}">${projectById(id) ? "📋" : "⚡"} ${escA(t.title)}</a></li>` : ""; }).join("");
+  const ls = x.l.map((id) => { const [k, n] = id.split("/"), l = C[k]?.L[+n - 1]; return l ? `<li><a href="/lesson/${k}/${n}">${escA(C[k].name)} · урок ${n}: ${escA(l.t)}</a></li>` : ""; }).join("");
+  const ts = x.t.map((id) => { const t = projectById(id) ?? taskMeta(id); return t ? `<li><a href="${projectById(id) ? "/project/" + escA(id) : "/lesson/" + t.lesson}">${projectById(id) ? "📋" : "⚡"} ${escA(t.title)}</a></li>` : ""; }).join("");
   return `<h4>${escA(dayLabel(key))}</h4>
     <p><b>${x.l.length}</b> ${pl(x.l.length, "урок", "уроки", "уроків")} · <b>${x.t.length}</b> ${pl(x.t.length, "завдання", "завдання", "завдань")}</p><ul>${ls}${ts}</ul>`;
 }
