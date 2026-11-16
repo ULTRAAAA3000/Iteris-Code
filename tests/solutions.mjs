@@ -1,5 +1,5 @@
 // Еталонні рішення завдань. Використовуються лише в тестах і НЕ потрапляють у збірку сайту.
-export const SOLUTIONS = {
+const BASE = {
   "js-safe-city": `function getCity(user) {
   return user?.address?.city || "Невідомо";
 }`,
@@ -317,3 +317,12 @@ func main() {
 }
 `,
 };
+
+// Еталони віддалених завдань лежать окремо по мовах: tests/solutions/<мова>.mjs
+import { CPP } from "./solutions/cpp.mjs";
+import { JAVA } from "./solutions/java.mjs";
+import { PASCAL } from "./solutions/pascal.mjs";
+import { PHP } from "./solutions/php.mjs";
+import { PYTHON } from "./solutions/python.mjs";
+
+export const SOLUTIONS = { ...BASE, ...PYTHON, ...JAVA, ...CPP, ...PHP, ...PASCAL };

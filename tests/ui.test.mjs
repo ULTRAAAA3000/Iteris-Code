@@ -52,7 +52,8 @@ async function page(opts = {}) {
   w.eval(bundle);
   await sleep(80);
   const $ = (s) => w.document.querySelector(s);
-  return { w, calls, $, html: () => w.document.getElementById("app").innerHTML, head: () => w.document.getElementById("acct").innerHTML,
+  const $$ = (s) => w.document.querySelectorAll(s);
+  return { w, calls, $, $$, html: () => w.document.getElementById("app").innerHTML, head: () => w.document.getElementById("acct").innerHTML,
     term: () => $("#ws-term").textContent, type: (code) => { const ta = $(".ws-plain"); ta.value = code; ta.dispatchEvent(new w.Event("input")); },
     run: async () => { $("[data-ws=run]").click(); await sleep(120); } };
 }
@@ -97,12 +98,12 @@ const gate = await page({ me: null, hash: "#/lesson/js/3" });
 t("гість: урок закритий, є запрошення увійти, тексту уроку й редактора немає", gate.html().includes("Уроки та завдання в кабінеті") && !!gate.$('[data-act="login"]') && !gate.html().includes("lesson-layout") && !gate.$(".ws-plain") && !gate.calls.some((c) => c.url.startsWith("/api/lesson") || c.url === "/api/courses"));
 const gateCourse = await page({ me: null, hash: "#/course/js" });
 t("гість: список уроків курсу закритий", gateCourse.html().includes("Уроки та завдання в кабінеті") && !gateCourse.html().includes('class="lessons"'));
-const plain = await page({ me: user, dash, hash: "#/lesson/python/1" });
-t("урок без завдання (після входу): старий макет із боковим меню", plain.html().includes("lesson-layout") && !plain.html().includes('class="ws"') && plain.calls.some((c) => c.url === "/api/lesson?k=python&n=1"));
-const logged = await page({ me: user, dash, hash: "#/lesson/python/1" });
+const plain = await page({ me: user, dash, hash: "#/lesson/php/8" });
+t("урок без завдання (після входу): старий макет із боковим меню", plain.html().includes("lesson-layout") && !plain.html().includes('class="ws"') && plain.calls.some((c) => c.url === "/api/lesson?k=php&n=8"));
+const logged = await page({ me: user, dash, hash: "#/lesson/php/8" });
 logged.$("[data-toggle]").click();
 await sleep(30);
-t("урок: для користувача позначка синхронізується із сервером", logged.calls.some((c) => c.method === "POST" && c.url === "/api/progress" && c.body.lessonIds[0] === "python/1"));
+t("урок: для користувача позначка синхронізується із сервером", logged.calls.some((c) => c.method === "POST" && c.url === "/api/progress" && c.body.lessonIds[0] === "php/8"));
 
 /* ---- екран із завданням ---- */
 let ws = await page({ me: user, dash, hash: "#/lesson/js/3" });

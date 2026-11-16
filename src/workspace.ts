@@ -62,9 +62,10 @@ export function disposeWorkspace(): void {
   active = null;
 }
 
-function renderOutcome(res: RunOutcome, logs: string[], label = "Консоль:"): string {
+function renderOutcome(res: RunOutcome, logs: string[], label = "Консоль:", stderr = ""): string {
   const parts: string[] = [];
   if (logs.length) parts.push(`<span class="t-dim">${label}</span>\n${esc(logs.join("\n"))}\n`);
+  if (stderr.trim()) parts.push(`<span class="t-dim">Помилки виконання:</span>\n<span class="t-fail">${esc(stderr.trim().slice(0, 1500))}</span>\n`);
   if (res.error) parts.push(`<span class="t-fail">${esc(res.error)}</span>`);
   // Рядки результатів з'являються по черзі (анімація, вимикається при prefers-reduced-motion)
   res.results.forEach((r, i) => {
@@ -127,6 +128,7 @@ export async function mountWorkspace(task: Task): Promise<void> {
     win.innerHTML = "";
     const code = editor.getValue();
     const logs: string[] = [];
+    let stderr = "";
     let res: RunOutcome;
     let proof: string | undefined;
     let solved: boolean;
@@ -134,6 +136,7 @@ export async function mountWorkspace(task: Task): Promise<void> {
       const r = await runRemote(task.id, code);
       res = r; proof = r.proof; solved = r.passed && !r.error;
       if (r.stdout) logs.push(r.stdout.replace(/\n+$/, ""));
+      stderr = r.stderr;
     } else {
       res = await runInWorker(code, task.tests, (l) => logs.push(l));
       solved = !res.error && res.results.length > 0 && res.results.every((r) => r.passed);
@@ -142,7 +145,7 @@ export async function mountWorkspace(task: Task): Promise<void> {
     runBtn.textContent = RUN_LABEL(task);
     refresh();
     if (!term.isConnected) return;
-    term.innerHTML = renderOutcome(res, logs, isRemote(task) ? "Вивід програми:" : "Консоль:");
+    term.innerHTML = renderOutcome(res, logs, isRemote(task) ? "Вивід програми:" : "Консоль:", stderr);
     if (solved) { term.classList.add("ws-term-ok"); await onSolved(code, proof); }
   };
 
