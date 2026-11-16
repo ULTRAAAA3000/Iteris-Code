@@ -97,12 +97,14 @@ export const publicUser = (u: UserRow): PublicUser => ({
   isPro: isProActive(u),
   proUntil: u.pro_until || null,
   streak: effectiveStreak(u),
+  nick: u.nick ?? null,
+  avatarId: u.avatar_id ?? null,
 });
 
 export async function currentUser(request: Request, env: Env): Promise<UserRow | null> {
   const uid = await readSession(request, env);
   if (!uid) return null;
   return env.DB.prepare(
-    "SELECT id, email, name, avatar_url, is_pro, pro_until, streak_count, last_active_at FROM users WHERE id = ?1"
+    "SELECT id, email, name, avatar_url, is_pro, pro_until, streak_count, last_active_at, nick, avatar_id FROM users WHERE id = ?1"
   ).bind(uid).first<UserRow>();
 }

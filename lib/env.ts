@@ -1,6 +1,8 @@
 // Типи середовища Cloudflare Pages Functions
 export interface Env {
   DB: D1Database;
+  /** Статичні файли сайту (підставляє Cloudflare Pages): із них береться index.html для сторінок профілів */
+  ASSETS?: Fetcher;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
@@ -33,6 +35,9 @@ export interface UserRow {
   pro_until: string | null;
   streak_count: number;
   last_active_at: string | null;
+  /** Публічний профіль (етап 4): нікнейм, вибраний герой-аватарка */
+  nick?: string | null;
+  avatar_id?: string | null;
 }
 
 export interface PublicUser {
@@ -43,4 +48,7 @@ export interface PublicUser {
   isPro: boolean;
   proUntil: string | null;
   streak: number;
+  /** Нікнейм публічного профілю (задається один раз) і вибраний герой-аватарка */
+  nick?: string | null;
+  avatarId?: string | null;
 }
