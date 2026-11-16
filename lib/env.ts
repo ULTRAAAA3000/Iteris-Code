@@ -3,7 +3,11 @@ export interface Env {
   DB: D1Database;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
   SESSION_SECRET?: string;
+  /** Домен, на якому cookie сесії діє і на піддоменах (кабінет живе на dashboard.<домен>). За замовчуванням iteris-code.org */
+  COOKIE_DOMAIN?: string;
   /** Cloudflare Turnstile: публічний ключ віджета (його бачить браузер) */
   TURNSTILE_SITE_KEY?: string;
   /** Cloudflare Turnstile: секретний ключ перевірки на сервері */

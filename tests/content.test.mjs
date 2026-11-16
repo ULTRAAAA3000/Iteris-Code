@@ -10,6 +10,7 @@ import { LESSONS } from "../content/lessons.js";
 import { TASKS } from "../content/tasks/index.ts";
 import { REF } from "../src/data/reference/index.ts";
 import { isRemote } from "../src/tasks/types.ts";
+import { C, publicLessonTotal } from "../src/data.ts";
 
 const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
@@ -91,7 +92,7 @@ await t("урок із Go-завданням: очікувані перевір�
 });
 
 await t("урок без завдання: task = null", async () => {
-  const r = await get(lessonApi, "/api/lesson?k=python&n=1", cookie);
+  const r = await get(lessonApi, "/api/lesson?k=php&n=8", cookie);   // PDO: у пісочниці немає бази даних, завдання немає
   assert.equal(r.data.task, null);
 });
 
@@ -117,4 +118,11 @@ await t("довідник не копіює уроки: жоден прикла�
   for (const [k, secs] of Object.entries(REF)) for (const s of secs) for (const x of s.items) assert.ok(!lessonCode.has(x.code.trim()), k + ": " + x.t);
 });
 
+// Кількість уроків у каталозі (її показують лендинг і довідник) збігається з реальними файлами уроків
+await t("каталог: META.lessons збігається з кількістю уроків у content/lessons.js", () => {
+  for (const [k, list] of Object.entries(LESSONS)) assert.equal(C[k].lessons, list.length, k);
+  assert.equal(publicLessonTotal(), Object.values(LESSONS).reduce((s, l) => s + l.length, 0));
+});
+
 console.log(`\nУсі тести змісту пройдено: ${ok}`);
+

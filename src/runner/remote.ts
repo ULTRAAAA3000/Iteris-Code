@@ -5,15 +5,17 @@ import type { RunOutcome } from "./client.ts";
 export interface RemoteOutcome extends RunOutcome {
   /** Усе, що програма вивела в stdout */
   stdout: string;
+  /** Повідомлення про помилки виконання (traceback, panic): показуються в терміналі окремим блоком */
+  stderr: string;
   /** Усі перевірки пройдено (рішення сервера) */
   passed: boolean;
   /** Підпис сервера, потрібний, щоб зберегти результат (лише для користувача, що увійшов) */
   proof?: string;
 }
 
-interface Reply { passed?: boolean; results?: RunOutcome["results"]; stdout?: string; error?: string | null; timedOut?: boolean; proof?: string }
+interface Reply { passed?: boolean; results?: RunOutcome["results"]; stdout?: string; stderr?: string; error?: string | null; timedOut?: boolean; proof?: string }
 
-const fail = (error: string): RemoteOutcome => ({ results: [], stdout: "", passed: false, error });
+const fail = (error: string): RemoteOutcome => ({ results: [], stdout: "", stderr: "", passed: false, error });
 
 export async function runRemote(taskId: string, code: string, timeoutMs = 25000): Promise<RemoteOutcome> {
   let res: Response;
@@ -31,5 +33,5 @@ export async function runRemote(taskId: string, code: string, timeoutMs = 25000)
   if (res.status === 503) return fail("Сервіс запуску тимчасово недоступний. Спробуйте за хвилину.");
   if (res.status === 402) return fail("Це завдання входить до підписки Pro");
   if (!res.ok) return fail("Не вдалося запустити код (помилка " + res.status + "). Спробуйте ще раз.");
-  return { results: data.results ?? [], stdout: data.stdout ?? "", passed: !!data.passed, error: data.error ?? undefined, timedOut: !!data.timedOut, proof: data.proof };
+  return { results: data.results ?? [], stdout: data.stdout ?? "", stderr: data.stderr ?? "", passed: !!data.passed, error: data.error ?? undefined, timedOut: !!data.timedOut, proof: data.proof };
 }

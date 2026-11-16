@@ -57,7 +57,7 @@ await test("кожне завдання прив'язане до наявног�
   }
   assert.ok(TASKS.some((t) => !t.premium) && TASKS.some((t) => t.premium), "потрібні і безкоштовні, і Pro-завдання");
 });
-// Віддалені завдання (Go) перевіряє tests/go-tasks.test.mjs: тут лише JS, що виконується в Web Worker
+// Віддалені завдання (Go) перевіряє tests/remote-tasks.test.mjs: тут лише JS, що виконується в Web Worker
 for (const t of TASKS.filter((x) => !isRemote(x))) {
   await test(`завдання ${t.id}: заготовка не проходить, еталон проходить`, async () => {
     const starter = await runSuite(t.starter, t.tests);
