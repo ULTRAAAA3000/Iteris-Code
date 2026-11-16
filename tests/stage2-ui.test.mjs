@@ -97,7 +97,24 @@ t("серія: лічильник, вогонь горить (сьогодні �
 await sleep(700);
 t("серія: анімований лічильник закінчує на справжньому числі", cab.$(".streak-n").textContent === "3");
 const quiet = await page({ me: user, dash: { ...base, activity: {} } });
-t("серія: без активності сьогодні вогонь згаслий і підказка про збереження серії", quiet.$(".flame").className.includes("dim") && quiet.$(".streak-card").textContent.includes("не втратити серію") && quiet.$(".streak-card").textContent.includes("UTC"));
+t("серія: серія жива, але сьогодні ще не було занять: вогонь горить, лишається підказка не втратити серію", quiet.$(".flame").className.includes("lit") && quiet.$(".streak-card").textContent.includes("не втратити серію") && quiet.$(".streak-card").textContent.includes("UTC"));
+const noStreak = await page({ me: { ...user, streak: 0 }, dash: { ...base, user: { ...user, streak: 0 }, activity: {} } });
+t("серія: немає серії (0 днів): вогонь згаслий і підказка почати серію", noStreak.$(".flame").className.includes("dim") && !noStreak.$(".flame").className.includes("lit") && noStreak.$(".streak-card").textContent.includes("почати серію"));
+/* «Продовжити навчання»: курс, який користувач обрав на старті, важливіший за стандартний порядок і за випадковий урок з іншого курсу */
+const focusOf = async (extra) => (await page({ me: user, dash: { ...base, ...extra } }));
+const fGo = await focusOf({ completedLessons: [], lastLesson: null, onboarding: { level: "beginner", courses: ["go"] } });
+t("продовжити: обрано Go, нічого не пройдено: показано Go (а не Python за стандартним порядком) і посилання на перший урок Go", fGo.$(".dash-focus") && fGo.html().includes("Go ·") && !!fGo.$('a.btn[href="/lesson/go/1"]') && !fGo.html().includes("Встановлення Python"));
+const fOther = await focusOf({ completedLessons: ["python/1"], lastLesson: "python/1", onboarding: { level: "beginner", courses: ["go"] } });
+t("продовжити: останній пройдений урок із чужого курсу не перебиває обраний Go", !!fOther.$('a.btn[href="/lesson/go/1"]') && !fOther.$('a.btn[href^="/lesson/python/"]'));
+const fSame = await focusOf({ completedLessons: ["go/1", "go/2"], lastLesson: "go/2", onboarding: { level: "beginner", courses: ["js", "go"] } });
+t("продовжити: останній урок в обраному курсі, тож продовжуємо одразу після нього (Go, урок 3)", !!fSame.$('a.btn[href="/lesson/go/3"]'));
+const fNone = await focusOf({ completedLessons: ["js/1", "js/2"], lastLesson: "js/2", onboarding: { level: "beginner", courses: [] } });
+t("продовжити: курси не обирали: поведінка як раніше (після останнього уроку)", !!fNone.$('a.btn[href="/lesson/js/3"]'));
+const fDone = await focusOf({ completedLessons: [], lastLesson: null, onboarding: { level: "beginner", courses: ["go", "js"] } });
+t("продовжити: два обраних курси, нічого не пройдено в них: береться перший за порядком вибору (Go)", !!fDone.$('a.btn[href="/lesson/go/1"]'));
+t("кнопка «Продовжити» в окремому абзаці з відступом від смуги прогресу", !!fGo.$(".dash-focus ~ p.dash-cta a.btn") || !!fGo.$(".bar + p.dash-cta a.btn"));
+const tmpl = readFileSync(new URL("../src/index.template.html", import.meta.url), "utf8");
+t("стилі: у абзацу кнопки є верхній відступ", /\.card p\.dash-cta\{margin:\d+px 0 0\}/.test(tmpl));
 t("шлях у кабінеті: курс, рівень, наступний урок і посилання на шлях", cab.$(".path-card").textContent.includes("JavaScript") && cab.$(".path-card").textContent.includes("Середній") && !!cab.$('.path-card a[href="/path/js"]') && !!cab.$('.path-card a[href="/start"]'));
 
 const cell = (p, k) => p.$(`.heat i[data-day="${k}"]`);
