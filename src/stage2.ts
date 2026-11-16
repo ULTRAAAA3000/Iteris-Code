@@ -4,6 +4,7 @@ import { mountCabinet } from "./cabinet.ts";
 import { getOnboarding, mountOnboarding, setOnboarding } from "./onboarding.ts";
 import { mountPath } from "./path.ts";
 import { ui } from "./ui.ts";
+import { navigate, pathOf } from "./router.ts";
 import type { Level } from "./xp.ts";
 
 interface SyncResult { xp: number; gained: { amount: number }[]; level: number; prevLevel: number; leveledUp: boolean }
@@ -52,7 +53,7 @@ async function runSync(): Promise<void> {
   const sum = r.data.gained.reduce((s, e) => s + e.amount, 0);
   if (sum > 0) xpPop(`+${sum} XP`);
   if (r.data.leveledUp) levelUp(r.data.level);
-  if (/^#\/dashboard/.test(location.hash)) ui.render();
+  if (pathOf() === "dashboard") ui.render();
 }
 
 export function initStage2(): void {
@@ -66,7 +67,7 @@ async function saveOnboarding(level: Level, courses: string[]): Promise<boolean>
   if (!r.ok) return false;
   setOnboarding({ level, courses });
   invalidate();
-  location.hash = "#/path/" + courses[0];
+  navigate("/path/" + courses[0]);
   return true;
 }
 
@@ -81,7 +82,7 @@ export function mountStage2(a: string | undefined): void {
     void api<{ onboarding: unknown }>("/api/onboarding").then((r) => {
       loadingOnb = false;
       setOnboarding(r.ok && r.data ? r.data.onboarding ?? null : null);
-      if (getOnboarding() !== undefined && /^#\/(path|start)/.test(location.hash)) ui.render();
+      if (getOnboarding() !== undefined && /^(path|start)(\/|$)/.test(pathOf())) ui.render();
     });
   }
 }

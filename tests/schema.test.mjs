@@ -132,7 +132,7 @@ await test("діагностика: порожні налаштування да
   const half = await get({ SESSION_SECRET: "s".repeat(40), TURNSTILE_SITE_KEY: "k" });
   assert.ok(half.problems.some((p) => p.includes("Turnstile")));
   const full = await get({ SESSION_SECRET: "s".repeat(40), GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "gsec", TURNSTILE_SITE_KEY: "site", TURNSTILE_SECRET_KEY: "tsec", RESEND_API_KEY: "re_secret", MAIL_FROM: "a@b.ua" }, "?hash=1");
-  assert.equal(full.ok, true); assert.deepEqual(full.features, { google: true, turnstile: true, mail: true }); assert.ok(full.hashMs >= 0);
+  assert.equal(full.ok, true); assert.deepEqual(full.features, { google: true, github: false, turnstile: true, mail: true }); assert.ok(full.hashMs >= 0);
   const text = JSON.stringify(full);
   for (const secret of ["gsec", "tsec", "re_secret", "s".repeat(40)]) assert.ok(!text.includes(secret));
   const broken = new DatabaseSync(":memory:"); broken.exec("CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT)");

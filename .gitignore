@@ -7,3 +7,8 @@ dist
 /main-*.js
 /worker-*.js
 /_headers
+/*.html
+/ref/
+/sitemap.xml
+/robots.txt
+/og.png

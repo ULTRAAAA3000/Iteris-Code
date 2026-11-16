@@ -1,8 +1,10 @@
-// Особистий кабінет: вхід через Google, синхронізація прогресу, дашборд (#/dashboard)
+// Особистий кабінет: вхід через Google і GitHub, синхронізація прогресу, дашборд (/dashboard)
 import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
+import { projectById } from "./projects/index.ts";
 import { toast, ui } from "./ui.ts";
+import { navigate, pathOf } from "./router.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
 import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
@@ -10,7 +12,7 @@ import { onboardingHtml, setOnboarding } from "./onboarding.ts";
 import { escA, pl } from "./util.ts";
 
 type DashState = DashboardData | { error: true } | null;
-const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null; siteKey: string | null; mail: boolean } = { user: null, ready: false, dash: null, loading: false, clientId: null, siteKey: null, mail: false };
+const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null; githubId: string | null; siteKey: string | null; mail: boolean } = { user: null, ready: false, dash: null, loading: false, clientId: null, githubId: null, siteKey: null, mail: false };
 
 const GROUPS = [
   { t: "Frontend", courses: ["html", "css", "js", "ts"] },
@@ -52,25 +54,40 @@ export const getUser = (): PublicUser | null => st.user;
 export const invalidate = (): void => { st.dash = null; };
 
 export const isReady = (): boolean => st.ready;
-export const getAuthConfig = (): { clientId: string | null; siteKey: string | null; mail: boolean } => ({ clientId: st.clientId, siteKey: st.siteKey, mail: st.mail });
+export const getAuthConfig = (): { clientId: string | null; githubId: string | null; siteKey: string | null; mail: boolean } => ({ clientId: st.clientId, githubId: st.githubId, siteKey: st.siteKey, mail: st.mail });
 
 // Форма входу за поштою є завжди; Google, Turnstile і листи з'являються в ній лише коли налаштовані на сервері
 const loginBtn = (cls: string, label: string): string => `<button class="${cls}" data-act="login">${label}</button>`;
 
 export function updateHeader(): void {
+  // Пункти навігації з data-auth (наприклад «Шлях») бачать лише зареєстровані користувачі
+  document.querySelectorAll<HTMLElement>("#nav [data-auth]").forEach((a) => { a.hidden = !st.user; });
   const el = document.getElementById("acct");
   if (!el) return;
   if (!st.ready) { el.innerHTML = ""; return; }
   el.innerHTML = st.user
-    ? `<a class="acct-user" href="#/dashboard" title="Особистий кабінет">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
+    ? `<a class="acct-user" href="/dashboard" title="Особистий кабінет">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
     : loginBtn("btn small", "Увійти");
+}
+
+/** Випадковий state для входу через зовнішній сервіс; зберігається в сесії браузера й перевіряється при поверненні */
+function newState(prefix = ""): string | null {
+  const s = prefix + Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+  try { sessionStorage.setItem("ic-oauth-state", s); } catch { toast("Браузер блокує сховище, тому вхід неможливий"); return null; }
+  return s;
+}
+
+export function loginGithub(): void {
+  const id = st.githubId;
+  const s = id && newState("gh.");
+  if (!id || !s) return;
+  location.href = "https://github.com/login/oauth/authorize?" + new URLSearchParams({ client_id: id, redirect_uri: location.origin + "/", scope: "read:user user:email", state: s });
 }
 
 export function loginGoogle(): void {
   const id = st.clientId;
-  if (!id) return;
-  const s = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
-  try { sessionStorage.setItem("ic-oauth-state", s); } catch { return toast("Браузер блокує сховище, тому вхід неможливий"); }
+  const s = id && newState();
+  if (!id || !s) return;
   location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + new URLSearchParams({
     client_id: id, redirect_uri: location.origin + "/", response_type: "code",
     scope: "openid email profile", state: s, prompt: "select_account",
@@ -79,7 +96,7 @@ export function loginGoogle(): void {
 
 // Кнопка «Увійти» відкриває форму входу
 function openLogin(): void {
-  location.hash = "#/login";
+  navigate("/login");
 }
 
 // Після успішного входу за поштою: підтягуємо користувача, зливаємо прогрес і відкриваємо кабінет
@@ -89,8 +106,7 @@ export async function completeSignIn(): Promise<void> {
   if (st.user) { await loadOutline(); await syncLocal(); }   // уроки приходять лише після входу
   updateHeader();
   ui.notifyAuth();
-  location.hash = "#/dashboard";
-  ui.render();
+  navigate("/dashboard");
 }
 
 async function handleCallback(): Promise<void> {
@@ -102,9 +118,10 @@ async function handleCallback(): Promise<void> {
   try { saved = sessionStorage.getItem("ic-oauth-state"); sessionStorage.removeItem("ic-oauth-state"); } catch { /* ігноруємо */ }
   if (err || !code) return toast("Вхід скасовано");
   if (!saved || saved !== s) return toast("Не вдалося підтвердити вхід. Спробуйте ще раз");
-  const r = await post("/api/auth/google", { code });
-  if (!r.ok) return toast("Не вдалося увійти через Google");
-  location.hash = "#/dashboard";
+  const gh = saved.startsWith("gh.");   // GitHub й Google повертаються на ту саму адресу; відрізняє їх префікс state
+  const r = await post(gh ? "/api/auth/github" : "/api/auth/google", { code });
+  if (!r.ok) return toast(gh ? "Не вдалося увійти через GitHub" : "Не вдалося увійти через Google");
+  navigate("/dashboard");
 }
 
 // Після входу: об'єднуємо локальний прогрес із серверним
@@ -161,13 +178,14 @@ async function logout(): Promise<void> {
   clearContent();
   updateHeader();
   ui.notifyAuth();
-  if (location.hash === "#/" || location.hash === "") ui.render(); else location.hash = "#/";
+  navigate("/");
 }
 
 export async function init(): Promise<void> {
   await handleCallback();
-  const [cfg, r] = await Promise.all([api<{ clientId: string | null; turnstileSiteKey: string | null; mail: boolean }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
+  const [cfg, r] = await Promise.all([api<{ clientId: string | null; githubClientId?: string | null; turnstileSiteKey: string | null; mail: boolean }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
   st.clientId = cfg.ok && typeof cfg.data?.clientId === "string" && cfg.data.clientId ? cfg.data.clientId : null;
+  st.githubId = cfg.ok && typeof cfg.data?.githubClientId === "string" && cfg.data.githubClientId ? cfg.data.githubClientId : null;
   st.siteKey = cfg.ok && typeof cfg.data?.turnstileSiteKey === "string" && cfg.data.turnstileSiteKey ? cfg.data.turnstileSiteKey : null;
   st.mail = cfg.ok && cfg.data?.mail === true;
   st.user = r.ok && r.data ? r.data.user : null;
@@ -175,7 +193,7 @@ export async function init(): Promise<void> {
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^#\/(dashboard|login|register|forgot|reset|verify|start|path|course|lesson)/.test(location.hash)) ui.render();
+  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson|project)(\/|$)/.test(pathOf())) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -188,7 +206,7 @@ async function loadDash(): Promise<void> {
     st.dash = r.ok && r.data ? r.data : { error: true };
     if (r.ok && r.data && st.user) { st.user = r.data.user; updateHeader(); ui.notifyAuth(); }   // статус Pro міг змінитися після оплати
   }
-  if (/^#\/dashboard/.test(location.hash)) ui.render();
+  if (pathOf() === "dashboard") ui.render();
 }
 
 /* ---------- Дашборд ---------- */
@@ -199,17 +217,25 @@ const guestCard = (): string => `<div class="card dash-guest"><h1>Особист
 const errorCard = (act = "retry"): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
     <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${act}">Спробувати ще раз</button></div>`;
 
-function focusLesson(set: Set<string>, last: string | null): [string, number] | null {
+/** Який урок показати в «Продовжити навчання»: спершу курси, які користувач обрав на старті (у порядку вибору), потім останній пройдений, потім стандартний порядок */
+function focusLesson(set: Set<string>, last: string | null, chosen: string[] = []): [string, number] | null {
   const has = (k: string, n: number) => set.has(k + "/" + n);
   const first = (k: string): number => { for (let n = 1; n <= C[k].L.length; n++) if (!has(k, n)) return n; return 0; };
+  const mine = chosen.filter((k) => C[k]);
   if (last) {
     const [lk, ln] = [last.split("/")[0], +last.split("/")[1]];
-    if (C[lk]) {
+    // Останній урок у обраному курсі (або курси не обирали): продовжуємо одразу після нього. Інакше обраний курс важливіший за випадковий урок з іншого
+    if (C[lk] && (!mine.length || mine.includes(lk))) {
       let m = 0;
       for (let i = ln + 1; i <= C[lk].L.length && !m; i++) if (!has(lk, i)) m = i;
       if (!m) m = first(lk);
       if (m) return [lk, m];
     }
+  }
+  for (const k of mine) { const m = first(k); if (m) return [k, m]; }
+  if (last) {
+    const lk = last.split("/")[0];
+    if (C[lk]) { const m = first(lk); if (m) return [lk, m]; }
   }
   for (const k of FOCUS_ORDER) if (C[k]) { const m = first(k); if (m) return [k, m]; }
   return null;
@@ -222,12 +248,12 @@ function full(d: DashboardData): string {
   const set = new Set(d.completedLessons.filter((id) => { const [k, n] = id.split("/"); return C[k] && +n >= 1 && +n <= C[k].L.length; }));
   const passed = new Set(d.passedTasks);
   const doneIn = (k: string): number => C[k].L.filter((_, i) => set.has(k + "/" + (i + 1))).length;
-  const f = focusLesson(set, d.lastLesson);
+  const f = focusLesson(set, d.lastLesson, d.onboarding?.courses ?? []);
   const focus = f
     ? `<h3>Продовжити навчання</h3><p class="dash-muted">${escA(C[f[0]].name)} · ${escA(C[f[0]].L[f[1] - 1].ch || "")}</p>
          <p class="dash-focus">Урок ${f[1]}: ${escA(C[f[0]].L[f[1] - 1].t)}</p>
          <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${C[f[0]].L.length}" aria-valuenow="${doneIn(f[0])}"><i style="width:${Math.round((doneIn(f[0]) / C[f[0]].L.length) * 100)}%"></i></div>
-         <p><a class="btn primary small" href="#/lesson/${f[0]}/${f[1]}">Продовжити</a></p>`
+         <p class="dash-cta"><a class="btn primary small" href="/lesson/${f[0]}/${f[1]}">Продовжити</a></p>`
     : `<h3>Усі курси пройдено</h3><p class="dash-muted">Вітаємо! Скоро тут з'являться нові практичні завдання.</p>`;
   const skills = GROUPS.map((g) => {
     const ks = g.courses.filter((k) => C[k]);
@@ -235,7 +261,7 @@ function full(d: DashboardData): string {
     const gt = allTasks().filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
     return `<div class="card skill"><h3><span>${escA(g.t)}</span><span>${pct}%</span></h3>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escA(g.t)}"><i style="width:${pct}%"></i></div>
-        <ul>${ks.map((k) => `<li><a href="#/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${C[k].L.length}</span></li>`).join("")}</ul>
+        <ul>${ks.map((k) => `<li><a href="/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${C[k].L.length}</span></li>`).join("")}</ul>
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
   const lessonsPct = Math.round((set.size / (lessonTotal() || 1)) * 100);
@@ -246,7 +272,7 @@ function full(d: DashboardData): string {
     return { t: SHORT[g.t] ?? g.t, pct: tot ? Math.round((dn / tot) * 100) : 0 };
   });
   const subs = d.recentSubmissions.length
-    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskMeta(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
+    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA((projectById(s.taskId) ?? taskMeta(s.taskId))?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
   const plan = u.isPro
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`
@@ -292,6 +318,7 @@ document.addEventListener("click", (e) => {
   const a = b.dataset.act;
   if (a === "login") openLogin();
   else if (a === "google") loginGoogle();
+  else if (a === "github") loginGithub();
   else if (a === "logout") void logout();
   else if (a === "retry") { st.dash = null; ui.render(); }
   else if (a === "retry-outline") void loadOutline().then(() => { st.dash = null; ui.render(); });

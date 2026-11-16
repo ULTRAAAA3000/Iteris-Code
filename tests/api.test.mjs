@@ -6,6 +6,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { createSession, readSession, bumpStreak, effectiveStreak, isProActive } from "../lib/session.ts";
 import { onRequestPost as google } from "../functions/api/auth/google.ts";
+import { onRequestPost as github } from "../functions/api/auth/github.ts";
 import { onRequestPost as logout } from "../functions/api/auth/logout.ts";
 import { onRequestGet as me } from "../functions/api/me.ts";
 import { onRequestGet as dashboard } from "../functions/api/dashboard.ts";
@@ -41,7 +42,7 @@ const DB = {
 
 const WH_SECRET = "whsec_test";
 const CHECKOUT = "https://iteris.lemonsqueezy.com/checkout/buy/abc-123";
-const env = { DB, SESSION_SECRET: "s".repeat(40), GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "sec",
+const env = { DB, SESSION_SECRET: "s".repeat(40), GOOGLE_CLIENT_ID: "cid", GOOGLE_CLIENT_SECRET: "sec", GITHUB_CLIENT_ID: "ghid", GITHUB_CLIENT_SECRET: "ghsec",
   LEMONSQUEEZY_WEBHOOK_SECRET: WH_SECRET, LEMONSQUEEZY_CHECKOUT_URL: CHECKOUT, LEMONSQUEEZY_VARIANT_ID: "555" };
 const ORIGIN = "https://iteris-code.pages.dev";
 const req = (path, { method = "GET", body, cookie, origin = ORIGIN } = {}) =>
@@ -57,6 +58,12 @@ const test = async (name, fn) => { await fn(); passed++; console.log("ok  -", na
 
 // Підміна Google
 globalThis.fetch = async (url, opts) => {
+  if (String(url).includes("github.com/login/oauth/access_token")) {
+    const b = opts.body;
+    return Response.json(b.get("code") === "ghgood" && b.get("redirect_uri") === ORIGIN + "/" ? { access_token: "ghtok" } : { error: "bad_verification_code" });   // GitHub і при помилці відповідає 200
+  }
+  if (String(url) === "https://api.github.com/user") return Response.json({ id: 4242, login: "olena-dev", name: null, avatar_url: "https://avatars.githubusercontent.com/u/4242" });
+  if (String(url) === "https://api.github.com/user/emails") return Response.json([{ email: "x@x.ua", primary: false, verified: true }, { email: "gh@x.ua", primary: true, verified: true }]);
   if (String(url).includes("oauth2.googleapis.com/token")) {
     const b = opts.body;
     return b.get("code") === "good" && b.get("redirect_uri") === ORIGIN + "/" ? Response.json({ access_token: "tok" }) : new Response("{}", { status: 400 });
@@ -89,6 +96,22 @@ await test("вхід Google: створює користувача та cookie H
   assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM users").get().c, 1);
   await call(google, req("/api/auth/google", { method: "POST", body: { code: "good" } }));   // повторний вхід — UPSERT
   assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM users").get().c, 1);
+});
+await test("вхід GitHub: чужий Origin, поганий код, помилка 200 від GitHub", async () => {
+  assert.equal((await call(github, req("/api/auth/github", { method: "POST", body: { code: "ghgood" }, origin: "https://evil.example" }))).status, 403);
+  assert.equal((await call(github, req("/api/auth/github", { method: "POST", body: {} }))).status, 400);
+  assert.equal((await call(github, req("/api/auth/github", { method: "POST", body: { code: "nope" } }))).status, 401);   // без access_token
+  assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM users").get().c, 1);
+});
+await test("вхід GitHub: створює акаунт gh-<id> з основною підтвердженою поштою та cookie", async () => {
+  const r = await call(github, req("/api/auth/github", { method: "POST", body: { code: "ghgood" } }));
+  assert.equal(r.status, 200);
+  assert.match(r.headers.get("Set-Cookie"), /HttpOnly/);
+  const u = sqlite.prepare("SELECT id, email, name FROM users WHERE id = 'gh-4242'").get();
+  assert.equal(u.email, "gh@x.ua"); assert.equal(u.name, "olena-dev");   // ім'я порожнє, беремо логін
+  await call(github, req("/api/auth/github", { method: "POST", body: { code: "ghgood" } }));   // повторний вхід
+  assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM users WHERE id = 'gh-4242'").get().c, 1);
+  sqlite.exec("DELETE FROM users WHERE id = 'gh-4242'");
 });
 await test("/api/me: гість і користувач", async () => {
   assert.equal((await call(me, req("/api/me"))).data.user, null);
