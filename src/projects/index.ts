@@ -1,4 +1,3 @@
-import { taskById } from "../tasks/index.ts";
 import type { Task } from "../tasks/types.ts";
 import type { Project } from "./types.ts";
 
@@ -157,4 +156,4 @@ export const projectForLesson = (lessonId: string): Project | undefined => PROJE
 
 /** Усе, за що нараховується XP як за практику: завдання з тестами й проєкти за ТЗ */
 export type Practice = Pick<Task, "id" | "lesson" | "course" | "title" | "premium" | "xp">;
-export const practiceById = (id: string): Practice | undefined => taskById(id) ?? projectById(id);
+// practiceById (завдання або проєкт) живе у lib/practice.ts: тексти завдань лишаються в серверному коді

@@ -7,10 +7,11 @@ import { createSession, sessionCookie } from "../lib/session.ts";
 import { onRequestPost as complete } from "../functions/api/progress/complete.ts";
 import { onRequestPost as xpSync } from "../functions/api/xp/sync.ts";
 import { onRequestGet as dashboard } from "../functions/api/dashboard.ts";
-import { LESSONS } from "../src/data/lessons.js";
-import { PROJECTS, practiceById, projectById, projectForLesson } from "../src/projects/index.ts";
+import { LESSONS } from "../content/lessons.js";
+import { practiceById } from "../lib/practice.ts";
+import { PROJECTS, projectById, projectForLesson } from "../src/projects/index.ts";
 import { buildSrcdoc, scoreReport } from "../src/projects/sandbox.ts";
-import { TASKS } from "../src/tasks/index.ts";
+import { TASKS } from "../content/tasks/index.ts";
 import { PROJECT_SOLUTIONS } from "./solutions.mjs";
 
 const sqlite = new DatabaseSync(":memory:");

@@ -10,6 +10,8 @@ export const W = {
   lesson: ["урок", "уроки", "уроків"],
   task: ["завдання", "завдання", "завдань"],
   course: ["курс", "курси", "курсів"],
+  ref: ["довідник", "довідники", "довідників"],
+  section: ["розділ", "розділи", "розділів"],
 } as const satisfies Record<string, Forms>;
 export const count = (n: number, w: Forms): string => n + " " + pl(n, ...w);
 

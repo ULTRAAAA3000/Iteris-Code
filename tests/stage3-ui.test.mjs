@@ -3,6 +3,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { PROJECTS, projectById } from "../src/projects/index.ts";
 import { buildSrcdoc, REPORT_TYPE, scoreReport } from "../src/projects/sandbox.ts";
+import { contentReply } from "./content-mock.mjs";
 import { PROJECT_SOLUTIONS } from "./solutions.mjs";
 
 let JSDOM, VirtualConsole;
@@ -26,6 +27,8 @@ async function page(opts = {}) {
   w.fetch = async (url, o = {}) => {
     calls.push({ method: o.method || "GET", url, body: o.body ? JSON.parse(o.body) : null });
     if (url === "/api/me") return reply(200, { user: me });
+    const cr = contentReply(url, me);
+    if (cr) return reply(cr[0], cr[1]);
     if (url === "/api/dashboard") return dash ? reply(200, dash) : reply(500, {});
     if (url === "/api/auth/config") return reply(200, { clientId: "cid", turnstileSiteKey: null, mail: false });
     if (url === "/api/onboarding" && !o.method) return reply(200, { onboarding: onboarding ?? null });
@@ -121,12 +124,7 @@ t("сторінка: проєкт запам'ятовується як вико�
 
 const gp = await page({ me: null, hash: "#/project/js-todo" });
 await sleep(150);
-gp.$("#pj-run").click();
-await sleep(60);
-const nonce3 = (gp.$("#pj-frame").srcdoc.match(/NONCE = "([^"]+)"/) ?? [])[1];
-send(gp, { type: REPORT_TYPE, nonce: nonce3, results: todo.requirements.map((r) => ({ id: r.id, ok: true })) }, gp.$("#pj-frame").contentWindow);
-await sleep(100);
-t("сторінка (гість): проєкт можна пройти, результат не надсилається на сервер, пропонується вхід", gp.$("#pj-win").textContent.includes("Увійдіть") && posted(gp, "/api/progress/complete").length === 0);
+t("сторінка (гість): проєкт, як і уроки, закритий: запрошення увійти, редактора й перевірки немає", !gp.$("#pj-run") && !gp.$("#pj-frame") && !!gp.$('#app [data-act="login"]') && posted(gp, "/api/progress/complete").length === 0);
 
 pg2.$('[data-pj="reset"]').click();
 t("сторінка: «Скинути» повертає заготовку й очищає позначки вимог", pg2.$("#editor textarea").value === todo.starter && pg2.$$("#pj-reqs li.ok, #pj-reqs li.bad").length === 0);

@@ -1,5 +1,5 @@
 import { GO_TASKS } from "./go.ts";
-import type { Task } from "./types.ts";
+import type { Task } from "../../src/tasks/types.ts";
 
 export type { Task };
 

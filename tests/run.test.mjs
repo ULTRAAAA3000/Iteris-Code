@@ -9,7 +9,7 @@ import { signProof, verifyProof } from "../lib/proof.ts";
 import { onRequestPost as run } from "../functions/api/run.ts";
 import { onRequestPost as complete } from "../functions/api/progress/complete.ts";
 import { evalChecks, normalize } from "../src/runner/checks.ts";
-import { taskById } from "../src/tasks/index.ts";
+import { taskById } from "../content/tasks/index.ts";
 import { SOLUTIONS } from "./solutions.mjs";
 
 const sqlite = new DatabaseSync(":memory:");
@@ -64,28 +64,36 @@ await test("checks: нормалізація виводу й типи перев
   assert.match(f.error, /очікувалось: 5/); assert.match(f.error, /отримано:\s+4/);
 });
 
+const ck = await login("run-a");
 await test("запит до Go Playground: адреса, метод, код у тілі форми", async () => {
   out("Привіт, Go!\nМодуль: example.com/hello\n");
-  await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode } }));
+  await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode }, cookie: ck }));
   assert.equal(sent.url, "https://go.dev/_/compile");
   assert.equal(sent.method, "POST");
   assert.equal(sent.form.get("body"), helloCode);
   assert.equal(sent.form.get("version"), "2");
 });
 
-await test("правильне рішення: усі перевірки пройдено, гість без proof", async () => {
-  out("Привіт, Go!\nМодуль: example.com/hello\n");
+await test("гість не може запускати завдання: 401", async () => {
+  out("x");
   const r = await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode } }));
+  assert.equal(r.status, 401);
+  assert.equal(r.data.error, "unauthorized");
+});
+
+await test("правильне рішення: усі перевірки пройдено, користувач отримує proof", async () => {
+  out("Привіт, Go!\nМодуль: example.com/hello\n");
+  const r = await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode }, cookie: ck }));
   assert.equal(r.status, 200);
   assert.equal(r.data.passed, true);
   assert.ok(r.data.results.every((x) => x.passed));
   assert.match(r.data.stdout, /Привіт, Go!/);
-  assert.equal(r.data.proof, undefined, "гостю підпис не видається");
+  assert.equal(typeof r.data.proof, "string", "користувачу видається підпис");
 });
 
 await test("неправильний вивід: перевірка падає, є очікуване й отримане", async () => {
   out("Привіт!\n");
-  const r = await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode } }));
+  const r = await call(run, req("/api/run", { cookie: ck, body: { taskId: HELLO, code: helloCode } }));
   assert.equal(r.data.passed, false);
   const exact = r.data.results.find((x) => !x.passed && /очікувалось/.test(x.error ?? ""));
   assert.ok(exact, "потрібне пояснення «очікувалось / отримано»");
@@ -94,7 +102,7 @@ await test("неправильний вивід: перевірка падає, 
 
 await test("помилка компіляції: текст компілятора з main.go, перевірки не запускаються", async () => {
   reply = { Errors: "./prog.go:6:2: undefined: x\n\nGo build failed.", Events: [], Status: 0 };
-  const r = await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode } }));
+  const r = await call(run, req("/api/run", { cookie: ck, body: { taskId: HELLO, code: helloCode } }));
   assert.equal(r.data.passed, false);
   assert.match(r.data.error, /main\.go:6:2: undefined: x/);
   assert.doesNotMatch(r.data.error, /prog\.go/);
@@ -103,7 +111,7 @@ await test("помилка компіляції: текст компілятор
 
 await test("аварія (panic) завжди провал, навіть якщо потрібний вивід є", async () => {
   reply = { Errors: "", Events: [{ Message: "Привіт, Go!\nМодуль: example.com/hello\n", Kind: "stdout" }, { Message: "panic: boom\n", Kind: "stderr" }], Status: 2 };
-  const r = await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode } }));
+  const r = await call(run, req("/api/run", { cookie: ck, body: { taskId: HELLO, code: helloCode } }));
   assert.equal(r.data.passed, false);
   assert.equal(r.data.results[0].name, "Програма завершується без аварії");
   assert.match(r.data.results[0].error, /panic: boom/);
@@ -111,21 +119,21 @@ await test("аварія (panic) завжди провал, навіть якщ�
 
 await test("нескінченний цикл: повідомлення про тайм-аут", async () => {
   reply = { Errors: "timeout running program", Events: [], Status: 0 };
-  const r = await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode } }));
+  const r = await call(run, req("/api/run", { cookie: ck, body: { taskId: HELLO, code: helloCode } }));
   assert.equal(r.data.timedOut, true);
   assert.match(r.data.error, /нескінченний цикл/);
 });
 
 await test("сервіс Go недоступний: 503 з зрозумілим кодом, а не порожня відповідь", async () => {
   down = true;
-  const r = await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode }, ip: "2.2.2.2" }));
+  const r = await call(run, req("/api/run", { cookie: ck, body: { taskId: HELLO, code: helloCode }, ip: "2.2.2.2" }));
   down = false;
   assert.equal(r.status, 503);
   assert.equal(r.data.error, "runner_unavailable");
 });
 
 await test("некоректні запити: чужий Origin, невідоме й JS-завдання, порожній і завеликий код", async () => {
-  const bad = (body, extra) => call(run, req("/api/run", { body, ip: "3.3.3.3", ...extra }));
+  const bad = (body, extra) => call(run, req("/api/run", { body, cookie: ck, ip: "3.3.3.3", ...extra }));
   assert.equal((await bad({ taskId: HELLO, code: "x" }, { origin: "https://evil.example" })).status, 403);
   assert.equal((await bad({ taskId: "nope", code: "x" })).status, 400);
   assert.equal((await bad({ taskId: "js-safe-city", code: "x" })).status, 400, "JS-завдання запускаються в браузері");
@@ -137,10 +145,10 @@ await test("некоректні запити: чужий Origin, невідом
 await test("ліміт запусків: після 12 за хвилину 429, інший користувач не страждає", async () => {
   out("x");
   const codes = [];
-  for (let i = 0; i < 14; i++) codes.push((await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode }, ip: "9.9.9.9" }))).status);
+  for (let i = 0; i < 14; i++) codes.push((await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode }, cookie: await login("run-limit") }))).status);
   assert.equal(codes.filter((c) => c === 200).length, 12);
   assert.equal(codes.at(-1), 429);
-  assert.equal((await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode }, ip: "8.8.8.8" }))).status, 200);
+  assert.equal((await call(run, req("/api/run", { body: { taskId: HELLO, code: helloCode }, cookie: await login("run-other") }))).status, 200);
 });
 
 await test("користувач отримує proof, а збереження без нього не дає XP", async () => {

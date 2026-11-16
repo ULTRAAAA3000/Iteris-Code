@@ -29,8 +29,9 @@
 | Файл | Зачем |
 |---|---|
 | `src/tasks/types.ts` | Типы `JsTask`, `RemoteTask`, `Check`, список языков `RemoteLang` |
-| `src/tasks/go.ts` | Задания курса Go (шаблон для остальных языков: `src/tasks/<язык>.ts`) |
-| `src/tasks/index.ts` | Общий список `TASKS` (сюда добавляется `...GO_TASKS`) |
+| `content/tasks/go.ts` | Задания курса Go (шаблон для остальных языков: `content/tasks/<язык>.ts`). Лежит вне `src/`, чтобы не попадать в сборку для браузера |
+| `content/tasks/index.ts` | Общий список `TASKS` (сюда добавляется `...GO_TASKS`) |
+| `lib/content.ts` | Отдаёт структуру курсов и урок с заданием (`/api/courses`, `/api/lesson`) только вошедшему. У remote-заданий очищает `checks`: их проверяет сервер |
 | `src/runner/checks.ts` | Проверка результата по `checks` (одинаково для всех языков; работает и на сервере, и в тестах) |
 | `src/runner/remote.ts` | Клиент: отправляет код на `/api/run`, понятные сообщения об ошибках (лимит, сервис недоступен, нет сети) |
 | `src/workspace.ts` | Экран задания: редактор, терминал, кнопка запуска, анимация, сохранение результата |
@@ -114,7 +115,7 @@
 1. **Выбрать песочницу** для языка (см. таблицу ниже) и проверить её условия: лимиты, время жизни, стоимость, нужен ли ключ.
 2. **Типы.** В `src/tasks/types.ts` добавить язык в `RemoteLang`: `"go" | "python"`.
 3. **Адаптер.** В `lib/runners.ts` написать объект `RemoteRunner` (по образцу `goPlayground`): метод `run(code)` отправляет код и возвращает `{ stdout, stderr, error?, timedOut?, exitCode? }`; добавить его в `RUNNERS`. Если нужен секретный ключ, добавить поле в `lib/env.ts` и раздел в `SETUP.md`.
-4. **Задания.** Создать `src/tasks/python.ts` по образцу `go.ts` (`base` с `lang: "python"`, `file: "main.py"`, `editorLang: "python"`), по одному заданию на урок там, где материал позволяет (правило D13). Подключить в `src/tasks/index.ts`: `...PYTHON_TASKS`.
+4. **Задания.** Создать `content/tasks/python.ts` по образцу `go.ts` (`base` с `lang: "python"`, `file: "main.py"`, `editorLang: "python"`), по одному заданию на урок там, где материал позволяет (правило D13). Подключить в `src/tasks/index.ts`: `...PYTHON_TASKS`.
 5. **Эталоны.** Добавить решения в `tests/solutions.mjs` (id задания → полный код).
 6. **Тест запуска.** Скопировать `tests/go-tasks.test.mjs` в `tests/python-tasks.test.mjs`: заменить команду запуска на `python3` (проверка эталонов и заготовок реальным интерпретатором). Добавить в `package.json`.
 7. **Проверить мобильную версию** (360, 390, 414 px) и прогнать `npm run check`, `npm test`, `npm run test:ui`.

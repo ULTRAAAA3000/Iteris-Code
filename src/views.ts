@@ -1,29 +1,28 @@
-import { C, CATS, darkText, totals } from "./data.ts";
+// Сторінки сайту. Публічні: головна, напрями, довідник мови. Лише після входу: список уроків курсу, урок із завданням.
+import { C, CATS, darkText } from "./data.ts";
+import { REF } from "./data/reference/index.ts";
 import { done, isDone, progress } from "./progress.ts";
 import { projectForLesson } from "./projects/index.ts";
-import { taskForLesson } from "./tasks/index.ts";
-import type { Lesson } from "./types.ts";
-import { count, esc, escA, pad, pl, store, W } from "./util.ts";
+import type { LessonPayload } from "./types.ts";
+import { count, esc, escA, pad, store, W } from "./util.ts";
 import { workspaceHTML } from "./workspace.ts";
 
 const badge = (k: string, cls = ""): string => `<span class="badge ${cls}" style="background:${C[k].color};${darkText(k)}" aria-hidden="true">${esc(C[k].badge)}</span>`;
-const chip = (k: string): string => `<a class="chip" href="#/course/${k}">${badge(k, "sm")}<span><b>${C[k].name}</b><small>${count(C[k].L.length, W.lesson)}, ${count(C[k].tasks, W.task)}</small></span></a>`;
+const sections = (k: string): number => REF[k]?.length ?? 0;
+const chip = (k: string): string => `<a class="chip" href="#/ref/${k}">${badge(k, "sm")}<span><b>${C[k].name}</b><small>${count(sections(k), W.section)}</small></span></a>`;
+/** Текст у довіднику: `код` у зворотних апострофах стає <code> */
+const inline = (s: string): string => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
 
-export function home(): string {
-  const last = store.get<{ k: string; n: number } | null>("ic-last", null);
-  let cont;
-  if (last && C[last.k] && C[last.k].L[last.n - 1]) {
-    const c = C[last.k];
-    cont = `<h3>Продовжити навчання</h3><p>${c.name}, урок ${last.n}: ${c.L[last.n - 1].t}</p><a class="btn primary small" href="#/lesson/${last.k}/${last.n}">Відкрити урок</a>`;
-  } else {
-    cont = `<h3>З чого почати</h3><p>Не знаєте, яку мову обрати? Python — найкращий старт, а HTML і CSS дозволяють швидко побачити результат у браузері.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn primary small" href="#/lesson/python/1">Урок 1 з Python</a><a class="btn small" href="#/lesson/html/1">Урок 1 з HTML</a></div>`;
-  }
+export function home(loggedIn: boolean): string {
+  const cont = loggedIn
+    ? `<h3>Ваше навчання</h3><p>Уроки, завдання з перевіркою коду, XP і серія днів чекають у кабінеті.</p><div style="display:flex;gap:10px;flex-wrap:wrap"><a class="btn primary small" href="#/path">Мій шлях</a><a class="btn small" href="#/dashboard">Кабінет</a></div>`
+    : `<h3>Уроки та завдання</h3><p>Покрокові уроки, практика з перевіркою коду, XP і серія днів доступні після входу. Це безкоштовно.</p><button class="btn primary small" data-act="login">Увійти й вчитися</button>`;
   return `
   <section class="hero" aria-labelledby="h1">
     <div>
-      <h1 id="h1">Вчимося кодити разом</h1>
-      <p class="lead">Короткі уроки з мов програмування: пояснення, приклади коду й завдання для самоперевірки. Українською, безкоштовно.</p>
-      <div class="actions"><button class="btn primary" data-scroll="dirs">Обрати мову</button><a class="btn" href="#/lesson/python/1">Перший урок</a></div>
+      <h1 id="h1">Довідник програміста</h1>
+      <p class="lead">Коротка довідка з мов програмування за напрямами: основні конструкції та приклади коду. Українською, безкоштовно. Повні уроки й завдання відкриваються в особистому кабінеті.</p>
+      <div class="actions"><button class="btn primary" data-scroll="dirs">Обрати мову</button>${loggedIn ? `<a class="btn" href="#/path">Мій шлях</a>` : `<button class="btn" data-act="login">Увійти</button>`}</div>
     </div>
     <div class="sheet" aria-label="Спробуйте прямо тут">
       <div class="tabs" role="tablist">
@@ -45,8 +44,8 @@ print("Привіт,", name + "!")</pre>
       </div>
     </div>
   </section>
-  <h2 class="section-title" id="dirs">${count(Object.keys(CATS).length, ["напрям","напрями","напрямів"])}, ${count(totals.courses, W.course)}</h2>
-  <p class="section-sub">Кожен курс складається з уроків із прикладами коду та завдань для самоперевірки.</p>
+  <h2 class="section-title" id="dirs">${count(Object.keys(CATS).length, ["напрям","напрями","напрямів"])}, ${count(Object.keys(C).length, W.ref)}</h2>
+  <p class="section-sub">Оберіть мову, щоб відкрити довідник з її основними конструкціями.</p>
   <div class="ruled">
     ${Object.entries(CATS).map(([key, c]) => `
     <div class="dir">
@@ -57,12 +56,9 @@ print("Привіт,", name + "!")</pre>
   <div class="duo">
     <div class="card">${cont}</div>
     <div class="card">
-      <h3>Зараз на платформі</h3>
-      <div class="stats">
-        <div><strong>${totals.courses}</strong><span>${pl(totals.courses, ...W.course)}</span></div>
-        <div><strong>${totals.lessons}</strong><span>${pl(totals.lessons, ...W.lesson)}</span></div>
-        <div><strong>${totals.tasks}</strong><span>${pl(totals.tasks, ...W.task)}</span></div>
-      </div>
+      <h3>Як це працює</h3>
+      <p><b>Довідник</b> відкритий усім: заходьте, дивіться синтаксис і приклади.</p>
+      <p><b>Кабінет</b> після входу: уроки по главах, завдання з перевіркою коду, XP, рівні й серія днів.</p>
     </div>
   </div>`;
 }
@@ -75,15 +71,42 @@ export function dir(key: string): string {
   <p class="section-sub" style="margin-bottom:32px">${c.desc}</p>
   <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px">
     ${c.courses.map(k => {
-      const x = C[k], p = progress(k), pct = Math.round(p / x.L.length * 100);
-      return `<a class="card" href="#/course/${k}" style="text-decoration:none;display:grid;gap:14px;border-top:10px solid ${x.color}">
+      const x = C[k];
+      return `<a class="card" href="#/ref/${k}" style="text-decoration:none;display:grid;gap:14px;border-top:10px solid ${x.color}">
         <div style="display:flex;gap:14px;align-items:center">${badge(k)}<h2 style="font-size:1.6rem">${x.name}</h2></div>
         <p style="margin:0">${x.desc}</p>
-        <div><div class="bar" style="height:12px"><i style="width:${pct}%"></i></div>
-        <small style="color:var(--muted)">${count(x.L.length, W.lesson)}, ${count(x.tasks, W.task)}${p ? `. Пройдено: ${p}` : ""}</small></div>
+        <small style="color:var(--muted)">Довідник: ${count(sections(k), W.section)}</small>
       </a>`;
     }).join("")}
   </div>`;
+}
+
+/** Публічний довідник мови: розділи з короткими прикладами */
+export function reference(k: string, loggedIn: boolean): string {
+  const c = C[k], secs = REF[k] ?? [];
+  return `
+  <div class="crumbs"><a href="#/">Головна</a> / <a href="#/${c.cat}">${CATS[c.cat].title}</a> / ${c.name}</div>
+  <div class="course-head">${badge(k)}<div><h1>${c.name}</h1><p>${c.desc}</p></div></div>
+  <nav class="callout" aria-label="Розділи довідника"><b>Розділи.</b> ${secs.map((s, i) => `<a href="#/ref/${k}" data-scroll="s${i}">${esc(s.t)}</a>`).join(" · ")}</nav>
+  <div class="prose ref">
+    ${secs.map((s, i) => `<section id="s${i}"><h2>${esc(s.t)}</h2>
+      ${s.items.map((x) => `<h3>${esc(x.t)}</h3>${x.note ? `<p>${inline(x.note)}</p>` : ""}<pre class="code">${esc(x.code)}</pre>`).join("")}</section>`).join("")}
+  </div>
+  <div class="callout"><b>Хочете вчитися крок за кроком?</b> У кабінеті є уроки по главах і завдання з перевіркою коду. ${loggedIn ? `<a href="#/course/${k}">Відкрити курс ${esc(c.name)}</a>` : `<button class="btn small" data-act="login">Увійти й почати</button>`}</div>`;
+}
+
+/** Картка для сторінок, що доступні лише після входу (уроки, шлях, кабінет) */
+export function gate(): string {
+  return `<div class="card dash-guest"><h1>Уроки та завдання в кабінеті</h1>
+    <p>Увійдіть, щоб відкрити уроки й практику, зберігати прогрес на всіх пристроях і отримувати XP. Довідник по мовах доступний без входу.</p>
+    <button class="btn primary" data-act="login">Увійти</button> <a class="btn" href="#/">До довідника</a></div>`;
+}
+
+export const loadingCard = (): string => `<div class="card dash-guest" aria-busy="true" aria-label="Завантаження"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
+
+export function loadError(retry: string): string {
+  return `<div class="card dash-guest"><h1>Не вдалося завантажити уроки</h1>
+    <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${retry}">Спробувати ще раз</button></div>`;
 }
 
 export function course(k: string): string {
@@ -96,6 +119,7 @@ export function course(k: string): string {
     <span><b>${p}</b> з ${c.L.length} пройдено</span>
     <a class="btn primary small" href="#/lesson/${k}/${next}">${p ? "Продовжити" : "Почати курс"}</a>
   </div>
+  <p><a href="#/ref/${k}">Довідник ${esc(c.name)}</a></p>
   ${c.req ? `<div class="callout"><b>Спершу JavaScript.</b> Цей курс спирається на ${C[c.req].name}. <a href="#/course/${c.req}">Перейти до курсу ${C[c.req].name}</a></div>` : ""}
   <ol class="lessons">
     ${c.L.map((l, i) => { const n = i + 1, d = isDone(k, n); return `${i === 0 || l.ch !== c.L[i - 1].ch ? `<li class="chap">Глава: ${l.ch}</li>` : ""}
@@ -115,8 +139,8 @@ function projectCard(k: string, n: number): string {
   return p ? `<div class="callout pj-card"><b>Проєкт за ТЗ.</b> Закріпіть тему на практиці: <a href="#/project/${escA(p.id)}">${escA(p.title)}</a> (до ${p.xp} XP). Ви отримаєте технічне завдання й перевірку кожної вимоги.</div>` : "";
 }
 
-export function lesson(k: string, n: number): string {
-  const c = C[k], i = n - 1, l: Lesson = c.L[i], d = isDone(k, n);
+export function lesson(k: string, n: number, data: LessonPayload): string {
+  const c = C[k], i = n - 1, l = data.lesson, d = isDone(k, n);
   store.set("ic-last", { k, n });
   const crumbs = `<div class="crumbs"><a href="#/">Головна</a> / <a href="#/${c.cat}">${CATS[c.cat].title}</a> / <a href="#/course/${k}">${c.name}</a> / Урок ${n}</div>`;
   const meta = `<div class="meta"><span class="tag" style="background:${c.color};${darkText(k)}">${c.name}</span><span>Урок ${n} з ${c.L.length}</span><span>Глава: ${l.ch}</span></div>`;
@@ -134,8 +158,7 @@ export function lesson(k: string, n: number): string {
         ${n < c.L.length ? `<a class="btn primary small" href="#/lesson/${k}/${n + 1}">Наступний урок</a>` : `<a class="btn primary small" href="#/course/${k}">До списку уроків</a>`}
       </div>`;
 
-  const task = taskForLesson(`${k}/${n}`);
-  if (task) return workspaceHTML({ crumbs, meta, title: l.t, actions, prose, pager, task });
+  if (data.task) return workspaceHTML({ crumbs, meta, title: l.t, actions, prose, pager, task: data.task });
 
   return `
   ${crumbs}
@@ -159,4 +182,3 @@ export function lesson(k: string, n: number): string {
 export function notFound(): string {
   return `<div class="empty"><h1>Такої сторінки немає</h1><p>Можливо, посилання застаріло. Поверніться на головну й оберіть курс.</p><a class="btn primary" href="#/">На головну</a></div>`;
 }
-

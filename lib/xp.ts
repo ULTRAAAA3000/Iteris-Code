@@ -3,8 +3,8 @@
 // а зняття й повторна відмітка уроку нічого не накручують.
 import type { Env, UserRow } from "./env.ts";
 import { effectiveStreak } from "./session.ts";
-import { LESSONS } from "../src/data/lessons.js";
-import { practiceById } from "../src/projects/index.ts";
+import { LESSONS } from "../content/lessons.js";
+import { practiceById } from "./practice.ts";
 import { isLevel, LESSON_XP, STREAK_BONUS, STREAK_MILESTONES, type Level } from "../src/xp.ts";
 
 export interface XpEvent { amount: number; reason: "lesson" | "task" | "streak"; ref: string }
