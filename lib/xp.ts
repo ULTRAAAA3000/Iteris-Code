@@ -4,7 +4,7 @@
 import type { Env, UserRow } from "./env.ts";
 import { effectiveStreak } from "./session.ts";
 import { LESSONS } from "../src/data/lessons.js";
-import { taskById } from "../src/tasks/index.ts";
+import { practiceById } from "../src/projects/index.ts";
 import { isLevel, LESSON_XP, STREAK_BONUS, STREAK_MILESTONES, type Level } from "../src/xp.ts";
 
 export interface XpEvent { amount: number; reason: "lesson" | "task" | "streak"; ref: string }
@@ -33,7 +33,7 @@ export async function syncXp(env: Pick<Env, "DB">, u: Pick<UserRow, "id" | "stre
   const prev = have.reduce((s, r) => s + Number(r.amount), 0);
   const want: XpEvent[] = [];
   for (const r of lessons) if (lessonExists(String(r.v))) want.push({ amount: LESSON_XP, reason: "lesson", ref: String(r.v) });
-  for (const r of tasks) { const t = taskById(String(r.v)); if (t) want.push({ amount: t.xp, reason: "task", ref: t.id }); }
+  for (const r of tasks) { const t = practiceById(String(r.v)); if (t) want.push({ amount: t.xp, reason: "task", ref: t.id }); }
   const streak = effectiveStreak(u);
   for (const m of STREAK_MILESTONES) if (streak >= m) want.push({ amount: STREAK_BONUS[m], reason: "streak", ref: String(m) });
 

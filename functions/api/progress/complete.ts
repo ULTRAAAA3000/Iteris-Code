@@ -1,9 +1,10 @@
 // POST /api/progress/complete — зберегти результат практичного завдання
 import type { Env } from "../../../lib/env.ts";
 import { bumpStreak, currentUser, effectiveStreak, isProActive, json, sameOrigin } from "../../../lib/session.ts";
-import { taskById } from "../../../src/tasks/index.ts";
+import { practiceById, projectById } from "../../../src/projects/index.ts";
 
 const MAX_CODE = 20000;
+const MAX_PROJECT_CODE = 60000;   // проєкт — це цілий файл HTML, CSS і JS
 const MAX_PER_MINUTE = 20;
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -17,8 +18,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch {
     return json({ error: "bad_request" }, 400);
   }
-  const task = typeof body.taskId === "string" ? taskById(body.taskId) : undefined;
-  if (!task || typeof body.code !== "string" || body.code.length > MAX_CODE || typeof body.passed !== "boolean") {
+  const task = typeof body.taskId === "string" ? practiceById(body.taskId) : undefined;
+  if (!task || typeof body.code !== "string" || body.code.length > (projectById(task.id) ? MAX_PROJECT_CODE : MAX_CODE) || typeof body.passed !== "boolean") {
     return json({ error: "bad_request" }, 400);
   }
   // Преміум-завдання доступні лише з активною підпискою Pro (перевірка на сервері)

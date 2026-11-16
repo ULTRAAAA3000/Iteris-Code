@@ -1,7 +1,8 @@
 // Особистий кабінет: вхід через Google, синхронізація прогресу, дашборд (#/dashboard)
 import { C, totals } from "./data.ts";
 import { done, isDone, persist } from "./progress.ts";
-import { TASKS, taskById } from "./tasks/index.ts";
+import { practiceById } from "./projects/index.ts";
+import { TASKS } from "./tasks/index.ts";
 import { toast, ui } from "./ui.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
@@ -237,7 +238,7 @@ function full(d: DashboardData): string {
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
   const subs = d.recentSubmissions.length
-    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskById(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
+    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(practiceById(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
   const plan = u.isPro
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`

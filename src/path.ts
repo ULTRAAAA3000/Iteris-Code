@@ -2,6 +2,7 @@
 // Між уроками показуємо вузли практики там, де вже є завдання (етап 3 додасть нові).
 import { C, CATS } from "./data.ts";
 import { isDone, isTaskPassed, progress } from "./progress.ts";
+import { projectForLesson } from "./projects/index.ts";
 import { taskForLesson } from "./tasks/index.ts";
 import { escA, pad, store } from "./util.ts";
 import { LEVEL_TEXT, startPoint, type OnboardingState } from "./onboarding.ts";
@@ -38,11 +39,11 @@ export function renderPath(k: string | undefined, ctx: PathCtx): string {
       const l = c.L[n - 1], d = isDone(key, n), isCur = n === cur;
       const state = d ? "done" : isCur ? "current" : n < start ? "before" : "todo";
       const label = `Урок ${n}: ${l.t}. ${d ? "Пройдено" : isCur ? "Поточний урок" : "Доступний"}`;
-      const task = taskForLesson(`${key}/${n}`);
+      const task = taskForLesson(`${key}/${n}`), proj = projectForLesson(`${key}/${n}`);
       html += `<li class="path-node ${state} side-${sideOf(n)}" style="--x:${ZIGZAG[(n - 1) % ZIGZAG.length]}px">
         <a class="pn-dot" href="#/lesson/${key}/${n}" aria-label="${escA(label)}"${isCur ? ' aria-current="step"' : ""}>${d ? "✓" : pad(n)}</a>
         <div class="pn-side">${isCur ? `<span class="path-here">${p ? "Продовжити" : "Почати"}</span>` : ""}<span class="pn-title">${escA(l.t)}</span>
-        ${task ? `<a class="path-prac${isTaskPassed(task.id) ? " done" : ""}" href="#/lesson/${key}/${n}">⚡ ${isTaskPassed(task.id) ? "Завдання розв'язано" : "Практика: " + escA(task.title)}</a>` : ""}</div>
+        ${task ? `<a class="path-prac${isTaskPassed(task.id) ? " done" : ""}" href="#/lesson/${key}/${n}">⚡ ${isTaskPassed(task.id) ? "Завдання розв'язано" : "Практика: " + escA(task.title)}</a>` : ""}${proj ? `<a class="path-prac${isTaskPassed(proj.id) ? " done" : ""}" href="#/project/${escA(proj.id)}">📋 ${isTaskPassed(proj.id) ? "Проєкт виконано" : "Проєкт: " + escA(proj.title.replace(/^Проєкт:\s*/, ""))}</a>` : ""}</div>
       </li>`;
     }
     return html;

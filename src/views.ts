@@ -1,8 +1,9 @@
 import { C, CATS, darkText, totals } from "./data.ts";
 import { done, isDone, progress } from "./progress.ts";
+import { projectForLesson } from "./projects/index.ts";
 import { taskForLesson } from "./tasks/index.ts";
 import type { Lesson } from "./types.ts";
-import { count, esc, pad, pl, store, W } from "./util.ts";
+import { count, esc, escA, pad, pl, store, W } from "./util.ts";
 import { workspaceHTML } from "./workspace.ts";
 
 const badge = (k: string, cls = ""): string => `<span class="badge ${cls}" style="background:${C[k].color};${darkText(k)}" aria-hidden="true">${esc(C[k].badge)}</span>`;
@@ -108,6 +109,12 @@ export function course(k: string): string {
 }
 
 
+/** Картка «Проєкт за ТЗ» в кінці уроку, після якого пропонується проєкт */
+function projectCard(k: string, n: number): string {
+  const p = projectForLesson(`${k}/${n}`);
+  return p ? `<div class="callout pj-card"><b>Проєкт за ТЗ.</b> Закріпіть тему на практиці: <a href="#/project/${escA(p.id)}">${escA(p.title)}</a> (до ${p.xp} XP). Ви отримаєте технічне завдання й перевірку кожної вимоги.</div>` : "";
+}
+
 export function lesson(k: string, n: number): string {
   const c = C[k], i = n - 1, l: Lesson = c.L[i], d = isDone(k, n);
   store.set("ic-last", { k, n });
@@ -121,7 +128,7 @@ export function lesson(k: string, n: number): string {
         <div class="callout"><b>Запам'ятайте.</b> ${l.note}</div>
         ${l.work ? `<h2>Як це в роботі</h2><p>${l.work}</p>` : ""}
         <h2>Завдання для самоперевірки</h2>
-        <ul class="tasks">${l.tasks.map((t, j) => `<li><input type="checkbox" id="t${j}"><label for="t${j}">${t}</label></li>`).join("")}</ul>`;
+        <ul class="tasks">${l.tasks.map((t, j) => `<li><input type="checkbox" id="t${j}"><label for="t${j}">${t}</label></li>`).join("")}</ul>${projectCard(k, n)}`;
   const pager = `<div class="pager">
         ${n > 1 ? `<a class="btn small" href="#/lesson/${k}/${n - 1}">Попередній урок</a>` : "<span></span>"}
         ${n < c.L.length ? `<a class="btn primary small" href="#/lesson/${k}/${n + 1}">Наступний урок</a>` : `<a class="btn primary small" href="#/course/${k}">До списку уроків</a>`}

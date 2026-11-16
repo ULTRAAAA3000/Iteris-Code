@@ -3,6 +3,9 @@ import { C, CATS } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
 import { renderPath } from "./path.ts";
+import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
+import { projectById } from "./projects/index.ts";
+import type { Project } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
 import { taskForLesson } from "./tasks/index.ts";
@@ -18,8 +21,9 @@ const app = document.getElementById("app") as HTMLElement;
 function render(): void {
   const [a, b, c] = location.hash.replace(/^#\/?/, "").split("/");
   let html: string, active = "", title = BRAND + " — вчимося кодити разом";
-  let task: Task | undefined;
+  let task: Task | undefined, project: Project | undefined;
   disposeWorkspace();
+  disposeProject();
   if (!a) html = home();
   else if (CATS[a]) { html = dir(a); active = a; title = CATS[a].title + " — " + BRAND; }
   else if (a === "course" && C[b]) { html = course(b); active = C[b].cat; title = C[b].name + " — " + BRAND; }
@@ -27,6 +31,7 @@ function render(): void {
     html = lesson(b, Number(c)); active = C[b].cat; title = C[b].L[Number(c) - 1].t + " — " + BRAND;
     task = taskForLesson(`${b}/${Number(c)}`);
   }
+  else if (a === "project" && projectById(b)) { project = projectById(b) as Project; html = projectHTML(project); active = C[project.course].cat; title = project.title + " — " + BRAND; }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
   else if (a === "path") {
     // Шлях тільки для зареєстрованих: гостя ведемо на форму входу
@@ -43,6 +48,7 @@ function render(): void {
   window.scrollTo(0, 0);
   if (!a) initHome();
   if (task) void mountWorkspace(task);
+  if (project) void mountProject(project);
   if (isAuthRoute(a)) mountAuthPage(a, b);
   mountStage2(a);
 }
