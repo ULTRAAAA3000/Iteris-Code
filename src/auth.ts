@@ -2,6 +2,7 @@
 import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
+import { projectById } from "./projects/index.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
@@ -59,6 +60,8 @@ export const getAuthConfig = (): { clientId: string | null; githubId: string | n
 const loginBtn = (cls: string, label: string): string => `<button class="${cls}" data-act="login">${label}</button>`;
 
 export function updateHeader(): void {
+  // Пункти навігації з data-auth (наприклад «Шлях») бачать лише зареєстровані користувачі
+  document.querySelectorAll<HTMLElement>("#nav [data-auth]").forEach((a) => { a.hidden = !st.user; });
   const el = document.getElementById("acct");
   if (!el) return;
   if (!st.ready) { el.innerHTML = ""; return; }
@@ -190,7 +193,7 @@ export async function init(): Promise<void> {
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson)(\/|$)/.test(pathOf())) ui.render();
+  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson|project)(\/|$)/.test(pathOf())) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -261,7 +264,7 @@ function full(d: DashboardData): string {
     return { t: SHORT[g.t] ?? g.t, pct: tot ? Math.round((dn / tot) * 100) : 0 };
   });
   const subs = d.recentSubmissions.length
-    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskMeta(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
+    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA((projectById(s.taskId) ?? taskMeta(s.taskId))?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
   const plan = u.isPro
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`

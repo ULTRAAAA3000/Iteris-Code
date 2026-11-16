@@ -6,6 +6,9 @@ import { setMeta } from "./meta.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
 import { BRAND, findPage } from "./pages.ts";
 import { renderPath } from "./path.ts";
+import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
+import { projectById } from "./projects/index.ts";
+import type { Project } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
 import { initRouter, segments } from "./router.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
@@ -28,8 +31,9 @@ function locked(): string | null {
 function render(): void {
   const [a, b, c] = segments();
   const page = findPage(location.pathname.replace(/\.html$/, ""));
-  let html: string, active = "", title = BRAND, task: Task | undefined;
+  let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | undefined;
   disposeWorkspace();
+  disposeProject();
   if (page) { html = page.html(!!getUser()); active = page.active; title = page.title; }
   else if (a === "course" && C[b]) { html = locked() ?? course(b); active = "courses"; title = C[b].name + " — " + BRAND; }
   else if (a === "lesson" && C[b]) {
@@ -44,6 +48,12 @@ function render(): void {
       else { html = loadingCard(); fetchLesson(b, n); }
     }
   }
+  else if (a === "project" && projectById(b)) {
+    // Проєкт, як і уроки, лише для користувача, що увійшов: гостя ведемо на запрошення
+    const lk = locked();
+    if (lk) html = lk;
+    else { project = projectById(b) as Project; html = projectHTML(project); active = "courses"; title = project.title + " — " + BRAND; }
+  }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
   else if (a === "path") { html = locked() ?? renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
   else if (a === "start") { html = locked() ?? onboardingHtml(); title = "Налаштування шляху — " + BRAND; }
@@ -57,6 +67,7 @@ function render(): void {
   window.scrollTo(0, 0);
   if (page?.kind === "home") initHome();
   if (task) void mountWorkspace(task);
+  if (project) void mountProject(project);
   if (isAuthRoute(a)) mountAuthPage(a, b);
   mountStage2(a);
 }

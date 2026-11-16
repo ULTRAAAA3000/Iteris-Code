@@ -1,5 +1,6 @@
 // Этап 2, интерфейс: онбординг, путь, уровень/XP, серия, календарь, эффекты. Запуск: npm run build && npm i --no-save jsdom && node tests/stage2-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
+import { PROJECTS } from "../src/projects/index.ts";
 import { TASKS } from "../content/tasks/index.ts";
 import { LESSONS } from "../content/lessons.js";
 import { chaptersOf, LESSON_XP, startLesson } from "../src/xp.ts";
@@ -165,7 +166,7 @@ lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Tab", canc
 t("підвищення рівня: Tab не виводить фокус із діалогу", lu.w.document.activeElement === lu.$(".lvl-up button"));
 lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Escape" }));
 t("підвищення рівня: Esc закриває діалог", lu.$(".lvl-up") === null);
-const gu = await page({ me: null, hash: "#/path/js" });
+const gu = await page({ me: null, hash: "#/course/js" });
 gu.w.document.dispatchEvent(new gu.w.Event("ic:progress"));
 await sleep(500);
 t("XP: гість не викликає синхронізацію", posted(gu, "/api/xp/sync").length === 0);
@@ -174,11 +175,22 @@ tog.$("[data-toggle='js:1']").click();
 await sleep(700);
 t("XP: відмітка уроку пройденим на сервері тягне синхронізацію XP й показує «+10 XP»", posted(tog, "/api/progress").length >= 1 && posted(tog, "/api/xp/sync").length === 1 && tog.$(".xp-pop")?.textContent === "+10 XP");
 
-const maxXp = Math.max(...TASKS.map((x) => x.xp));
+const maxXp = Math.max(...TASKS.map((x) => x.xp), ...PROJECTS.map((x) => x.xp));
 const hint = (await page({ me: user, dash: { ...base, onboarding: { level: "beginner", courses: ["js"] }, xp: 0 } })).$(".lvl-hint").textContent;
 t("рівень: підказка про XP береться з констант і завдань, а не з тексту", hint.includes(`+${LESSON_XP} XP`) && hint.includes(`до +${maxXp} XP`));
 const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");
 t("шлях на телефоні (до 600 px): вузли колонкою, без зигзага й без позиціювання підписів збоку", /max-width:600px\)\{[^]*\.path \.path-node\{display:grid;grid-template-columns:58px[^}]*transform:none/.test(css) && /\.path \.pn-side[^{]*\{position:static/.test(css));
 t("мобільна версія: є правила для 480 і 390 px, довгі назви переносяться", css.includes("max-width:480px") && css.includes("max-width:390px") && /\.path-prac\{[^}]*overflow-wrap:anywhere/.test(css));
+
+/* ---- гості: без «Шляху» в шапці й на сторінці ---- */
+const navPath = (p) => p.$$("#nav a").find((a) => a.textContent === "Шлях");
+const gh = await page({ me: null, hash: "#/" });
+t("гість: пункт «Шлях» у шапці прихований", !!navPath(gh) && navPath(gh).hidden === true);
+const uh = await page({ me: user, hash: "#/" });
+t("зареєстрований: пункт «Шлях» у шапці видно", !!navPath(uh) && navPath(uh).hidden === false);
+for (const h of ["#/path", "#/path/js", "#/start"]) {
+  const gp = await page({ me: null, hash: h });
+  t(`гість: ${h} не показує шлях, а запрошує увійти (уроки та шлях лише в кабінеті)`, gp.html().includes("Уроки та завдання в кабінеті") && gp.$$(".path-node").length === 0 && !gp.html().includes("path-head"));
+}
 
 console.log(`\nПройдено перевірок Етапу 2 (інтерфейс): ${ok}`);
