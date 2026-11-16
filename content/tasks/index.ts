@@ -1,5 +1,7 @@
 import { CPP_TASKS } from "./cpp.ts";
+import { CSS_TASKS } from "./css.ts";
 import { GO_TASKS } from "./go.ts";
+import { HTML_TASKS } from "./html.ts";
 import { JAVA_TASKS } from "./java.ts";
 import { JS_TASKS } from "./js.ts";
 import { PASCAL_TASKS } from "./pascal.ts";
@@ -19,6 +21,8 @@ export const TASKS: readonly Task[] = [
   ...PASCAL_TASKS,
   ...TS_TASKS,
   ...JS_TASKS,
+  ...HTML_TASKS,
+  ...CSS_TASKS,
   {
     id: "js-safe-city",
     lesson: "js/3",
