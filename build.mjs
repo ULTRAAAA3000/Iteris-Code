@@ -6,7 +6,10 @@ import { basename, dirname } from "node:path";
 
 rmSync("dist", { recursive: true, force: true });
 mkdirSync("dist");
-const common = { bundle: true, format: "iife", target: "es2020", minify: true, legalComments: "none", charset: "utf8", logLevel: "info", metafile: true, entryNames: "[name]-[hash]" };
+// Домен сайту й піддомен кабінету (кабінет відкривається на dashboard.<домен>). Змінні необовʼязкові: ROOT_DOMAIN, DASH_SUBDOMAIN
+const ROOT = (process.env.ROOT_DOMAIN || "iteris-code.org").toLowerCase();
+const DASH = (process.env.DASH_SUBDOMAIN || "dashboard").toLowerCase();
+const common = { define: { __ROOT__: JSON.stringify(ROOT), __DASH__: JSON.stringify(DASH) }, bundle: true, format: "iife", target: "es2020", minify: true, legalComments: "none", charset: "utf8", logLevel: "info", metafile: true, entryNames: "[name]-[hash]" };
 const out = async (entry) => {
   const r = await build({ ...common, entryPoints: [entry], outdir: "dist" });
   return basename(Object.keys(r.metafile.outputs).find((f) => f.endsWith(".js")));
@@ -39,7 +42,7 @@ if (!html.includes('<script src="app.js"></script>')) throw new Error("src/index
 // Стилі Етапу 2 лежать окремим файлом і вбудовуються в єдиний <style> сторінки
 const stage2css = readFileSync("src/stage2.css", "utf8") + readFileSync("src/landing.css", "utf8");
 if (!html.includes("</style>")) throw new Error("src/index.template.html: не знайдено </style>");
-const template = html.replace("</style>", () => stage2css + "</style>").replace('<script src="app.js"></script>', () => boot);
+const template = html.replace("</style>", () => stage2css + "</style>").replace('<script src="app.js"></script>', () => boot).replaceAll("__ROOT__", ROOT).replaceAll("__DASH__", DASH);
 // Кожна публічна сторінка отримує власний HTML: заголовок, опис, canonical, Open Graph, JSON-LD і готовий вміст
 const pages = seo.buildPages(template, SITE);
 for (const f of pages) {

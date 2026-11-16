@@ -3,7 +3,7 @@ import type { Env } from "../../../lib/env.ts";
 import { allow, cleanName, clientIp, issueToken, normEmail, readBody } from "../../../lib/auth.ts";
 import { mailConfigured, sendMail, verifyMail } from "../../../lib/mail.ts";
 import { hashPassword, validPassword } from "../../../lib/password.ts";
-import { createSession, json, sameOrigin, sessionCookie } from "../../../lib/session.ts";
+import { createSession, json, sameOrigin, sessionCookies } from "../../../lib/session.ts";
 import { verifyTurnstile } from "../../../lib/turnstile.ts";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -39,7 +39,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   if (!mail) {
     // Пошту не налаштовано: підтвердити адресу нема чим, тому акаунт одразу активний (email_verified лишається 0 і блокує привласнення через Google)
-    return json({ ok: true, signedIn: true }, 200, { "Set-Cookie": sessionCookie(await createSession(env, uid, 30), 30 * 86400) });
+    return json({ ok: true, signedIn: true }, 200, { "Set-Cookie": sessionCookies(await createSession(env, uid, 30), 30 * 86400, request, env) });
   }
 
   const link = new URL(request.url).origin + "/#/verify/" + (await issueToken(env, uid, "verify"));

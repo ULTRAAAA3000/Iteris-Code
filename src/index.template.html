@@ -390,7 +390,7 @@ pre.code,.ws-term{max-width:100%;overflow-x:auto}
 .s-ok{color:var(--ok);font-weight:700}.s-fail{color:var(--margin);font-weight:700}
 .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:12px 18px;border-radius:10px;z-index:50;max-width:90vw;font-weight:600}
 </style>
-<!--spa--><script>(function(){var p=location.pathname.replace(/\/+$/,"");if(p||/^#\//.test(location.hash))document.documentElement.className+=" spa"})()</script><!--/spa-->
+<!--spa--><script>(function(){var h=location.hostname,r="__ROOT__",d="__DASH__."+r,p=location.pathname.replace(/\/+$/,""),c=document.documentElement;if(h===d){if(p&&!/^\/dashboard(\/|$)/.test(p)){location.replace("https://"+r+location.pathname+location.search+location.hash);return}c.className+=" spa";return}if((h===r||h==="www."+r)&&/^\/dashboard(\/|$)/.test(p)){location.replace("https://"+d+p.replace(/^\/dashboard/,"")+"/"+location.search);return}if(p||/^#\//.test(location.hash))c.className+=" spa"})()</script><!--/spa-->
 </head>
 <body>
 <header class="top">

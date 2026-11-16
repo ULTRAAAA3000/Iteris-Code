@@ -3,7 +3,7 @@ import type { Env } from "../../../lib/env.ts";
 import { allow, clientIp, forget, normEmail, readBody } from "../../../lib/auth.ts";
 import { mailConfigured } from "../../../lib/mail.ts";
 import { dummyHash, verifyPassword } from "../../../lib/password.ts";
-import { createSession, json, sameOrigin, sessionCookie } from "../../../lib/session.ts";
+import { createSession, json, sameOrigin, sessionCookies } from "../../../lib/session.ts";
 import { verifyTurnstile } from "../../../lib/turnstile.ts";
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -24,5 +24,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!u.email_verified && mailConfigured(env)) return json({ error: "email_not_verified" }, 403);
 
   await forget(env, "login:" + email);
-  return json({ ok: true }, 200, { "Set-Cookie": sessionCookie(await createSession(env, u.id, 30), 30 * 86400) });
+  return json({ ok: true }, 200, { "Set-Cookie": sessionCookies(await createSession(env, u.id, 30), 30 * 86400, request, env) });
 };
