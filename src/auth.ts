@@ -5,6 +5,7 @@ import { done, isDone, persist } from "./progress.ts";
 import { toast, ui } from "./ui.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
+import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
 import { onboardingHtml, setOnboarding } from "./onboarding.ts";
 import { escA, pl } from "./util.ts";
 
@@ -18,6 +19,7 @@ const GROUPS = [
   { t: "Інструменти розробника", courses: ["git", "bash"] },
   { t: "Основи мов", courses: ["cpp", "pascal"] },
 ] as const;
+const SHORT: Record<string, string> = { "Server & Backend": "Backend", "Інструменти розробника": "Інструменти" };   // короткі підписи осей радара
 const FOCUS_ORDER = ["python", "html", "js", "sql", "git", "go", "java", "php", "ts", "css", "bash", "cpp", "pascal"];
 
 const safeImg = (u: string | null | undefined): string => (typeof u === "string" && /^https:\/\//.test(u) ? u : "");
@@ -236,6 +238,13 @@ function full(d: DashboardData): string {
         <ul>${ks.map((k) => `<li><a href="#/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${C[k].L.length}</span></li>`).join("")}</ul>
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
+  const lessonsPct = Math.round((set.size / (lessonTotal() || 1)) * 100);
+  const tasksPct = allTasks().length ? Math.round((d.tasksPassed / allTasks().length) * 100) : 0;
+  const radarItems = GROUPS.map((g) => {
+    const ks = g.courses.filter((k) => C[k]);
+    const tot = ks.reduce((s, k) => s + C[k].L.length, 0), dn = ks.reduce((s, k) => s + doneIn(k), 0);
+    return { t: SHORT[g.t] ?? g.t, pct: tot ? Math.round((dn / tot) * 100) : 0 };
+  });
   const subs = d.recentSubmissions.length
     ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskMeta(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
@@ -243,18 +252,23 @@ function full(d: DashboardData): string {
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`
     : `<span class="plan free">Free</span> <button class="btn primary small" data-act="upgrade">Перейти на Pro за $5</button> <button class="btn small" data-act="retry">Оновити статус</button>`;
   return `<div class="dash">
-      <section class="card dash-head">${avatar(u, true)}
-        <div class="grow"><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p></div>
+      <section class="card dash-head dash-hero">${heroFx()}${avatarRing(avatar(u, true), d.xp ?? 0)}
+        <div class="grow"><span class="hero-hi">${greeting()}</span><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p>${heroChips(d.xp ?? 0, u.streak, set.size)}</div>
         <button class="btn small" data-act="logout">Вийти</button></section>
       <div class="dash-grid">
         <section class="card">${focus}</section>
         ${levelCard(d)}
         ${streakCard(u.streak, d.activity)}
         <section class="card"><h3>Підсумки</h3><div class="stats3">
-          <div><strong>${set.size}</strong><span>${pl(set.size, "урок", "уроки", "уроків")}</span></div>
-          <div><strong>${d.tasksPassed}</strong><span>${pl(d.tasksPassed, "завдання", "завдання", "завдань")}</span></div>
-          <div><strong>${Math.round((set.size / (lessonTotal() || 1)) * 100)}%</strong><span>теорії</span></div></div></section>
+          <div><i class="srg">${ring(lessonsPct)}</i><strong>${set.size}</strong><span>${pl(set.size, "урок", "уроки", "уроків")}</span></div>
+          <div><i class="srg">${ring(tasksPct, "ok")}</i><strong>${d.tasksPassed}</strong><span>${pl(d.tasksPassed, "завдання", "завдання", "завдань")}</span></div>
+          <div><i class="srg">${ring(lessonsPct, "vio")}</i><strong>${lessonsPct}%</strong><span>теорії</span></div></div></section>
         ${pathCard(d, set)}
+      </div>
+      <div class="dash-grid viz-grid">
+        ${activityCard(d.activity)}
+        ${radarCard(radarItems)}
+        ${medalsCard(u.streak)}
       </div>
       <section><h2 class="section-title">Карта навичок</h2><div class="skills">${skills}</div></section>
       ${calendarCard(d)}

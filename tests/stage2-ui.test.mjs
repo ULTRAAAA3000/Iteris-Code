@@ -109,6 +109,21 @@ t("календар: порожній день повідомляє про ві�
 cell(cab, today).dispatchEvent(new cab.w.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
 t("календар: Enter на дні відкриває подробиці (клавіатура)", cab.$("#day-detail").textContent.includes("2 уроки") && cab.$("#day-detail").textContent.includes("0 завдань"));
 
+/* ---- кабінет: візуалізації (банер, кільця, графік, радар, нагороди) ---- */
+t("банер: привітання, ім'я, кільце навколо аватара і позначка рівня 3 (140 XP), підсумкові чипи", !!cab.$(".dash-hero .hero-hi") && cab.$(".dash-hero h1").textContent === "Олена" && !!cab.$(".ava-ring svg.rg .trk") && cab.$(".ava-lvl").textContent === "3" && cab.$$(".hero-chips li").length === 4 && cab.$(".hero-chips").textContent.includes("140 XP"));
+t("підсумки: три кільця прогресу, а числа лишились у <strong> (0 завдань: кільце без дуги, лише доріжка)", cab.$$(".stats3 .srg svg.rg").length === 3 && cab.$$(".stats3 .srg .val").length === 2 && cab.$(".stats3 strong").textContent === "2");
+t("графік активності: 14 стовпчиків, сьогодні виділено, висота лише у днів з активністю, сума за два тижні", cab.$$(".act14 li").length === 14 && cab.$(".act14 li:last-child").className.includes("today") && cab.$$(".act14 li:not(.z)").length === 2 && cab.$(".act-total").textContent.includes("5 дій"));
+t("радар навичок: 5 осей, 5 підписів із відсотками, багатокутник, aria-опис", cab.$$(".radar .axis").length === 5 && cab.$$(".radar text").length === 5 && !!cab.$(".radar .area") && cab.$(".radar").getAttribute("aria-label").includes("Frontend") && cab.$(".radar").getAttribute("aria-label").includes("Backend"));
+t("нагороди за серію: серія 3 дні = одна нагорода з шести світиться, решта закрита", cab.$$(".medal").length === 6 && cab.$$(".medal.on").length === 1 && cab.$$(".medal.off").length === 5 && cab.$(".medals-card").textContent.includes("Отримано 1 з 6"));
+t("календар: підсумкові чипи, місяці над сіткою, сьогодні позначено, у клітинок є індекс тижня для хвилі", cab.$$(".cal-sum li").length === 3 && cab.$$(".heat-months span").length >= 5 && !!cab.$(".heat i.today") && cab.$(".heat i").getAttribute("style").includes("--w:") && cab.$(".cal-sum").textContent.includes("2 активні дні"));
+await sleep(1200);
+t("лічильники: після анімації показують справжні числа", [...cab.$$(".dash .cnt[data-to]")].every((e) => e.textContent === e.dataset.to));
+const again = await page({ me: { ...user, streak: 0 }, dash: { ...base, user: { ...user, streak: 0 }, xp: 10, onboarding: { level: "beginner", courses: ["js"] }, activity: {}, days: {} } });
+t("порожній акаунт: графік і радар малюються без помилок, усі нагороди закриті", again.$$(".act14 li.z").length === 14 && again.$$(".medal.on").length === 0 && !!again.$(".radar") && again.$(".act-note").textContent.includes("перший стовпчик"));
+again.w.dispatchEvent(new again.w.Event("hashchange"));
+await sleep(50);
+t("повторне перемальовування: вступні анімації не повторюються (клас again на .dash)", again.$(".dash")?.className.includes("again"));
+
 /* ---- шлях ---- */
 const jsN = LESSONS.js.length;
 const gGate = await page({ me: null, hash: "#/path/js", done: { js: [1, 2, 3] } });
@@ -120,6 +135,7 @@ t("шлях: блокувань немає, кожен вузол це поси�
 t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="#/lesson/js/4"]'));
 t("шлях: вкладки курсів, активний позначено", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript"));
 const withTask = TASKS.find((x) => x.course === "js");
+t("шлях: у підписах практики немає емодзі блискавки", !g.$(".path").textContent.includes("⚡"));
 t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="#/lesson/${withTask.lesson}"]`));
 t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: user, hash: "#/path/nope" })).$$(".path-node").length > 0);
 const lineEdges = g.$$(".path-line .e");
@@ -162,6 +178,7 @@ const maxXp = Math.max(...TASKS.map((x) => x.xp));
 const hint = (await page({ me: user, dash: { ...base, onboarding: { level: "beginner", courses: ["js"] }, xp: 0 } })).$(".lvl-hint").textContent;
 t("рівень: підказка про XP береться з констант і завдань, а не з тексту", hint.includes(`+${LESSON_XP} XP`) && hint.includes(`до +${maxXp} XP`));
 const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");
+t("шлях на телефоні (до 600 px): вузли колонкою, без зигзага й без позиціювання підписів збоку", /max-width:600px\)\{[^]*\.path \.path-node\{display:grid;grid-template-columns:58px[^}]*transform:none/.test(css) && /\.path \.pn-side[^{]*\{position:static/.test(css));
 t("мобільна версія: є правила для 480 і 390 px, довгі назви переносяться", css.includes("max-width:480px") && css.includes("max-width:390px") && /\.path-prac\{[^}]*overflow-wrap:anywhere/.test(css));
 
 console.log(`\nПройдено перевірок Етапу 2 (інтерфейс): ${ok}`);
