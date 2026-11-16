@@ -1,6 +1,7 @@
 // POST /api/auth/google — обмін коду Google на сесію
 import type { Env } from "../../../lib/env.ts";
-import { createSession, json, sameOrigin, sessionCookie } from "../../../lib/session.ts";
+import { signInWithProfile } from "../../../lib/oauth.ts";
+import { json, sameOrigin } from "../../../lib/session.ts";
 
 interface GoogleProfile {
   sub?: string;
@@ -41,28 +42,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const p = (await profRes.json()) as GoogleProfile;
   if (!p.sub || !p.email || p.email_verified === false) return json({ error: "unverified_account" }, 401);
 
-  // Якщо з цією поштою вже є акаунт, створений за паролем, прив'язуємо Google до нього (пошту підтверджено Google)
-  const email = p.email.toLowerCase();
-  let uid = p.sub;
-  try {
-    const old = await env.DB.prepare("SELECT id, email_verified FROM users WHERE lower(email) = ?1").bind(email).first<{ id: string; email_verified: number }>();
-    if (old && old.id !== p.sub) {
-      uid = old.id;
-      // Непідтверджений акаунт міг створити не власник пошти: скидаємо його пароль, щоб ним не можна було заволодіти
-      if (!old.email_verified) {
-        await env.DB.prepare("UPDATE users SET password_hash = NULL, email_verified = 1 WHERE id = ?1").bind(uid).run();
-        await env.DB.prepare("DELETE FROM email_tokens WHERE user_id = ?1").bind(uid).run();
-      }
-      await env.DB.prepare("UPDATE users SET name = COALESCE(name, ?1), avatar_url = COALESCE(avatar_url, ?2) WHERE id = ?3").bind(p.name ?? null, p.picture ?? null, uid).run();
-    } else {
-      await env.DB.prepare(
-        `INSERT INTO users (id, email, name, avatar_url) VALUES (?1, ?2, ?3, ?4)
-         ON CONFLICT(id) DO UPDATE SET email = excluded.email, name = excluded.name, avatar_url = excluded.avatar_url`
-      ).bind(p.sub, email, p.name ?? null, p.picture ?? null).run();
-    }
-  } catch {
-    return json({ error: "account_conflict" }, 409);
-  }
-
-  return json({ ok: true }, 200, { "Set-Cookie": sessionCookie(await createSession(env, uid, 30), 30 * 86400) });
+  return signInWithProfile(env, { id: p.sub, email: p.email, name: p.name ?? null, picture: p.picture ?? null });
 };
