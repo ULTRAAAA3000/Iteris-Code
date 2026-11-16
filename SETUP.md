@@ -110,7 +110,8 @@ npx wrangler pages dev dist --d1=DB --port 8788
 | Папка | Что внутри |
 |---|---|
 | `src/` | фронтенд: `main.ts` (роутер), `views.ts`, `auth.ts` (вход и кабинет), `login.ts` (формы входа по почте), `workspace.ts` + `editor.ts` (экран задания), `runner/` (запуск тестов в Web Worker), `tasks/` (практические задания) |
-| `src/data/lessons.js` | тексты уроков (данные), типы в `lessons.d.ts` |
+| `src/data/reference/` | публичный справочник по языкам (виден без входа) |
+| `content/` | **закрытый контент**: `lessons.js` (тексты уроков, типы в `lessons.d.ts`) и `tasks/` (задания). В сборку для браузера не входит, отдаётся только вошедшему через `/api/courses` и `/api/lesson` |
 | `functions/`, `lib/` | Cloudflare Pages Functions (API) и общие помощники |
 | `tests/` | автотесты |
 
@@ -125,7 +126,7 @@ npm i --no-save jsdom && npm run test:ui    # тесты интерфейса (�
 Cloudflare Pages сам выполнит `npm install` и `npm run build`; версия Node берётся из `.node-version`.
 
 ## Практические задания
-Задания лежат в `src/tasks/index.ts`: условие, бизнес-контекст, заготовка кода, тесты (API как у Vitest: `describe`, `it`, `expect`) и флаг `premium`. Чтобы добавить задание:
+Задания лежат в `content/tasks/index.ts`: условие, бизнес-контекст, заготовка кода, тесты (API как у Vitest: `describe`, `it`, `expect`) и флаг `premium`. Чтобы добавить задание:
 1. Описать его в `TASKS` и привязать к уроку (`lesson: "js/8"`).
 2. Добавить эталонное решение в `tests/solutions.mjs` (в сборку оно не попадает).
 3. Запустить `npm test`: он проверяет, что заготовка **не** проходит тесты, а эталон проходит все.

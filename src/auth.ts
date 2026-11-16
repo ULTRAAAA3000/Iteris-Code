@@ -1,7 +1,7 @@
 // Особистий кабінет: вхід через Google, синхронізація прогресу, дашборд (#/dashboard)
-import { C, totals } from "./data.ts";
+import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
+import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
-import { TASKS, taskById } from "./tasks/index.ts";
 import { toast, ui } from "./ui.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
@@ -86,7 +86,7 @@ function openLogin(): void {
 export async function completeSignIn(): Promise<void> {
   const r = await api<{ user: PublicUser | null }>("/api/me");
   st.user = r.ok && r.data ? r.data.user : null;
-  if (st.user) await syncLocal();
+  if (st.user) { await loadOutline(); await syncLocal(); }   // уроки приходять лише після входу
   updateHeader();
   ui.notifyAuth();
   location.hash = "#/dashboard";
@@ -158,6 +158,7 @@ async function openPortal(): Promise<void> {
 async function logout(): Promise<void> {
   await post("/api/auth/logout");
   st.user = null; st.dash = null;
+  clearContent();
   updateHeader();
   ui.notifyAuth();
   if (location.hash === "#/" || location.hash === "") ui.render(); else location.hash = "#/";
@@ -170,11 +171,11 @@ export async function init(): Promise<void> {
   st.siteKey = cfg.ok && typeof cfg.data?.turnstileSiteKey === "string" && cfg.data.turnstileSiteKey ? cfg.data.turnstileSiteKey : null;
   st.mail = cfg.ok && cfg.data?.mail === true;
   st.user = r.ok && r.data ? r.data.user : null;
-  if (st.user) await syncLocal();
+  if (st.user) { await loadOutline(); await syncLocal(); }
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^#\/(dashboard|login|register|forgot|reset|verify|start|path)/.test(location.hash)) ui.render();
+  if (/^#\/(dashboard|login|register|forgot|reset|verify|start|path|course|lesson)/.test(location.hash)) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -182,7 +183,7 @@ async function loadDash(): Promise<void> {
   st.loading = true;
   const r = await api<DashboardData>("/api/dashboard");
   st.loading = false;
-  if (r.status === 401) { st.user = null; st.dash = null; updateHeader(); }
+  if (r.status === 401) { st.user = null; st.dash = null; clearContent(); updateHeader(); }
   else {
     st.dash = r.ok && r.data ? r.data : { error: true };
     if (r.ok && r.data && st.user) { st.user = r.data.user; updateHeader(); ui.notifyAuth(); }   // статус Pro міг змінитися після оплати
@@ -195,8 +196,8 @@ const skeleton = `<div class="card dash-guest" aria-busy="true" aria-label="За
 const guestCard = (): string => `<div class="card dash-guest"><h1>Особистий кабінет</h1>
     <p>Увійдіть, щоб зберігати прогрес на всіх пристроях, бачити серію занять і карту навичок.</p>
     ${loginBtn("btn primary", "Увійти")}</div>`;
-const errorCard = (): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
-    <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="retry">Спробувати ще раз</button></div>`;
+const errorCard = (act = "retry"): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
+    <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${act}">Спробувати ще раз</button></div>`;
 
 function focusLesson(set: Set<string>, last: string | null): [string, number] | null {
   const has = (k: string, n: number) => set.has(k + "/" + n);
@@ -231,21 +232,21 @@ function full(d: DashboardData): string {
   const skills = GROUPS.map((g) => {
     const ks = g.courses.filter((k) => C[k]);
     const tot = ks.reduce((s, k) => s + C[k].L.length, 0), dn = ks.reduce((s, k) => s + doneIn(k), 0), pct = tot ? Math.round((dn / tot) * 100) : 0;
-    const gt = TASKS.filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
+    const gt = allTasks().filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
     return `<div class="card skill"><h3><span>${escA(g.t)}</span><span>${pct}%</span></h3>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escA(g.t)}"><i style="width:${pct}%"></i></div>
         <ul>${ks.map((k) => `<li><a href="#/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${C[k].L.length}</span></li>`).join("")}</ul>
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
-  const lessonsPct = Math.round((set.size / totals.lessons) * 100);
-  const tasksPct = TASKS.length ? Math.round((d.tasksPassed / TASKS.length) * 100) : 0;
+  const lessonsPct = Math.round((set.size / (lessonTotal() || 1)) * 100);
+  const tasksPct = allTasks().length ? Math.round((d.tasksPassed / allTasks().length) * 100) : 0;
   const radarItems = GROUPS.map((g) => {
     const ks = g.courses.filter((k) => C[k]);
     const tot = ks.reduce((s, k) => s + C[k].L.length, 0), dn = ks.reduce((s, k) => s + doneIn(k), 0);
     return { t: SHORT[g.t] ?? g.t, pct: tot ? Math.round((dn / tot) * 100) : 0 };
   });
   const subs = d.recentSubmissions.length
-    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskById(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
+    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskMeta(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
   const plan = u.isPro
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`
@@ -280,6 +281,7 @@ function full(d: DashboardData): string {
 export function renderDashboard(): string {
   if (!st.ready) return skeleton;
   if (!st.user) return guestCard();
+  if (!outlineLoaded()) return errorCard("retry-outline");
   if (!st.dash) { void loadDash(); return skeleton; }
   return "error" in st.dash ? errorCard() : full(st.dash);
 }
@@ -292,6 +294,7 @@ document.addEventListener("click", (e) => {
   else if (a === "google") loginGoogle();
   else if (a === "logout") void logout();
   else if (a === "retry") { st.dash = null; ui.render(); }
+  else if (a === "retry-outline") void loadOutline().then(() => { st.dash = null; ui.render(); });
   else if (a === "upgrade") void startCheckout();
   else if (a === "manage") void openPortal();
 });

@@ -6,8 +6,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { evalChecks } from "../src/runner/checks.ts";
-import { LESSONS } from "../src/data/lessons.js";
-import { TASKS } from "../src/tasks/index.ts";
+import { LESSONS } from "../content/lessons.js";
+import { TASKS } from "../content/tasks/index.ts";
 import { isRemote } from "../src/tasks/types.ts";
 import { SOLUTIONS } from "./solutions.mjs";
 

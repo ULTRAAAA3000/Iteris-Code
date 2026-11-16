@@ -1,9 +1,9 @@
 // Запуск: node tests/runner.test.mjs
 import assert from "node:assert/strict";
 import { runSuite, deepEqual } from "../src/runner/core.ts";
-import { TASKS, taskById, taskForLesson } from "../src/tasks/index.ts";
+import { TASKS, taskById, taskForLesson } from "../content/tasks/index.ts";
 import { isRemote } from "../src/tasks/types.ts";
-import { LESSONS } from "../src/data/lessons.js";
+import { LESSONS } from "../content/lessons.js";
 import { SOLUTIONS } from "./solutions.mjs";
 
 let passed = 0;

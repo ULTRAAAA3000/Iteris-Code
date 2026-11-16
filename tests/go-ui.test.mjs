@@ -1,6 +1,7 @@
 // Екран практичного завдання Go в інтерфейсі (jsdom): редактор, запуск на сервері, термінал, перемога.
 // Запуск: npm run build && npm i --no-save jsdom && node tests/go-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
+import { contentReply } from "./content-mock.mjs";
 
 let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
@@ -10,7 +11,9 @@ const bundle = readFileSync(new URL("../dist/" + appFile, import.meta.url), "utf
 const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8").replace(/<script src="[^"]+"><\/script>/g, "").replace(/<script>[\s\S]*?<\/script>/g, (m) => (m.includes("__IC_WORKER__") ? "" : m));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function page({ me = null, runReply, status = 200 } = {}) {
+const user = { id: "g1", email: "o@x.ua", name: "Олена", avatarUrl: null, isPro: false, proUntil: null, streak: 1 };
+
+async function page({ me = user, runReply, status = 200 } = {}) {
   const calls = [];
   const dom = new JSDOM(html, { url: "https://iteris-code.pages.dev/#/lesson/go/1", runScripts: "outside-only", pretendToBeVisual: true });
   const w = dom.window;
@@ -19,6 +22,8 @@ async function page({ me = null, runReply, status = 200 } = {}) {
   w.fetch = async (url, o = {}) => {
     calls.push({ url, body: o.body ? JSON.parse(o.body) : null });
     if (url === "/api/me") return reply(200, { user: me });
+    const cr = contentReply(url, me);
+    if (cr) return reply(cr[0], cr[1]);
     if (url === "/api/auth/config") return reply(200, { clientId: null, turnstileSiteKey: null, mail: false });
     if (url === "/api/run") return reply(status, typeof runReply === "function" ? runReply() : runReply);
     if (url === "/api/progress/complete") return reply(200, { ok: true, streak: 2, firstSolve: true, xp: 15 });
@@ -34,8 +39,6 @@ async function page({ me = null, runReply, status = 200 } = {}) {
 
 let ok = 0;
 const t = (name, cond) => { if (!cond) { console.log("FAIL -", name); process.exitCode = 1; } else { ok++; console.log("ok  -", name); } };
-const user = { id: "g1", email: "o@x.ua", name: "Олена", avatarUrl: null, isPro: false, proUntil: null, streak: 1 };
-
 const base = await page();
 t("урок Go: показано редактор з файлом main.go і кнопку «Запустити»", base.$(".ws-tab")?.textContent === "main.go" && base.$("#ws-run")?.textContent === "▶ Запустити");
 t("у редакторі заготовка Go, а не JS", base.$(".ws-plain")?.value.startsWith("package main"));
@@ -52,16 +55,14 @@ await compile.run();
 t("помилка компіляції показується в терміналі", compile.term().includes("main.go:6:2: undefined: x"));
 
 const win = (me) => ({ me, runReply: { passed: true, stdout: "Привіт, Go!\n", proof: "p.sig", results: [{ name: "Виводить «Привіт, Go!»", passed: true }] } });
-const guest = await page(win(null));
-await guest.run();
-t("гість: перемога показана, збереження пропонують після входу", guest.$(".ws-win")?.textContent.includes("Увійдіть") && guest.$(".ws-term-ok") && guest.$(".ws-win .confetti i"));
-t("гість: результат на сервер не відправляється", !guest.calls.some((c) => c.url === "/api/progress/complete"));
+const guest = await page({ me: null });
+t("гість: урок Go закритий, редактора немає, запити за уроком не йдуть", !!guest.$('[data-act="login"]') && !guest.$(".ws-plain") && !guest.calls.some((c) => c.url.startsWith("/api/lesson") || c.url === "/api/run"));
 
 const member = await page(win(user));
 await member.run();
 const done = member.calls.find((c) => c.url === "/api/progress/complete");
 t("користувач: разом із кодом передається підпис сервера", done?.body?.proof === "p.sig" && done.body.taskId === "go-hello-module");
-t("користувач: показано +XP і серію", member.$(".ws-win")?.textContent.includes("+15 XP"));
+t("користувач: показано +XP і серію", member.$(".ws-win")?.textContent.includes("+15 XP") && member.$(".ws-term-ok") && member.$(".ws-win .confetti i"));
 
 const limited = await page({ runReply: {}, status: 429 });
 await limited.run();

@@ -1,7 +1,7 @@
 // Практичні завдання курсу Go: по одному на кожен із 11 уроків. Запускаються на сервері (runtime: "remote"),
 // результат перевіряється за stdout і кодом (checks). Еталонні рішення лежать у tests/solutions.mjs.
 // Правило заготовок: де можливо, main уже написаний і не змінюється, користувач дописує функцію або тип.
-import type { RemoteTask } from "./types.ts";
+import type { RemoteTask } from "../../src/tasks/types.ts";
 
 const raw = String.raw;
 const BT = "`";   // зворотний апостроф для тегів структур (у String.raw його не можна екранувати)

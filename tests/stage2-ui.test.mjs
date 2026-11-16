@@ -1,8 +1,9 @@
 // Этап 2, интерфейс: онбординг, путь, уровень/XP, серия, календарь, эффекты. Запуск: npm run build && npm i --no-save jsdom && node tests/stage2-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
-import { TASKS } from "../src/tasks/index.ts";
-import { LESSONS } from "../src/data/lessons.js";
+import { TASKS } from "../content/tasks/index.ts";
+import { LESSONS } from "../content/lessons.js";
 import { chaptersOf, LESSON_XP, startLesson } from "../src/xp.ts";
+import { contentReply } from "./content-mock.mjs";
 
 let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
@@ -25,6 +26,8 @@ async function page(opts = {}) {
   w.fetch = async (url, o = {}) => {
     calls.push({ method: o.method || "GET", url, body: o.body ? JSON.parse(o.body) : null });
     if (url === "/api/me") return reply(200, { user: me });
+    const cr = contentReply(url, me);
+    if (cr) return reply(cr[0], cr[1]);
     if (url === "/api/dashboard") return dash ? reply(200, dash) : reply(500, {});
     if (url === "/api/auth/config") return reply(200, { clientId: "cid", turnstileSiteKey: null, mail: false });
     if (url === "/api/onboarding" && !o.method) return reply(200, { onboarding: onboarding ?? null });
@@ -81,7 +84,7 @@ t("майстер: помилка збереження пояснена, кно�
 const re = await page({ me: user, dash: base, hash: "#/start", onboarding: { level: "intermediate", courses: ["js", "sql"] } });
 await sleep(120);
 t("#/start: вибір завантажується з сервера, форма з уже вибраними курсами й рівнем для зміни", re.$("#onb input[value=js]").checked && re.$("#onb input[value=sql]").checked && !re.$("#onb input[value=python]").checked && re.$("#onb input[name=level][value=intermediate]").checked);
-t("#/start для гостя: сторінки немає", (await page({ me: null, hash: "#/start" })).html().includes("Такої сторінки немає"));
+t("#/start для гостя: закрито, запрошення увійти", (await page({ me: null, hash: "#/start" })).html().includes("Уроки та завдання в кабінеті"));
 
 /* ---- кабінет ---- */
 const t0 = TASKS[0];
@@ -123,16 +126,18 @@ t("повторне перемальовування: вступні аніма�
 
 /* ---- шлях ---- */
 const jsN = LESSONS.js.length;
-const g = await page({ me: null, hash: "#/path/js", done: { js: [1, 2, 3] } });
+const gGate = await page({ me: null, hash: "#/path/js", done: { js: [1, 2, 3] } });
+t("шлях: гостю закритий, замість нього запрошення увійти", gGate.html().includes("Уроки та завдання в кабінеті") && gGate.$$(".path-node").length === 0 && !gGate.calls.some((c) => c.url === "/api/courses"));
+const g = await page({ me: user, hash: "#/path/js", done: { js: [1, 2, 3] } });
 const nodes = g.$$(".path-node");
-t("шлях (гість): по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.js).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
+t("шлях: по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.js).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
 t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `#/lesson/js/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
 t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="#/lesson/js/4"]'));
-t("шлях: вкладки курсів, активний позначено, гостю пропонується вхід", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript") && !!g.$('.path-head [data-act="login"]'));
+t("шлях: вкладки курсів, активний позначено", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript"));
 const withTask = TASKS.find((x) => x.course === "js");
 t("шлях: у підписах практики немає емодзі блискавки", !g.$(".path").textContent.includes("⚡"));
 t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="#/lesson/${withTask.lesson}"]`));
-t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: null, hash: "#/path/nope" })).$$(".path-node").length > 0);
+t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: user, hash: "#/path/nope" })).$$(".path-node").length > 0);
 const lineEdges = g.$$(".path-line .e");
 t("шлях: лінія з'єднує сусідні вузли, пройдені ділянки суцільні", g.$$(".path-line").length === 1 && lineEdges.length === jsN - 1 && g.$$(".path-line .e.done").length === 3);
 t("шлях: лінія не накопичується при повторному рендері", (() => { g.w.dispatchEvent(new g.w.Event("hashchange")); return g.$$(".path-line").length === 1; })());

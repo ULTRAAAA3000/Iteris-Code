@@ -2,7 +2,7 @@
 import type { Env } from "../../../lib/env.ts";
 import { verifyProof } from "../../../lib/proof.ts";
 import { bumpStreak, currentUser, effectiveStreak, isProActive, json, sameOrigin } from "../../../lib/session.ts";
-import { taskById } from "../../../src/tasks/index.ts";
+import { taskById } from "../../../content/tasks/index.ts";
 import { isRemote } from "../../../src/tasks/types.ts";
 
 const MAX_CODE = 20000;
