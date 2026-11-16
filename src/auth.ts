@@ -1,4 +1,4 @@
-// Особистий кабінет: вхід через Google, синхронізація прогресу, дашборд (/dashboard)
+// Особистий кабінет: вхід через Google і GitHub, синхронізація прогресу, дашборд (/dashboard)
 import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
@@ -11,7 +11,7 @@ import { onboardingHtml, setOnboarding } from "./onboarding.ts";
 import { escA, pl } from "./util.ts";
 
 type DashState = DashboardData | { error: true } | null;
-const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null; siteKey: string | null; mail: boolean } = { user: null, ready: false, dash: null, loading: false, clientId: null, siteKey: null, mail: false };
+const st: { user: PublicUser | null; ready: boolean; dash: DashState; loading: boolean; clientId: string | null; githubId: string | null; siteKey: string | null; mail: boolean } = { user: null, ready: false, dash: null, loading: false, clientId: null, githubId: null, siteKey: null, mail: false };
 
 const GROUPS = [
   { t: "Frontend", courses: ["html", "css", "js", "ts"] },
@@ -53,7 +53,7 @@ export const getUser = (): PublicUser | null => st.user;
 export const invalidate = (): void => { st.dash = null; };
 
 export const isReady = (): boolean => st.ready;
-export const getAuthConfig = (): { clientId: string | null; siteKey: string | null; mail: boolean } => ({ clientId: st.clientId, siteKey: st.siteKey, mail: st.mail });
+export const getAuthConfig = (): { clientId: string | null; githubId: string | null; siteKey: string | null; mail: boolean } => ({ clientId: st.clientId, githubId: st.githubId, siteKey: st.siteKey, mail: st.mail });
 
 // Форма входу за поштою є завжди; Google, Turnstile і листи з'являються в ній лише коли налаштовані на сервері
 const loginBtn = (cls: string, label: string): string => `<button class="${cls}" data-act="login">${label}</button>`;
@@ -67,11 +67,24 @@ export function updateHeader(): void {
     : loginBtn("btn small", "Увійти");
 }
 
+/** Випадковий state для входу через зовнішній сервіс; зберігається в сесії браузера й перевіряється при поверненні */
+function newState(prefix = ""): string | null {
+  const s = prefix + Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
+  try { sessionStorage.setItem("ic-oauth-state", s); } catch { toast("Браузер блокує сховище, тому вхід неможливий"); return null; }
+  return s;
+}
+
+export function loginGithub(): void {
+  const id = st.githubId;
+  const s = id && newState("gh.");
+  if (!id || !s) return;
+  location.href = "https://github.com/login/oauth/authorize?" + new URLSearchParams({ client_id: id, redirect_uri: location.origin + "/", scope: "read:user user:email", state: s });
+}
+
 export function loginGoogle(): void {
   const id = st.clientId;
-  if (!id) return;
-  const s = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, "0")).join("");
-  try { sessionStorage.setItem("ic-oauth-state", s); } catch { return toast("Браузер блокує сховище, тому вхід неможливий"); }
+  const s = id && newState();
+  if (!id || !s) return;
   location.href = "https://accounts.google.com/o/oauth2/v2/auth?" + new URLSearchParams({
     client_id: id, redirect_uri: location.origin + "/", response_type: "code",
     scope: "openid email profile", state: s, prompt: "select_account",
@@ -102,8 +115,9 @@ async function handleCallback(): Promise<void> {
   try { saved = sessionStorage.getItem("ic-oauth-state"); sessionStorage.removeItem("ic-oauth-state"); } catch { /* ігноруємо */ }
   if (err || !code) return toast("Вхід скасовано");
   if (!saved || saved !== s) return toast("Не вдалося підтвердити вхід. Спробуйте ще раз");
-  const r = await post("/api/auth/google", { code });
-  if (!r.ok) return toast("Не вдалося увійти через Google");
+  const gh = saved.startsWith("gh.");   // GitHub й Google повертаються на ту саму адресу; відрізняє їх префікс state
+  const r = await post(gh ? "/api/auth/github" : "/api/auth/google", { code });
+  if (!r.ok) return toast(gh ? "Не вдалося увійти через GitHub" : "Не вдалося увійти через Google");
   navigate("/dashboard");
 }
 
@@ -166,8 +180,9 @@ async function logout(): Promise<void> {
 
 export async function init(): Promise<void> {
   await handleCallback();
-  const [cfg, r] = await Promise.all([api<{ clientId: string | null; turnstileSiteKey: string | null; mail: boolean }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
+  const [cfg, r] = await Promise.all([api<{ clientId: string | null; githubClientId?: string | null; turnstileSiteKey: string | null; mail: boolean }>("/api/auth/config"), api<{ user: PublicUser | null }>("/api/me")]);
   st.clientId = cfg.ok && typeof cfg.data?.clientId === "string" && cfg.data.clientId ? cfg.data.clientId : null;
+  st.githubId = cfg.ok && typeof cfg.data?.githubClientId === "string" && cfg.data.githubClientId ? cfg.data.githubClientId : null;
   st.siteKey = cfg.ok && typeof cfg.data?.turnstileSiteKey === "string" && cfg.data.turnstileSiteKey ? cfg.data.turnstileSiteKey : null;
   st.mail = cfg.ok && cfg.data?.mail === true;
   st.user = r.ok && r.data ? r.data.user : null;
@@ -292,6 +307,7 @@ document.addEventListener("click", (e) => {
   const a = b.dataset.act;
   if (a === "login") openLogin();
   else if (a === "google") loginGoogle();
+  else if (a === "github") loginGithub();
   else if (a === "logout") void logout();
   else if (a === "retry") { st.dash = null; ui.render(); }
   else if (a === "retry-outline") void loadOutline().then(() => { st.dash = null; ui.render(); });

@@ -204,13 +204,13 @@ article.lesson h1{font-size:clamp(1.6rem,3.4vw,2.4rem);margin:8px 0 20px}
 .empty p{color:var(--muted);margin:0 0 24px}
 
 footer{border-top:2px solid var(--ink);background:var(--panel);padding:36px 0 44px}
-footer .wrap{display:grid;grid-template-columns:1.2fr 1fr 1fr;gap:28px}
+footer .wrap{display:grid;grid-template-columns:1.6fr repeat(4,minmax(0,1fr));gap:28px}
 footer h4{margin:0 0 10px;font-family:var(--display);font-size:.95rem}
 footer ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 footer a{text-decoration:none;color:var(--muted)}
 footer a:hover{color:var(--ink);text-decoration:underline}
 footer p{margin:10px 0 0;color:var(--muted);max-width:32ch}
-@media (max-width:760px){footer .wrap{grid-template-columns:1fr}}
+@media (max-width:980px){footer .wrap{grid-template-columns:repeat(2,minmax(0,1fr))}footer .foot-about{grid-column:1/-1}}
 
 html.spa #app>*{display:none}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
@@ -412,30 +412,50 @@ pre.code,.ws-term{max-width:100%;overflow-x:auto}
 
 <footer>
   <div class="wrap">
-    <div>
+    <div class="foot-about">
       <a class="brand" href="/" aria-label="Iteris Code — на головну"><img class="logo logo-l" src="/logo-on-light.png" width="119" height="32" alt="Iteris Code"><img class="logo logo-d" src="/logo-on-dark.png" width="119" height="32" alt="" aria-hidden="true"></a>
-      <p>Безкоштовна платформа для вивчення програмування. Довідник відкритий усім, уроки й завдання в кабінеті.</p>
+      <p>Безкоштовна платформа для вивчення програмування українською. Довідник відкритий усім, уроки й завдання чекають у кабінеті.</p>
+      <p class="foot-tags"><span>13 мов</span><span>Автоперевірка коду</span><span>XP і серія днів</span></p>
     </div>
-    <div>
+    <nav aria-label="Навчання">
       <h4>Навчання</h4>
       <ul>
         <li><a href="/courses">Усі курси</a></li>
+        <li><a href="/path">Шлях навчання</a></li>
+        <li><a href="/how-it-works">Як це працює</a></li>
+        <li><a href="/register">Почати безкоштовно</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="Напрями">
+      <h4>Напрями</h4>
+      <ul>
         <li><a href="/program">Програмування</a></li>
         <li><a href="/web">Web-технології</a></li>
         <li><a href="/server">Серверна розробка</a></li>
         <li><a href="/data">Бази даних</a></li>
-        <li><a href="/tools">Інструменти розробника</a></li>
+        <li><a href="/tools">Інструменти</a></li>
       </ul>
-    </div>
-    <div>
+    </nav>
+    <nav aria-label="Довідники">
+      <h4>Довідники</h4>
+      <ul>
+        <li><a href="/ref/python">Python</a></li>
+        <li><a href="/ref/js">JavaScript</a></li>
+        <li><a href="/ref/go">Go</a></li>
+        <li><a href="/ref/sql">SQL</a></li>
+        <li><a href="/ref/html">HTML</a></li>
+        <li><a href="/ref/git">Git</a></li>
+      </ul>
+    </nav>
+    <nav aria-label="Проєкт">
       <h4>Проєкт</h4>
       <ul>
-        <li><a href="/how-it-works">Як це працює</a></li>
         <li><a href="/about">Про проєкт</a></li>
-        <li><a href="https://github.com/ULTRAAAA3000/Iteris-Code" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="/login">Вхід</a></li>
+        <li><a href="/dashboard">Особистий кабінет</a></li>
       </ul>
-    </div>
-    <p class="foot-bottom">© Iteris Code · Powered by VSB</p>
+    </nav>
+    <p class="foot-bottom"><span>© Iteris Code</span><span>Powered by VSB</span></p>
   </div>
 </footer>
 

@@ -11,10 +11,11 @@ const appFile = readdirSync(new URL("../dist/", import.meta.url)).find((f) => /^
 const bundle = readFileSync(new URL("../dist/" + appFile, import.meta.url), "utf8");
 const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8").replace(/<script src="[^"]+"><\/script>/g, "").replace(/<script>[\s\S]*?<\/script>/g, (m) => (m.includes("__IC_WORKER__") ? "" : m));
 const today = new Date().toISOString().slice(0, 10);
+const page_noGh_has = (p) => !!p.$('[data-act=github]');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function page(opts = {}) {
-  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null, clientId = "cid", siteKey = null, mail = true, auth = null, noCaptcha = false } = opts;
+  const { me = null, dash = null, hash = "#/dashboard", search = "", state = null, complete = null, clientId = "cid", githubClientId = null, siteKey = null, mail = true, auth = null, noCaptcha = false } = opts;
   const calls = [];
   const dom = new JSDOM(html, { url: "https://iteris-code.pages.dev/" + search + hash, runScripts: "outside-only", pretendToBeVisual: true });
   const w = dom.window;
@@ -33,7 +34,7 @@ async function page(opts = {}) {
     if (url === "/api/progress/complete") return complete ? complete() : reply(200, { ok: true, streak: 4, firstSolve: true, xp: 30 });
     if (url === "/api/progress" && !o.method) return reply(200, { lessonIds: ["js/1", "js/2"] });
     if (url === "/api/progress") return reply(200, { ok: true, streak: 2 });
-    if (url === "/api/auth/config") return reply(200, { clientId, turnstileSiteKey: siteKey, mail });
+    if (url === "/api/auth/config") return reply(200, { clientId, githubClientId, turnstileSiteKey: siteKey, mail });
     if (auth && url.startsWith("/api/auth/") && url !== "/api/auth/google") { const r = await auth(url, o.body ? JSON.parse(o.body) : null); if (r) return reply(r[0], r[1]); }
     if (url === "/api/auth/google") return reply(200, { ok: true });
     return reply(404, {});
@@ -91,6 +92,10 @@ t("OAuth: правильний state обмінює код і веде в каб
 /* ---- звичайні сторінки ---- */
 const home = await page({ me: null, hash: "" });
 t("головна: курси та вкладки працюють", home.html().includes("13 мов") && !home.html().includes("lesson-layout") && home.$("[data-tab=h]") !== null);
+const ghPage = await page({ me: null, hash: "#/login", githubClientId: "ghid" });
+t("вхід: кнопка GitHub з'являється, лише коли GitHub налаштовано; Google при цьому лишається", !!ghPage.$('[data-act=github]') && !!ghPage.$('[data-act=google]') && !page_noGh_has(await page({ me: null, hash: "#/login" })));
+const ghBack = await page({ me: null, hash: "", search: "?code=abc&state=gh.good", state: "gh.good", githubClientId: "ghid" });
+t("OAuth GitHub: state з префіксом gh. обмінює код через /api/auth/github, а не Google", ghBack.calls.some((c) => c.url === "/api/auth/github") && !ghBack.calls.some((c) => c.url === "/api/auth/google") && ghBack.w.location.pathname === "/dashboard");
 const ref = await page({ me: null, hash: "#/ref/js" });
 t("довідник мови відкритий гостю: розділи з прикладами коду, без запитів за уроками", ref.$$(".ref section").length >= 5 && ref.html().includes("console.log") && !ref.calls.some((c) => c.url.startsWith("/api/lesson") || c.url === "/api/courses"));
 const gate = await page({ me: null, hash: "#/lesson/js/3" });

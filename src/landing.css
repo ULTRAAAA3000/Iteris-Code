@@ -64,7 +64,10 @@
 .lp-cta p{margin:0 0 20px}
 .lp-article+.lp-cta,.prose+.lp-cta{margin-top:40px}
 
-footer .foot-bottom{grid-column:1/-1;max-width:none;margin:8px 0 0;padding-top:16px;border-top:2px solid var(--line);font-size:.9rem}
+footer .foot-bottom{grid-column:1/-1;max-width:none;margin:8px 0 0;padding-top:16px;border-top:2px solid var(--line);font-size:.9rem;display:flex;justify-content:space-between;gap:8px 16px;flex-wrap:wrap}
+footer .foot-about p{max-width:42ch}
+footer .foot-tags{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+footer .foot-tags span{padding:3px 10px;border:1.5px solid var(--line);border-radius:99px;font-size:.8rem;color:var(--muted)}
 footer ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 footer h4{margin:0 0 10px}
 
@@ -79,3 +82,7 @@ footer h4{margin:0 0 10px}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand .logo-l{display:none}:root:not([data-theme="light"]) .brand .logo-d{display:block}}
 :root[data-theme="dark"] .brand .logo-l{display:none}
 :root[data-theme="dark"] .brand .logo-d{display:block}
+
+/* Кнопки входу через Google і GitHub */
+.auth-oauth{display:grid;gap:10px}
+.auth-oauth .btn{justify-content:center;width:100%}

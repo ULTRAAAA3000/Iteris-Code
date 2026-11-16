@@ -75,7 +75,10 @@ await test("пароль: формат PBKDF2, різна сіль, переві
 
 await test("конфіг: Google, Turnstile і пошта з'являються лише коли налаштовані", async () => {
   const cfg = async (e) => (await call(config, req("/api/auth/config", { method: "GET" }), e)).data;
-  assert.deepEqual(await cfg(env), { clientId: "cid", turnstileSiteKey: "site-key", mail: true });
+  assert.deepEqual(await cfg(env), { clientId: "cid", githubClientId: null, turnstileSiteKey: "site-key", mail: true });
+  const gh = { ...env, GITHUB_CLIENT_ID: "ghid", GITHUB_CLIENT_SECRET: "ghsec" };
+  assert.equal((await cfg(gh)).githubClientId, "ghid");
+  assert.equal((await cfg({ ...gh, GITHUB_CLIENT_SECRET: undefined })).githubClientId, null);   // половина настройки не показывает кнопку
   for (const k of ["TURNSTILE_SECRET_KEY", "TURNSTILE_SITE_KEY"]) assert.equal((await cfg({ ...env, [k]: undefined })).turnstileSiteKey, null, k);
   for (const k of ["RESEND_API_KEY", "MAIL_FROM"]) assert.equal((await cfg({ ...env, [k]: undefined })).mail, false, k);
   assert.equal((await cfg({ ...env, GOOGLE_CLIENT_ID: undefined })).clientId, null);

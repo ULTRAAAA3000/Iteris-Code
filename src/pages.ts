@@ -228,7 +228,7 @@ const aboutHtml = (loggedIn: boolean): string => `
     <h2>Що всередині</h2>
     <p>${count(nCourses, W.course)}: ${LANGS.join(", ")}. Разом ${count(nLessons, W.lesson)}, розбитих на глави, і довідник по кожній мові. Сайт працює на телефоні.</p>
     <h2>Технології</h2>
-    <p>Сайт написаний на TypeScript і працює на Cloudflare. Код відкритий: <a href="https://github.com/ULTRAAAA3000/Iteris-Code" target="_blank" rel="noopener">GitHub</a>.</p>
+    <p>Сайт написаний на TypeScript і працює на Cloudflare.</p>
   </div>
   <section class="lp-cta"><h2>Почніть вчитись</h2><p>Реєстрація безкоштовна.</p>${cta(loggedIn)}</section>`;
 

@@ -11,6 +11,16 @@
    - свой домен, когда подключите его (`https://ваш-домен/`)
 4. Сохраните **Client ID** и **Client secret**.
 
+## 1б. GitHub OAuth (необязательно)
+Кнопка «Увійти через GitHub» появляется на страницах входа и регистрации, только когда заданы обе переменные ниже.
+1. GitHub → **Settings → Developer settings → OAuth Apps → New OAuth App**.
+2. **Authorization callback URL**: адрес сайта с косой чертой в конце, например `https://iteris-code.pages.dev/` (как и для Google, это главная страница).
+3. Сохраните **Client ID** и создайте **Client secret**.
+4. В Cloudflare Pages → Settings → Variables and Secrets добавьте `GITHUB_CLIENT_ID` (обычная) и `GITHUB_CLIENT_SECRET` (**Secret**), затем сделайте новый деплой.
+5. Проверка: `/api/auth/health` покажет `features.github: true`.
+
+Если у человека уже есть аккаунт с той же подтверждённой почтой (Google или по паролю), GitHub привяжется к нему, а не создаст второй. Берётся основная подтверждённая почта GitHub; без неё вход отклоняется.
+
 ## 2. База данных D1
 ```bash
 npx wrangler login
