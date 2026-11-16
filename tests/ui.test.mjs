@@ -51,8 +51,8 @@ async function page(opts = {}) {
   w.turnstile = { resets: 0, render(_el, o) { if (!noCaptcha) o.callback("ok-token"); return "w1"; }, reset() { this.resets++; } };
   w.eval(bundle);
   await sleep(80);
-  const $ = (s) => w.document.querySelector(s);
-  return { w, calls, $, html: () => w.document.getElementById("app").innerHTML, head: () => w.document.getElementById("acct").innerHTML,
+  const $ = (s) => w.document.querySelector(s), $$ = (s) => Array.from(w.document.querySelectorAll(s));
+  return { w, calls, $, $$, html: () => w.document.getElementById("app").innerHTML, head: () => w.document.getElementById("acct").innerHTML,
     term: () => $("#ws-term").textContent, type: (code) => { const ta = $(".ws-plain"); ta.value = code; ta.dispatchEvent(new w.Event("input")); },
     run: async () => { $("[data-ws=run]").click(); await sleep(120); } };
 }

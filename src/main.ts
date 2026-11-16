@@ -4,6 +4,9 @@ import { C, CATS } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
 import { renderPath } from "./path.ts";
+import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
+import { projectById } from "./projects/index.ts";
+import type { Project } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
 import type { Task } from "./tasks/types.ts";
@@ -25,8 +28,9 @@ function locked(): string | null {
 function render(): void {
   const [a, b, c] = location.hash.replace(/^#\/?/, "").split("/");
   let html: string, active = "", title = BRAND + " — довідник програміста";
-  let task: Task | undefined;
+  let task: Task | undefined, project: Project | undefined;
   disposeWorkspace();
+  disposeProject();
   if (!a) html = home(!!getUser());
   else if (CATS[a]) { html = dir(a); active = a; title = CATS[a].title + " — " + BRAND; }
   else if (a === "ref" && C[b]) { html = reference(b, !!getUser()); active = C[b].cat; title = C[b].name + ": довідник — " + BRAND; }
@@ -43,6 +47,12 @@ function render(): void {
       else { html = loadingCard(); fetchLesson(b, n); }
     }
   }
+  else if (a === "project" && projectById(b)) {
+    // Проєкт, як і уроки, лише для користувача, що увійшов: гостя ведемо на запрошення
+    const lk = locked();
+    if (lk) html = lk;
+    else { project = projectById(b) as Project; html = projectHTML(project); active = C[project.course].cat; title = project.title + " — " + BRAND; }
+  }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
   else if (a === "path") { html = locked() ?? renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
   else if (a === "start") { html = locked() ?? onboardingHtml(); title = "Налаштування шляху — " + BRAND; }
@@ -54,6 +64,7 @@ function render(): void {
   window.scrollTo(0, 0);
   if (!a) initHome();
   if (task) void mountWorkspace(task);
+  if (project) void mountProject(project);
   if (isAuthRoute(a)) mountAuthPage(a, b);
   mountStage2(a);
 }
