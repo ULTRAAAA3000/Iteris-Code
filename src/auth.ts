@@ -217,17 +217,25 @@ const guestCard = (): string => `<div class="card dash-guest"><h1>Особист
 const errorCard = (act = "retry"): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
     <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${act}">Спробувати ще раз</button></div>`;
 
-function focusLesson(set: Set<string>, last: string | null): [string, number] | null {
+/** Який урок показати в «Продовжити навчання»: спершу курси, які користувач обрав на старті (у порядку вибору), потім останній пройдений, потім стандартний порядок */
+function focusLesson(set: Set<string>, last: string | null, chosen: string[] = []): [string, number] | null {
   const has = (k: string, n: number) => set.has(k + "/" + n);
   const first = (k: string): number => { for (let n = 1; n <= C[k].L.length; n++) if (!has(k, n)) return n; return 0; };
+  const mine = chosen.filter((k) => C[k]);
   if (last) {
     const [lk, ln] = [last.split("/")[0], +last.split("/")[1]];
-    if (C[lk]) {
+    // Останній урок у обраному курсі (або курси не обирали): продовжуємо одразу після нього. Інакше обраний курс важливіший за випадковий урок з іншого
+    if (C[lk] && (!mine.length || mine.includes(lk))) {
       let m = 0;
       for (let i = ln + 1; i <= C[lk].L.length && !m; i++) if (!has(lk, i)) m = i;
       if (!m) m = first(lk);
       if (m) return [lk, m];
     }
+  }
+  for (const k of mine) { const m = first(k); if (m) return [k, m]; }
+  if (last) {
+    const lk = last.split("/")[0];
+    if (C[lk]) { const m = first(lk); if (m) return [lk, m]; }
   }
   for (const k of FOCUS_ORDER) if (C[k]) { const m = first(k); if (m) return [k, m]; }
   return null;
@@ -240,12 +248,12 @@ function full(d: DashboardData): string {
   const set = new Set(d.completedLessons.filter((id) => { const [k, n] = id.split("/"); return C[k] && +n >= 1 && +n <= C[k].L.length; }));
   const passed = new Set(d.passedTasks);
   const doneIn = (k: string): number => C[k].L.filter((_, i) => set.has(k + "/" + (i + 1))).length;
-  const f = focusLesson(set, d.lastLesson);
+  const f = focusLesson(set, d.lastLesson, d.onboarding?.courses ?? []);
   const focus = f
     ? `<h3>Продовжити навчання</h3><p class="dash-muted">${escA(C[f[0]].name)} · ${escA(C[f[0]].L[f[1] - 1].ch || "")}</p>
          <p class="dash-focus">Урок ${f[1]}: ${escA(C[f[0]].L[f[1] - 1].t)}</p>
          <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${C[f[0]].L.length}" aria-valuenow="${doneIn(f[0])}"><i style="width:${Math.round((doneIn(f[0]) / C[f[0]].L.length) * 100)}%"></i></div>
-         <p><a class="btn primary small" href="/lesson/${f[0]}/${f[1]}">Продовжити</a></p>`
+         <p class="dash-cta"><a class="btn primary small" href="/lesson/${f[0]}/${f[1]}">Продовжити</a></p>`
     : `<h3>Усі курси пройдено</h3><p class="dash-muted">Вітаємо! Скоро тут з'являться нові практичні завдання.</p>`;
   const skills = GROUPS.map((g) => {
     const ks = g.courses.filter((k) => C[k]);
