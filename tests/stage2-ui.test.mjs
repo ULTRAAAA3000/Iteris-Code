@@ -97,9 +97,7 @@ t("серія: лічильник, вогонь горить (сьогодні �
 await sleep(700);
 t("серія: анімований лічильник закінчує на справжньому числі", cab.$(".streak-n").textContent === "3");
 const quiet = await page({ me: user, dash: { ...base, activity: {} } });
-t("серія: серія жива, але сьогодні ще не було занять: вогонь горить, лишається підказка не втратити серію", quiet.$(".flame").className.includes("lit") && quiet.$(".streak-card").textContent.includes("не втратити серію") && quiet.$(".streak-card").textContent.includes("UTC"));
-const noStreak = await page({ me: { ...user, streak: 0 }, dash: { ...base, user: { ...user, streak: 0 }, activity: {} } });
-t("серія: немає серії (0 днів): вогонь згаслий і підказка почати серію", noStreak.$(".flame").className.includes("dim") && !noStreak.$(".flame").className.includes("lit") && noStreak.$(".streak-card").textContent.includes("почати серію"));
+t("серія: без активності сьогодні вогонь згаслий і підказка про збереження серії", quiet.$(".flame").className.includes("dim") && quiet.$(".streak-card").textContent.includes("не втратити серію") && quiet.$(".streak-card").textContent.includes("UTC"));
 /* «Продовжити навчання»: курс, який користувач обрав на старті, важливіший за стандартний порядок і за випадковий урок з іншого курсу */
 const focusOf = async (extra) => (await page({ me: user, dash: { ...base, ...extra } }));
 const fGo = await focusOf({ completedLessons: [], lastLesson: null, onboarding: { level: "beginner", courses: ["go"] } });

@@ -31,7 +31,7 @@ export function streakCard(streak: number, activity: Record<string, number> = {}
   const next = STREAK_MILESTONES.find((m) => m > streak);
   const msg = active ? "Сьогодні вже зараховано ✓" : streak ? "Зробіть урок або завдання сьогодні, щоб не втратити серію." : "Позначте урок пройденим, щоб почати серію.";
   return `<section class="card streak-card"><h3>Серія занять</h3>
-    <div class="streak2"><span class="flame ${streak > 0 ? "lit" : "dim"}" aria-hidden="true">🔥</span><b class="streak-n" data-to="${streak}">${streak}</b><span>${pl(streak, "день", "дні", "днів")} поспіль</span></div>
+    <div class="streak2"><span class="flame ${active ? "lit" : "dim"}" aria-hidden="true">🔥</span><b class="streak-n" data-to="${streak}">${streak}</b><span>${pl(streak, "день", "дні", "днів")} поспіль</span></div>
     <ol class="week" aria-label="Останні 7 днів">${week}</ol>
     <p class="dash-muted">${msg}</p>
     ${next ? `<p class="next-bonus">До нагороди: ${next - streak} ${pl(next - streak, "день", "дні", "днів")} (+${STREAK_BONUS[next]} XP)</p>` : ""}
