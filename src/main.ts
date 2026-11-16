@@ -1,6 +1,6 @@
 import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
-import { cachedLesson, fetchLesson, lessonFailed, outlineLoaded, retryLesson } from "./content.ts";
-import { C } from "./data.ts";
+import { cachedLesson, cachedProject, fetchLesson, fetchProject, lessonFailed, outlineLoaded, projectFailed, retryLesson, retryProject } from "./content.ts";
+import { C, projectMeta } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
 import { setMeta } from "./meta.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
@@ -8,7 +8,6 @@ import { BRAND, findPage } from "./pages.ts";
 import { renderPath } from "./path.ts";
 import { mountSettings, renderPublic, renderSettings } from "./profile.ts";
 import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
-import { projectById } from "./projects/index.ts";
 import type { Project } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
 import { onDashHost } from "./domains.ts";
@@ -50,11 +49,17 @@ function render(): void {
       else { html = loadingCard(); fetchLesson(b, n); }
     }
   }
-  else if (a === "project" && projectById(b)) {
-    // Проєкт, як і уроки, лише для користувача, що увійшов: гостя ведемо на запрошення
+  else if (a === "project" && b) {
+    // Проєкт, як і уроки, лише для користувача, що увійшов: гостя ведемо на запрошення, умови приходять з сервера
     const lk = locked();
     if (lk) html = lk;
-    else { project = projectById(b) as Project; html = projectHTML(project); active = "courses"; title = project.title + " — " + BRAND; }
+    else if (!projectMeta(b)) html = notFound();
+    else {
+      const p = cachedProject(b);
+      if (p) { project = p; html = projectHTML(p); active = "courses"; title = p.title + " — " + BRAND; }
+      else if (projectFailed(b)) html = loadError("retry-project");
+      else { html = loadingCard(); fetchProject(b); }
+    }
   }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
   else if (a === "path") { html = locked() ?? renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
@@ -94,6 +99,11 @@ document.addEventListener("click", (e) => {
   if (target.closest("[data-act=retry-lesson]")) {
     const [, k, n] = segments();
     retryLesson(k, Number(n));
+    render();
+    return;
+  }
+  if (target.closest("[data-act=retry-project]")) {
+    retryProject(segments()[1] ?? "");
     render();
     return;
   }

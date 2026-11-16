@@ -1,5 +1,5 @@
 // Каталог курсів. Публічно відомі лише категорії й мови; список уроків і завдань приходить після входу (setOutline)
-import type { Outline, OutlineLesson, TaskMeta } from "./types.ts";
+import type { Outline, OutlineLesson, ProjectMeta, TaskMeta } from "./types.ts";
 
 export interface Category { title: string; desc: string; courses: string[] }
 /** lessons: кількість уроків (число публічне, тексти закриті); тест content.test.mjs звіряє його з content/lessons.js */
@@ -34,13 +34,19 @@ export const C: Record<string, Course> = {};
 for (const [k, m] of Object.entries(META)) C[k] = { ...m, L: [] };
 
 let tasks: readonly TaskMeta[] = [];
+let projects: readonly ProjectMeta[] = [];
 /** Підставляє структуру курсів із /api/courses; null прибирає її (вихід із акаунта або помилка) */
 export function setOutline(o: Outline | null): void {
   for (const k of Object.keys(C)) C[k].L = o?.courses[k] ?? [];
   tasks = o?.tasks ?? [];
+  projects = o?.projects ?? [];
 }
 export const allTasks = (): readonly TaskMeta[] => tasks;
 export const taskMeta = (id: string): TaskMeta | undefined => tasks.find((t) => t.id === id);
+export const allProjects = (): readonly ProjectMeta[] => projects;
+export const projectMeta = (id: string): ProjectMeta | undefined => projects.find((p) => p.id === id);
+/** Проєкт за ТЗ, прив'язаний до уроку n курсу k */
+export const projectOf = (k: string, n: number): ProjectMeta | undefined => { const id = C[k]?.L[n - 1]?.project; return id ? projectMeta(id) : undefined; };
 /** Завдання, прив'язане до уроку n курсу k (за структурою курсу) */
 export const taskOf = (k: string, n: number): TaskMeta | undefined => { const id = C[k]?.L[n - 1]?.task; return id ? taskMeta(id) : undefined; };
 export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.L.length, 0);

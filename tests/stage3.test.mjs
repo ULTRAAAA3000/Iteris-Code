@@ -9,7 +9,9 @@ import { onRequestPost as xpSync } from "../functions/api/xp/sync.ts";
 import { onRequestGet as dashboard } from "../functions/api/dashboard.ts";
 import { LESSONS } from "../content/lessons.js";
 import { practiceById } from "../lib/practice.ts";
-import { PROJECTS, projectById, projectForLesson } from "../src/projects/index.ts";
+import { onRequestGet as coursesApi } from "../functions/api/courses.ts";
+import { onRequestGet as projectApi } from "../functions/api/project.ts";
+import { PROJECTS, projectById, projectForLesson } from "../content/projects/index.ts";
 import { buildSrcdoc, scoreReport } from "../src/projects/sandbox.ts";
 import { TASKS } from "../content/tasks/index.ts";
 import { PROJECT_SOLUTIONS } from "./solutions.mjs";
@@ -131,6 +133,26 @@ await test("кабінет: пройдений проєкт видно в passed
   await post(c, { taskId: "js-todo", code: "ok", passed: true });
   const d = await call(dashboard, req("/api/dashboard", { cookie: c }));
   assert.ok(d.data.passedTasks.includes("js-todo"));
+});
+
+/* ---- закритий контент: проєкти лише після входу ---- */
+await test("/api/project: гостю 401, вошедшему повний проєкт (вимоги з перевірками, заготовка), неіснуючий або некоректний id 404", async () => {
+  const c = await login("pj5");
+  assert.equal((await call(projectApi, req("/api/project?id=js-todo"))).status, 401);
+  const ok = await call(projectApi, req("/api/project?id=js-todo", { cookie: c }));
+  assert.equal(ok.status, 200);
+  assert.deepEqual([ok.data.id, ok.data.requirements.length, typeof ok.data.requirements[0].check, ok.data.starter.includes("task-input")], ["js-todo", 8, "string", true]);
+  for (const id of ["nope", "", "JS-TODO", "../x", "x".repeat(60)]) assert.equal((await call(projectApi, req("/api/project?id=" + encodeURIComponent(id), { cookie: c }))).status, 404, id);
+});
+
+await test("/api/courses: у структурі є список проєктів і позначка проєкту біля уроку js/17; гостю 401", async () => {
+  const c = await login("pj6");
+  assert.equal((await call(coursesApi, req("/api/courses"))).status, 401);
+  const r = await call(coursesApi, req("/api/courses", { cookie: c }));
+  assert.deepEqual(r.data.projects, [{ id: "js-todo", title: "Проєкт: список справ", xp: 60, course: "js", lesson: "js/17" }]);
+  assert.equal(r.data.courses.js[16].project, "js-todo");
+  assert.equal(r.data.courses.js[15].project, undefined);
+  assert.ok(!JSON.stringify(r.data).includes("task-input"), "структура курсів не містить умов і перевірок проєкту");
 });
 
 console.log(`\nУсі тести проєктів пройдено: ${passed}`);
