@@ -7,9 +7,9 @@ import { createSession, sessionCookie } from "../lib/session.ts";
 import { onRequestPost as xpSync } from "../functions/api/xp/sync.ts";
 import { onRequestGet as onbGet, onRequestPost as onbPost } from "../functions/api/onboarding.ts";
 import { onRequestGet as dashboard } from "../functions/api/dashboard.ts";
-import { LESSONS } from "../src/data/lessons.js";
+import { LESSONS } from "../content/lessons.js";
 import { chaptersOf, currentLesson, levelInfo, levelStep, startLesson, xpAtLevel, STREAK_BONUS } from "../src/xp.ts";
-import { TASKS } from "../src/tasks/index.ts";
+import { TASKS } from "../content/tasks/index.ts";
 
 const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));

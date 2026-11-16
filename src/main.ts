@@ -1,35 +1,51 @@
 import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
+import { cachedLesson, fetchLesson, lessonFailed, outlineLoaded, retryLesson } from "./content.ts";
 import { C, CATS } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
 import { renderPath } from "./path.ts";
 import { hooks, toggle } from "./progress.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
-import { taskForLesson } from "./tasks/index.ts";
 import type { Task } from "./tasks/types.ts";
 import { ui } from "./ui.ts";
 import { store } from "./util.ts";
-import { course, dir, home, lesson, notFound } from "./views.ts";
+import { course, dir, gate, home, lesson, loadError, loadingCard, notFound, reference } from "./views.ts";
 import { disposeWorkspace, mountWorkspace } from "./workspace.ts";
 
 const BRAND = "Iteris Code";
 const app = document.getElementById("app") as HTMLElement;
 
+/** Уроки, шлях і кабінет лише після входу: чекаємо відповіді сервера, гостю показуємо запрошення, а за помилки пропонуємо повторити */
+function locked(): string | null {
+  if (!isReady()) return loadingCard();
+  if (!getUser()) return gate();
+  return outlineLoaded() ? null : loadError("retry-outline");
+}
+
 function render(): void {
   const [a, b, c] = location.hash.replace(/^#\/?/, "").split("/");
-  let html: string, active = "", title = BRAND + " — вчимося кодити разом";
+  let html: string, active = "", title = BRAND + " — довідник програміста";
   let task: Task | undefined;
   disposeWorkspace();
-  if (!a) html = home();
+  if (!a) html = home(!!getUser());
   else if (CATS[a]) { html = dir(a); active = a; title = CATS[a].title + " — " + BRAND; }
-  else if (a === "course" && C[b]) { html = course(b); active = C[b].cat; title = C[b].name + " — " + BRAND; }
-  else if (a === "lesson" && C[b] && C[b].L[Number(c) - 1]) {
-    html = lesson(b, Number(c)); active = C[b].cat; title = C[b].L[Number(c) - 1].t + " — " + BRAND;
-    task = taskForLesson(`${b}/${Number(c)}`);
+  else if (a === "ref" && C[b]) { html = reference(b, !!getUser()); active = C[b].cat; title = C[b].name + ": довідник — " + BRAND; }
+  else if (a === "course" && C[b]) { html = locked() ?? course(b); active = C[b].cat; title = C[b].name + " — " + BRAND; }
+  else if (a === "lesson" && C[b]) {
+    const n = Number(c), lk = locked();
+    active = C[b].cat;
+    if (lk) html = lk;
+    else if (!C[b].L[n - 1]) html = notFound();
+    else {
+      const p = cachedLesson(b, n);
+      if (p) { html = lesson(b, n, p); title = C[b].L[n - 1].t + " — " + BRAND; task = p.task ?? undefined; }
+      else if (lessonFailed(b, n)) html = loadError("retry-lesson");
+      else { html = loadingCard(); fetchLesson(b, n); }
+    }
   }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
-  else if (a === "path") { html = renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
-  else if (a === "start") { html = !isReady() ? `<div class="card"><p class="dash-muted">Завантаження…</p></div>` : getUser() ? onboardingHtml() : notFound(); title = "Налаштування шляху — " + BRAND; }
+  else if (a === "path") { html = locked() ?? renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
+  else if (a === "start") { html = locked() ?? onboardingHtml(); title = "Налаштування шляху — " + BRAND; }
   else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
   else html = notFound();
   app.innerHTML = html;
@@ -55,6 +71,12 @@ document.addEventListener("click", (e) => {
     const y = window.scrollY;
     render();
     window.scrollTo(0, y);
+    return;
+  }
+  if (target.closest("[data-act=retry-lesson]")) {
+    const [, k, n] = location.hash.replace(/^#\/?/, "").split("/");
+    retryLesson(k, Number(n));
+    render();
     return;
   }
   const s = target.closest<HTMLElement>("[data-scroll]");

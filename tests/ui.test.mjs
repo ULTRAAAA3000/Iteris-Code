@@ -2,6 +2,7 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { runSuite } from "../src/runner/core.ts";
 import { SOLUTIONS } from "./solutions.mjs";
+import { contentReply } from "./content-mock.mjs";
 
 let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
@@ -24,6 +25,8 @@ async function page(opts = {}) {
     o = { ...o, billing: opts.billing };
     calls.push({ method: o.method || "GET", url, body: o.body ? JSON.parse(o.body) : null });
     if (url === "/api/me") return reply(200, { user: me });
+    const cr = contentReply(url, me);
+    if (cr) return reply(cr[0], cr[1]);
     if (url === "/api/dashboard") return dash ? reply(200, dash) : reply(500, {});
     if (url === "/api/billing/checkout") return (o.billing ?? (() => reply(200, { url: "https://iteris.lemonsqueezy.com/checkout/buy/x?checkout[custom][user_id]=g1" })))();
     if (url === "/api/billing/portal") return opts.portal ? reply(200, { url: "https://iteris.lemonsqueezy.com/billing" }) : reply(404, { error: "not_found" });
@@ -87,27 +90,29 @@ t("OAuth: правильний state обмінює код і веде в каб
 
 /* ---- звичайні сторінки ---- */
 const home = await page({ me: null, hash: "" });
-t("головна: курси та вкладки працюють", home.html().includes("13 курсів") && home.$("[data-tab=h]") !== null);
-const plain = await page({ me: null, hash: "#/lesson/python/1" });
-t("урок без завдання: старий макет із боковим меню", plain.html().includes("lesson-layout") && !plain.html().includes('class="ws"'));
-plain.$("[data-toggle]").click();
-await sleep(30);
-t("урок: позначка «пройдено» без входу не ходить на сервер", !plain.calls.some((c) => c.url === "/api/progress" && c.method === "POST"));
+t("головна: курси та вкладки працюють", home.html().includes("13 довідників") && !home.html().includes("lesson-layout") && home.$("[data-tab=h]") !== null);
+const ref = await page({ me: null, hash: "#/ref/js" });
+t("довідник мови відкритий гостю: розділи з прикладами коду, без запитів за уроками", ref.$$(".ref section").length >= 5 && ref.html().includes("console.log") && !ref.calls.some((c) => c.url.startsWith("/api/lesson") || c.url === "/api/courses"));
+const gate = await page({ me: null, hash: "#/lesson/js/3" });
+t("гість: урок закритий, є запрошення увійти, тексту уроку й редактора немає", gate.html().includes("Уроки та завдання в кабінеті") && !!gate.$('[data-act="login"]') && !gate.html().includes("lesson-layout") && !gate.$(".ws-plain") && !gate.calls.some((c) => c.url.startsWith("/api/lesson") || c.url === "/api/courses"));
+const gateCourse = await page({ me: null, hash: "#/course/js" });
+t("гість: список уроків курсу закритий", gateCourse.html().includes("Уроки та завдання в кабінеті") && !gateCourse.html().includes('class="lessons"'));
+const plain = await page({ me: user, dash, hash: "#/lesson/python/1" });
+t("урок без завдання (після входу): старий макет із боковим меню", plain.html().includes("lesson-layout") && !plain.html().includes('class="ws"') && plain.calls.some((c) => c.url === "/api/lesson?k=python&n=1"));
 const logged = await page({ me: user, dash, hash: "#/lesson/python/1" });
 logged.$("[data-toggle]").click();
 await sleep(30);
 t("урок: для користувача позначка синхронізується із сервером", logged.calls.some((c) => c.method === "POST" && c.url === "/api/progress" && c.body.lessonIds[0] === "python/1"));
 
 /* ---- екран із завданням ---- */
-let ws = await page({ me: null, hash: "#/lesson/js/3" });
+let ws = await page({ me: user, dash, hash: "#/lesson/js/3" });
 t("завдання: двоколонний екран, теорія + постановка + редактор із заготовкою", ws.html().includes('class="ws"') && ws.html().includes("Навіщо це в роботі") && ws.$(".ws-plain").value.includes("user.address.city"));
 t("безкоштовне завдання: без пейволу, кнопка запуску активна", !ws.$(".paywall") && ws.$("#ws-run").disabled === false);
 await ws.run();
 t("запуск із заготовкою: тести падають, XP не дається", ws.term().includes("✗") && ws.term().includes("Пройдено 1 з 5") && !ws.$(".ws-win"));
 ws.type(SOLUTIONS["js-safe-city"]);
 await ws.run();
-t("правильне рішення: 5 з 5 і повідомлення для гостя", ws.term().includes("Пройдено 5 з 5") && ws.$(".ws-win")?.textContent.includes("Увійдіть"));
-t("гість: результат на сервер не відправляється", !ws.calls.some((c) => c.url === "/api/progress/complete"));
+t("правильне рішення: 5 з 5 і нараховано XP", ws.term().includes("Пройдено 5 з 5") && ws.$(".ws-win")?.textContent.includes("+30 XP"));
 ws.type("function getCity(){ while(true){} }");
 t("чернетка коду зберігається", (await sleep(450), ws.w.localStorage.getItem("ic-code:js-safe-city")?.includes("while(true)")));
 ws.$("[data-ws=reset]").click();
@@ -127,7 +132,7 @@ t("користувач: рішення відправляється з taskId �
 t("користувач: показано +XP і серію", ws.$(".ws-win")?.textContent.includes("+30 XP") && ws.$(".ws-win").textContent.includes("4 дні"));
 
 const pw = await page({ me: null, hash: "#/lesson/js/8" });
-t("Pro-завдання, гість: пейвол і заблокований запуск", pw.html().includes("Відкрий практичні задачі та тести за $5/місяць") && pw.$("#ws-run").disabled === true && pw.html().includes('data-act="login"'));
+t("Pro-завдання, гість: урок закритий, запрошення увійти замість редактора", pw.html().includes('data-act="login"') && !pw.$("#ws-run") && !pw.$(".paywall"));
 const pf = await page({ me: user, dash, hash: "#/lesson/js/8" });
 t("Pro-завдання, Free-користувач: кнопка апгрейду, запуск заблокований", pf.html().includes('data-act="upgrade"') && pf.$("#ws-run").disabled === true);
 pf.type(SOLUTIONS["js-cart-total"]);
@@ -180,10 +185,10 @@ await sleep(150);
 paid.w.location.hash = "#/lesson/js/8";
 await sleep(150);
 t("кабінет оновив статус: пейвол зник", paid.$(".paywall") === null && paid.$("#ws-run").disabled === false);
-const nav = await page({ me: null, hash: "#/lesson/js/3" });
+const nav = await page({ me: user, dash, hash: "#/lesson/js/3" });
 nav.w.location.hash = "#/";
 await sleep(60);
-t("перехід зі сторінки завдання не лишає сміття", nav.html().includes("Вчимося кодити") && !nav.$("#editor"));
+t("перехід зі сторінки завдання не лишає сміття", nav.html().includes("Довідник програміста") && !nav.$("#editor"));
 /* ---- вхід за поштою ---- */
 const fill = (pg, vals) => { for (const [k, v] of Object.entries(vals)) pg.$(`#af [name=${k}]`).value = v; };
 const submit = async (pg) => { pg.$("#af").dispatchEvent(new pg.w.Event("submit", { cancelable: true, bubbles: true })); await sleep(80); };
