@@ -92,7 +92,7 @@ await t("урок із Go-завданням: очікувані перевір�
 });
 
 await t("урок без завдання: task = null", async () => {
-  const r = await get(lessonApi, "/api/lesson?k=python&n=1", cookie);
+  const r = await get(lessonApi, "/api/lesson?k=php&n=8", cookie);   // PDO: у пісочниці немає бази даних, завдання немає
   assert.equal(r.data.task, null);
 });
 
