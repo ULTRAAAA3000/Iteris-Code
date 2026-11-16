@@ -100,7 +100,7 @@ t("урок: для користувача позначка синхронізу
 
 /* ---- екран із завданням ---- */
 let ws = await page({ me: null, hash: "#/lesson/js/3" });
-t("завдання: двоколонний екран, теорія + постановка + редактор із заготовкою", ws.html().includes('class="ws"') && ws.html().includes("Навіщо це в роботі") && ws.$(".ws-plain").value.includes("user.address.city"));
+t("завдання: одна колонка, спершу теорія, нижче постановка і редактор із заготовкою", ws.html().includes('class="ws"') && ws.html().includes("Навіщо це в роботі") && ws.$(".ws-left").compareDocumentPosition(ws.$("#task")) & 4 && !ws.$(".ws-left").contains(ws.$("#task")) && ws.$("#task").contains(ws.$("#editor")) && ws.$(".ws-plain").value.includes("user.address.city"));
 t("безкоштовне завдання: без пейволу, кнопка запуску активна", !ws.$(".paywall") && ws.$("#ws-run").disabled === false);
 await ws.run();
 t("запуск із заготовкою: тести падають, XP не дається", ws.term().includes("✗") && ws.term().includes("Пройдено 1 з 5") && !ws.$(".ws-win"));

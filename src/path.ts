@@ -43,7 +43,7 @@ export function renderPath(k: string | undefined, ctx: PathCtx): string {
       html += `<li class="path-node ${state} side-${sideOf(n)}" style="--x:${ZIGZAG[(n - 1) % ZIGZAG.length]}px">
         <a class="pn-dot" href="#/lesson/${key}/${n}" aria-label="${escA(label)}"${isCur ? ' aria-current="step"' : ""}>${d ? "✓" : pad(n)}</a>
         <div class="pn-side">${isCur ? `<span class="path-here">${p ? "Продовжити" : "Почати"}</span>` : ""}<span class="pn-title">${escA(l.t)}</span>
-        ${task ? `<a class="path-prac${isTaskPassed(task.id) ? " done" : ""}" href="#/lesson/${key}/${n}">⚡ ${isTaskPassed(task.id) ? "Завдання розв'язано" : "Практика: " + escA(task.title)}</a>` : ""}${proj ? `<a class="path-prac${isTaskPassed(proj.id) ? " done" : ""}" href="#/project/${escA(proj.id)}">📋 ${isTaskPassed(proj.id) ? "Проєкт виконано" : "Проєкт: " + escA(proj.title.replace(/^Проєкт:\s*/, ""))}</a>` : ""}</div>
+        ${task ? `<a class="path-prac${isTaskPassed(task.id) ? " done" : ""}" href="#/lesson/${key}/${n}">${isTaskPassed(task.id) ? "Завдання розв'язано" : "Практика: " + escA(task.title)}</a>` : ""}${proj ? `<a class="path-prac${isTaskPassed(proj.id) ? " done" : ""}" href="#/project/${escA(proj.id)}">${isTaskPassed(proj.id) ? "Проєкт виконано" : "Проєкт: " + escA(proj.title.replace(/^Проєкт:\s*/, ""))}</a>` : ""}</div>
       </li>`;
     }
     return html;

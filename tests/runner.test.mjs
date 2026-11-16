@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { runSuite, deepEqual } from "../src/runner/core.ts";
 import { TASKS, taskById, taskForLesson } from "../src/tasks/index.ts";
+import { isRemote } from "../src/tasks/types.ts";
 import { LESSONS } from "../src/data/lessons.js";
 import { SOLUTIONS } from "./solutions.mjs";
 
@@ -56,7 +57,8 @@ await test("кожне завдання прив'язане до наявног�
   }
   assert.ok(TASKS.some((t) => !t.premium) && TASKS.some((t) => t.premium), "потрібні і безкоштовні, і Pro-завдання");
 });
-for (const t of TASKS) {
+// Віддалені завдання (Go) перевіряє tests/go-tasks.test.mjs: тут лише JS, що виконується в Web Worker
+for (const t of TASKS.filter((x) => !isRemote(x))) {
   await test(`завдання ${t.id}: заготовка не проходить, еталон проходить`, async () => {
     const starter = await runSuite(t.starter, t.tests);
     assert.ok(!starter.error, "тести мають запускатись із заготовкою: " + starter.error);
