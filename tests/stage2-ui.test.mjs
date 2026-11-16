@@ -165,7 +165,7 @@ lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Tab", canc
 t("підвищення рівня: Tab не виводить фокус із діалогу", lu.w.document.activeElement === lu.$(".lvl-up button"));
 lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Escape" }));
 t("підвищення рівня: Esc закриває діалог", lu.$(".lvl-up") === null);
-const gu = await page({ me: null, hash: "#/path/js" });
+const gu = await page({ me: null, hash: "#/course/js" });
 gu.w.document.dispatchEvent(new gu.w.Event("ic:progress"));
 await sleep(500);
 t("XP: гість не викликає синхронізацію", posted(gu, "/api/xp/sync").length === 0);
@@ -180,5 +180,16 @@ t("рівень: підказка про XP береться з констант
 const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");
 t("шлях на телефоні (до 600 px): вузли колонкою, без зигзага й без позиціювання підписів збоку", /max-width:600px\)\{[^]*\.path \.path-node\{display:grid;grid-template-columns:58px[^}]*transform:none/.test(css) && /\.path \.pn-side[^{]*\{position:static/.test(css));
 t("мобільна версія: є правила для 480 і 390 px, довгі назви переносяться", css.includes("max-width:480px") && css.includes("max-width:390px") && /\.path-prac\{[^}]*overflow-wrap:anywhere/.test(css));
+
+/* ---- гості: без «Шляху» в шапці й на сторінці ---- */
+const navPath = (p) => p.$$("#nav a").find((a) => a.textContent === "Шлях");
+const gh = await page({ me: null, hash: "#/" });
+t("гість: пункт «Шлях» у шапці прихований", !!navPath(gh) && navPath(gh).hidden === true);
+const uh = await page({ me: user, hash: "#/" });
+t("зареєстрований: пункт «Шлях» у шапці видно", !!navPath(uh) && navPath(uh).hidden === false);
+for (const h of ["#/path", "#/path/js", "#/start"]) {
+  const gp = await page({ me: null, hash: h });
+  t(`гість: ${h} не показує шлях, а запрошує увійти (уроки та шлях лише в кабінеті)`, gp.html().includes("Уроки та завдання в кабінеті") && gp.$$(".path-node").length === 0 && !gp.html().includes("path-head"));
+}
 
 console.log(`\nПройдено перевірок Етапу 2 (інтерфейс): ${ok}`);

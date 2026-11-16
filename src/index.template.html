@@ -58,6 +58,7 @@ h1,h2,h3{font-family:var(--display);line-height:1.15;margin:0;font-weight:700;le
 .brand svg{flex:none}
 nav.main{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
 nav.main a{text-decoration:none;padding:8px 12px;border-radius:8px;font-weight:600;font-size:.95rem}
+nav.main a[hidden]{display:none}
 nav.main a:hover{background:var(--grid)}
 nav.main a[aria-current="page"]{background:var(--hl);color:var(--hl-ink)}
 .theme{border:2px solid var(--ink);background:var(--panel);width:40px;height:40px;border-radius:50%;display:grid;place-items:center;flex:none}
@@ -399,7 +400,7 @@ pre.code,.ws-term{max-width:100%;overflow-x:auto}
       Iteris Code
     </a>
     <nav class="main" id="nav" aria-label="Основна навігація">
-      <a href="#/path" data-k="path">Шлях</a>
+      <a href="#/path" data-k="path" data-auth hidden>Шлях</a>
       <a href="#/program" data-k="program">Програмування</a>
       <a href="#/web" data-k="web">Web-технології</a>
       <a href="#/server" data-k="server">Сервер</a>
