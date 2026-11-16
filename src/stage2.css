@@ -250,3 +250,18 @@
 .dash:not(.again) .cal-sum li{animation:s2-rise .4s ease calc(var(--i) * 70ms + .2s) backwards}
 
 @media (max-width:480px){.ava-ring{width:80px;height:80px}.ava-ring .avatar.big{width:58px;height:58px}.act14{gap:3px;height:140px}.medals{gap:6px}.stats3 .srg{width:60px;height:60px}.dash .stats3 strong{font-size:1rem}}
+
+/* ---- шлях на телефоні: вертикальна стрічка замість зигзага ----
+   Зигзаг із підписами збоку потребує ширини: на вузькому екрані підписи стискались, вилазили за край і наїжджали на заголовок глави.
+   Тут кружки йдуть рівною колонкою ліворуч (лінія шляху стає прямою), а підписи, підказка й практика займають усю решту ширини. */
+@media (max-width:600px){
+  .path{align-items:stretch;margin:14px 0 32px}
+  .path-chap{margin:20px 0 14px;font-size:.95rem}
+  .path .path-node{display:grid;grid-template-columns:58px minmax(0,1fr);gap:14px;align-items:start;justify-items:stretch;width:auto;height:auto;min-height:58px;margin:0 0 22px;transform:none}
+  .path .path-node.current,.path .path-node:has(.path-prac){margin-bottom:22px}
+  .path .pn-dot,.path .path-node.current .pn-dot{width:58px;height:58px}
+  .path .pn-side,.path .side-l .pn-side,.path .side-r .pn-side{position:static;transform:none;width:auto;max-width:none;align-items:flex-start;text-align:left;padding-top:2px;gap:8px}
+  .path .pn-title{font-size:1rem}
+  .path-here{align-self:flex-start}
+  .path-prac{font-size:.85rem;padding:5px 12px}
+}

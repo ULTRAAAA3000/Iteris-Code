@@ -130,6 +130,7 @@ t("шлях: блокувань немає, кожен вузол це поси�
 t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="#/lesson/js/4"]'));
 t("шлях: вкладки курсів, активний позначено, гостю пропонується вхід", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript") && !!g.$('.path-head [data-act="login"]'));
 const withTask = TASKS.find((x) => x.course === "js");
+t("шлях: у підписах практики немає емодзі блискавки", !g.$(".path").textContent.includes("⚡"));
 t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="#/lesson/${withTask.lesson}"]`));
 t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: null, hash: "#/path/nope" })).$$(".path-node").length > 0);
 const lineEdges = g.$$(".path-line .e");
@@ -172,6 +173,7 @@ const maxXp = Math.max(...TASKS.map((x) => x.xp));
 const hint = (await page({ me: user, dash: { ...base, onboarding: { level: "beginner", courses: ["js"] }, xp: 0 } })).$(".lvl-hint").textContent;
 t("рівень: підказка про XP береться з констант і завдань, а не з тексту", hint.includes(`+${LESSON_XP} XP`) && hint.includes(`до +${maxXp} XP`));
 const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");
+t("шлях на телефоні (до 600 px): вузли колонкою, без зигзага й без позиціювання підписів збоку", /max-width:600px\)\{[^]*\.path \.path-node\{display:grid;grid-template-columns:58px[^}]*transform:none/.test(css) && /\.path \.pn-side[^{]*\{position:static/.test(css));
 t("мобільна версія: є правила для 480 і 390 px, довгі назви переносяться", css.includes("max-width:480px") && css.includes("max-width:390px") && /\.path-prac\{[^}]*overflow-wrap:anywhere/.test(css));
 
 console.log(`\nПройдено перевірок Етапу 2 (інтерфейс): ${ok}`);
