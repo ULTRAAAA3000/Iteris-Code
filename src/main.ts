@@ -6,6 +6,7 @@ import { setMeta } from "./meta.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
 import { BRAND, findPage } from "./pages.ts";
 import { renderPath } from "./path.ts";
+import { mountSettings, renderPublic, renderSettings } from "./profile.ts";
 import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
 import { projectById } from "./projects/index.ts";
 import type { Project } from "./projects/types.ts";
@@ -32,7 +33,7 @@ function locked(): string | null {
 function render(): void {
   const [a, b, c] = segments();
   const page = onDashHost() ? undefined : findPage(location.pathname.replace(/\.html$/, ""));   // на кабінетному піддомені «/» не головна, а кабінет
-  let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | undefined;
+  let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | undefined, indexable = false;
   disposeWorkspace();
   disposeProject();
   if (page) { html = page.html(!!getUser()); active = page.active; title = page.title; }
@@ -58,11 +59,13 @@ function render(): void {
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
   else if (a === "path") { html = locked() ?? renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
   else if (a === "start") { html = locked() ?? onboardingHtml(); title = "Налаштування шляху — " + BRAND; }
+  else if (a === "u" && b && !c) { const r = renderPublic(b); html = r.html; title = r.title + " — " + BRAND; indexable = r.index; }
+  else if (a === "profile") { html = !isReady() ? loadingCard() : !getUser() ? gate() : renderSettings(); title = "Мій профіль — " + BRAND; }
   else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
   else { html = notFound(); title = "Сторінку не знайдено — " + BRAND; }
   app.innerHTML = html;
   // Індексуються лише публічні сторінки: кабінет, уроки й форми входу пошуковикам не потрібні
-  setMeta({ title, desc: page?.desc ?? DEFAULT_DESC, path: page?.path ?? location.pathname, noindex: !page });
+  setMeta({ title, desc: page?.desc ?? DEFAULT_DESC, path: page?.path ?? location.pathname, noindex: !page && !indexable });   // індексуються публічні сторінки й відкриті профілі
   document.documentElement.classList.remove("spa");
   document.querySelectorAll<HTMLElement>("#nav a").forEach((l) => (l.dataset.k === active ? l.setAttribute("aria-current", "page") : l.removeAttribute("aria-current")));
   window.scrollTo(0, 0);
@@ -70,6 +73,7 @@ function render(): void {
   if (task) void mountWorkspace(task);
   if (project) void mountProject(project);
   if (isAuthRoute(a)) mountAuthPage(a, b);
+  if (a === "profile" && getUser()) mountSettings();
   mountStage2(a);
 }
 ui.render = render;

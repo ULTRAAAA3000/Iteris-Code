@@ -8,7 +8,8 @@ const TABLES: string[] = [
     id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT, avatar_url TEXT,
     is_pro INTEGER DEFAULT 0, pro_until DATETIME, streak_count INTEGER DEFAULT 0, last_active_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP, portal_url TEXT, subscription_id TEXT, billing_updated_at TEXT,
-    password_hash TEXT, email_verified INTEGER DEFAULT 1)`,
+    password_hash TEXT, email_verified INTEGER DEFAULT 1,
+    nick TEXT, avatar_id TEXT, bio TEXT, profile_public INTEGER DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS user_progress (
     user_id TEXT, lesson_id TEXT, completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, lesson_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`,
@@ -38,6 +39,7 @@ const TABLES: string[] = [
 const USER_COLUMNS: [string, string][] = [
   ["portal_url", "TEXT"], ["subscription_id", "TEXT"], ["billing_updated_at", "TEXT"],
   ["password_hash", "TEXT"], ["email_verified", "INTEGER DEFAULT 1"],   // существующие (Google) аккаунты считаются подтверждёнными
+  ["nick", "TEXT"], ["avatar_id", "TEXT"], ["bio", "TEXT"], ["profile_public", "INTEGER DEFAULT 0"],   // этап 4: публичный профиль
 ];
 
 async function run(env: Pick<Env, "DB">): Promise<void> {
@@ -52,6 +54,8 @@ async function run(env: Pick<Env, "DB">): Promise<void> {
       if (!/duplicate column/i.test(String((e as Error)?.message ?? e))) throw e;   // параллельный запрос уже добавил колонку
     }
   }
+  // Уникальный ник создаём после колонок: в старой базе колонки nick ещё могло не быть
+  await env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nick ON users(nick) WHERE nick IS NOT NULL").run();
 }
 
 let ready: Promise<void> | null = null;

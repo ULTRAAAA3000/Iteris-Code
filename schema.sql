@@ -15,8 +15,13 @@ CREATE TABLE IF NOT EXISTS users (
   subscription_id TEXT,
   billing_updated_at TEXT,           -- время последнего применённого платёжного события
   password_hash TEXT,                -- PBKDF2-SHA256 (вход по почте и паролю), NULL у Google-аккаунтов
-  email_verified INTEGER DEFAULT 1   -- 0 = регистрация по паролю, почта ещё не подтверждена
+  email_verified INTEGER DEFAULT 1,  -- 0 = регистрация по паролю, почта ещё не подтверждена
+  nick TEXT,                         -- ник публичного профиля (a-z, 0-9, _), хранится в нижнем регистре, задаётся один раз
+  avatar_id TEXT,                    -- выбранный герой-аватар (id из src/data/idols.ts); NULL = фото из входа или герой по умолчанию
+  bio TEXT,                          -- о себе, до 160 символов, без ссылок
+  profile_public INTEGER DEFAULT 0   -- 1 = профиль открыт по адресу /u/<ник>; по умолчанию закрыт
 );
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nick ON users(nick) WHERE nick IS NOT NULL;
 
 -- Прогресс прохождения уроков (lesson_id вида "python/3")
 CREATE TABLE IF NOT EXISTS user_progress (

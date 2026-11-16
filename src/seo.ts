@@ -69,4 +69,4 @@ export function sitemap(site: string, date: string): string {
 }
 
 export const robots = (site: string): string =>
-  `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard\nDisallow: /path\nDisallow: /start\nDisallow: /lesson/\nDisallow: /course/\n\nSitemap: ${site}/sitemap.xml\n`;
+  `User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /dashboard\nDisallow: /profile\nDisallow: /path\nDisallow: /start\nDisallow: /lesson/\nDisallow: /course/\n\nSitemap: ${site}/sitemap.xml\n`;

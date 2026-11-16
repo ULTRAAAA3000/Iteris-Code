@@ -28,7 +28,28 @@ export interface PublicUser {
   isPro: boolean;
   proUntil: string | null;
   streak: number;
+  /** Нікнейм публічного профілю (задається один раз) і вибраний герой-аватарка */
+  nick?: string | null;
+  avatarId?: string | null;
 }
+
+/** GET /api/u?nick=…: відкриті дані профілю (дзеркало lib/profile.ts) */
+export interface PublicProfile {
+  nick: string;
+  avatarId: string | null;
+  bio: string;
+  since: string | null;
+  xp: number;
+  level: number;
+  streak: number;
+  lessons: number;
+  tasks: number;
+  courses: { key: string; done: number; total: number }[];
+  activity: Record<string, number>;
+}
+
+/** GET /api/profile: свої налаштування профілю */
+export interface ProfileSettings { nick: string | null; avatarId: string | null; bio: string; public: boolean }
 
 export interface DashboardData {
   user: PublicUser;

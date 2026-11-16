@@ -3,6 +3,7 @@ import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
 import { projectById } from "./projects/index.ts";
+import { idolById, idolSrc } from "./data/idols.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
@@ -46,11 +47,20 @@ export const post = <T = unknown>(path: string, body: unknown = {}) =>
   api<T>(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 const avatar = (u: PublicUser, big = false): string =>
-  safeImg(u.avatarUrl)
+  idolById(u.avatarId)
+    ? `<img class="avatar idol${big ? " big" : ""}" src="${idolSrc(u.avatarId as string)}" alt="" width="${big ? 72 : 34}" height="${big ? 72 : 34}" style="background:${(idolById(u.avatarId) as { color: string }).color}">`
+    : safeImg(u.avatarUrl)
     ? `<img class="avatar${big ? " big" : ""}" src="${escA(safeImg(u.avatarUrl))}" alt="" referrerpolicy="no-referrer">`
     : `<span class="avatar${big ? " big" : ""}"></span>`;
 
 export const getUser = (): PublicUser | null => st.user;
+/** Обновляет данные пользователя после смены профиля (герой, нікнейм): шапка и кабинет сразу показывают новое */
+export function patchUser(p: Partial<PublicUser>): void {
+  if (!st.user) return;
+  st.user = { ...st.user, ...p };
+  if (st.dash && !("error" in st.dash)) st.dash = { ...st.dash, user: st.user };
+  updateHeader();
+}
 export const invalidate = (): void => { st.dash = null; };
 
 export const isReady = (): boolean => st.ready;
@@ -193,7 +203,7 @@ export async function init(): Promise<void> {
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson|project)(\/|$)/.test(pathOf())) ui.render();
+  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson|project|profile)(\/|$)/.test(pathOf())) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -280,7 +290,7 @@ function full(d: DashboardData): string {
   return `<div class="dash">
       <section class="card dash-head dash-hero">${heroFx()}${avatarRing(avatar(u, true), d.xp ?? 0)}
         <div class="grow"><span class="hero-hi">${greeting()}</span><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p>${heroChips(d.xp ?? 0, u.streak, set.size)}</div>
-        <button class="btn small" data-act="logout">Вийти</button></section>
+        <div class="hero-actions"><a class="btn small" href="/profile">Мій профіль</a><button class="btn small" data-act="logout">Вийти</button></div></section>
       <div class="dash-grid">
         <section class="card">${focus}</section>
         ${levelCard(d)}
