@@ -72,3 +72,10 @@ footer h4{margin:0 0 10px}
 @media (max-width:760px){.lp-path{grid-template-columns:1fr}.lp-cta{padding:28px 18px;box-shadow:5px 5px 0 var(--ink)}}
 @media (max-width:560px){.lp-steps{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){.lp-faq summary::after{transition:none}}
+
+/* Логотип: темний варіант для світлої теми, світлий для темної (ті самі умови, що й змінні кольорів) */
+.brand .logo{display:block;width:auto}
+.brand .logo-d{display:none}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .brand .logo-l{display:none}:root:not([data-theme="light"]) .brand .logo-d{display:block}}
+:root[data-theme="dark"] .brand .logo-l{display:none}
+:root[data-theme="dark"] .brand .logo-d{display:block}
