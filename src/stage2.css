@@ -266,6 +266,11 @@
   .path-prac{font-size:.85rem;padding:5px 12px}
 }
 
+/* Практика HTML/CSS: попередній перегляд сторінки */
+.ws-preview-label{margin:10px 0 4px;font-size:.8rem;color:var(--muted,#667)}
+.ws-preview{display:block;width:100%;height:260px;border:1px solid var(--line,#C8D3EA);border-radius:10px;background:#fff}
+@media (max-width:720px){.ws-preview{height:220px}}
+
 /* ---- Етап 3: проєкти за ТЗ ---- */
 .pj-reqs{list-style:none;margin:0;padding:0;display:grid;gap:8px}
 .pj-reqs li{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:var(--panel)}
