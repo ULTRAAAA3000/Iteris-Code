@@ -5,11 +5,15 @@ import type { CodeEditor } from "./editor.ts";
 import { isTaskPassed, markTaskPassed } from "./progress.ts";
 import { runInWorker } from "./runner/client.ts";
 import type { RunOutcome } from "./runner/client.ts";
+import { runRemote } from "./runner/remote.ts";
+import { isRemote } from "./tasks/types.ts";
 import type { Task } from "./tasks/types.ts";
 import { toast, ui } from "./ui.ts";
 import { esc, escA, pl, store } from "./util.ts";
 
 interface View { crumbs: string; meta: string; title: string; actions: string; prose: string; pager: string; task: Task }
+
+const RUN_LABEL = (t: Task): string => (isRemote(t) ? "▶ Запустити" : "▶ Запустити тести");
 
 export function workspaceHTML(v: View): string {
   const t = v.task;
@@ -20,30 +24,34 @@ export function workspaceHTML(v: View): string {
       ${v.meta}
       <h1>${v.title}</h1>
       ${v.actions}
-      <button class="btn small ws-jump" data-scroll="editor">До редактора ↓</button>
+      <button class="btn small ws-jump" data-scroll="task">До завдання ↓</button>
       <div class="prose">
         ${v.prose}
-        <section class="task-brief" id="task">
+      </div>
+    </article>
+    <article class="ws-task lesson" id="task">
+      <div class="prose">
+        <section class="task-brief">
           <h2>Практичне завдання: ${escA(t.title)} ${badge}</h2>
           <div class="callout"><b>Навіщо це в роботі.</b> ${t.context}</div>
           ${t.brief.map((x) => `<p>${x}</p>`).join("")}
           <p class="dash-muted">Нагорода: ${t.xp} XP${isTaskPassed(t.id) ? " · вже розв'язано ✓" : ""}</p>
         </section>
       </div>
-      ${v.pager}
+      <section class="ws-right" aria-label="Редактор коду">
+        <div class="ws-bar">
+          <span class="ws-tab">${esc(isRemote(t) ? t.file : "solution.js")}</span>
+          <span class="ws-spacer"></span>
+          <button class="btn small" data-ws="reset">Скинути</button>
+          <button class="btn primary small" data-ws="run" id="ws-run">${RUN_LABEL(t)}</button>
+        </div>
+        <div id="ws-paywall"></div>
+        <div id="editor" class="ws-editor"></div>
+        <div id="ws-win" aria-live="polite"></div>
+        <pre id="ws-term" class="ws-term" aria-live="polite" tabindex="0">${isRemote(t) ? "Натисніть «Запустити» (Ctrl+Enter): код виконається на сервері, тут з'являться вивід програми і результат перевірок." : "Натисніть «Запустити тести» (Ctrl+Enter), щоб перевірити рішення."}</pre>
+      </section>
     </article>
-    <section class="ws-right" aria-label="Редактор коду">
-      <div class="ws-bar">
-        <span class="ws-tab">solution.js</span>
-        <span class="ws-spacer"></span>
-        <button class="btn small" data-ws="reset">Скинути</button>
-        <button class="btn primary small" data-ws="run" id="ws-run">▶ Запустити тести</button>
-      </div>
-      <div id="ws-paywall"></div>
-      <div id="editor" class="ws-editor"></div>
-      <div id="ws-win" aria-live="polite"></div>
-      <pre id="ws-term" class="ws-term" aria-live="polite" tabindex="0">Натисніть «Запустити тести» (Ctrl+Enter), щоб перевірити рішення.</pre>
-    </section>
+    ${v.pager}
   </div>`;
 }
 
@@ -54,16 +62,18 @@ export function disposeWorkspace(): void {
   active = null;
 }
 
-function renderOutcome(res: RunOutcome, logs: string[]): string {
+function renderOutcome(res: RunOutcome, logs: string[], label = "Консоль:"): string {
   const parts: string[] = [];
-  if (logs.length) parts.push(`<span class="t-dim">Консоль:</span>\n${esc(logs.join("\n"))}\n`);
+  if (logs.length) parts.push(`<span class="t-dim">${label}</span>\n${esc(logs.join("\n"))}\n`);
   if (res.error) parts.push(`<span class="t-fail">${esc(res.error)}</span>`);
-  for (const r of res.results) {
-    parts.push(r.passed ? `<span class="t-ok">✓ ${esc(r.name)}</span>` : `<span class="t-fail">✗ ${esc(r.name)}</span>\n    <span class="t-dim">${esc(r.error ?? "")}</span>`);
-  }
+  // Рядки результатів з'являються по черзі (анімація, вимикається при prefers-reduced-motion)
+  res.results.forEach((r, i) => {
+    const line = r.passed ? `<span class="t-ok">✓ ${esc(r.name)}</span>` : `<span class="t-fail">✗ ${esc(r.name)}</span>\n    <span class="t-dim">${esc(r.error ?? "")}</span>`;
+    parts.push(`<span class="t-line" style="--i:${i}">${line}</span>`);
+  });
   if (res.results.length) {
     const ok = res.results.filter((r) => r.passed).length;
-    parts.push(`\n<b class="${ok === res.results.length ? "t-ok" : "t-fail"}">Пройдено ${ok} з ${res.results.length}</b>`);
+    parts.push(`\n<b class="${ok === res.results.length ? "t-ok" : "t-fail"} t-line" style="--i:${res.results.length}">Пройдено ${ok} з ${res.results.length}</b>`);
   }
   return parts.join("\n");
 }
@@ -96,7 +106,7 @@ export async function mountWorkspace(task: Task): Promise<void> {
   refresh();
   ui.authListeners.add(refresh);
 
-  const editor = await createEditor(host, { value: store.get<string>(draftKey, task.starter), language: "javascript" });
+  const editor = await createEditor(host, { value: store.get<string>(draftKey, task.starter), language: isRemote(task) ? task.editorLang : "javascript" });
   if (active !== me || !host.isConnected) { editor.dispose(); return; }  // користувач уже перейшов на іншу сторінку
   me.editor = editor;
   me.dispose = () => { ui.authListeners.delete(refresh); editor.dispose(); };
@@ -112,25 +122,37 @@ export async function mountWorkspace(task: Task): Promise<void> {
     if (running || locked()) return;
     running = true;
     runBtn.disabled = true; runBtn.textContent = "Виконується…";
+    term.classList.remove("ws-term-ok");
+    if (isRemote(task)) term.textContent = "Код надіслано на сервер… перший запуск може тривати кілька секунд.";
     win.innerHTML = "";
     const code = editor.getValue();
     const logs: string[] = [];
-    const res = await runInWorker(code, task.tests, (l) => logs.push(l));
+    let res: RunOutcome;
+    let proof: string | undefined;
+    let solved: boolean;
+    if (isRemote(task)) {
+      const r = await runRemote(task.id, code);
+      res = r; proof = r.proof; solved = r.passed && !r.error;
+      if (r.stdout) logs.push(r.stdout.replace(/\n+$/, ""));
+    } else {
+      res = await runInWorker(code, task.tests, (l) => logs.push(l));
+      solved = !res.error && res.results.length > 0 && res.results.every((r) => r.passed);
+    }
     running = false;
-    runBtn.textContent = "▶ Запустити тести";
+    runBtn.textContent = RUN_LABEL(task);
     refresh();
     if (!term.isConnected) return;
-    term.innerHTML = renderOutcome(res, logs);
-    if (!res.error && res.results.length > 0 && res.results.every((r) => r.passed)) await onSolved(code);
+    term.innerHTML = renderOutcome(res, logs, isRemote(task) ? "Вивід програми:" : "Консоль:");
+    if (solved) { term.classList.add("ws-term-ok"); await onSolved(code, proof); }
   };
 
-  const onSolved = async (code: string): Promise<void> => {
+  const onSolved = async (code: string, proof?: string): Promise<void> => {
     markTaskPassed(task.id);
     const user = getUser();
     let msg = "Увійдіть, щоб зберегти прогрес і серію занять.";
     let xp = 0;
     if (user) {
-      const r = await completeTask(task.id, code);
+      const r = await completeTask(task.id, code, proof);
       if (r.status === 402) { toast("Це завдання входить до підписки Pro"); return; }
       if (r.ok) {
         xp = r.xp ?? 0;
@@ -138,7 +160,7 @@ export async function mountWorkspace(task: Task): Promise<void> {
       } else msg = "Рішення правильне, але зберегти результат не вдалося. Спробуйте ще раз.";
     }
     invalidate();
-    if (win.isConnected) win.innerHTML = `<div class="ws-win" role="status"><span class="ws-win-icon" aria-hidden="true">🎉</span><div><b>Завдання розв'язано!</b><div>${esc(msg)}</div></div></div>`;
+    if (win.isConnected) win.innerHTML = `<div class="ws-win" role="status"><div class="confetti" aria-hidden="true">${Array.from({ length: 14 }, (_, i) => `<i style="--i:${i}"></i>`).join("")}</div><span class="ws-win-icon" aria-hidden="true">🎉</span><div><b>Завдання розв'язано!</b><div>${esc(msg)}</div></div></div>`;
   };
 
   area.addEventListener("click", (e) => {
@@ -149,6 +171,7 @@ export async function mountWorkspace(task: Task): Promise<void> {
       editor.setValue(task.starter);
       store.set(draftKey, task.starter);
       win.innerHTML = "";
+      term.classList.remove("ws-term-ok");
       term.textContent = "Код скинуто до початкового.";
     }
   });

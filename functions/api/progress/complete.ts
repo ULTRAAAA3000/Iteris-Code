@@ -1,7 +1,9 @@
 // POST /api/progress/complete — зберегти результат практичного завдання
 import type { Env } from "../../../lib/env.ts";
+import { verifyProof } from "../../../lib/proof.ts";
 import { bumpStreak, currentUser, effectiveStreak, isProActive, json, sameOrigin } from "../../../lib/session.ts";
-import { taskById } from "../../../src/tasks/index.ts";
+import { taskById } from "../../../content/tasks/index.ts";
+import { isRemote } from "../../../src/tasks/types.ts";
 
 const MAX_CODE = 20000;
 const MAX_PER_MINUTE = 20;
@@ -11,7 +13,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const u = await currentUser(request, env);
   if (!u) return json({ error: "unauthorized" }, 401);
 
-  let body: { taskId?: unknown; code?: unknown; passed?: unknown };
+  let body: { taskId?: unknown; code?: unknown; passed?: unknown; proof?: unknown };
   try {
     body = await request.json();
   } catch {
@@ -24,6 +26,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Преміум-завдання доступні лише з активною підпискою Pro (перевірка на сервері)
   if (task.premium && !isProActive(u)) return json({ error: "pro_required" }, 402);
 
+  // Віддалені завдання (Go тощо) запускає сам сервер: «пройдено» приймається лише з його підписом, прапорцю від браузера не вірити
+  let passed = body.passed;
+  if (isRemote(task)) passed = await verifyProof(env, body.proof, u.id, task.id, body.code);
+
   const recent = await env.DB.prepare(
     "SELECT COUNT(*) AS c FROM task_submissions WHERE user_id = ?1 AND created_at > datetime('now', '-1 minute')"
   ).bind(u.id).first<{ c: number }>();
@@ -33,13 +39,13 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     .bind(u.id, task.id).first();
 
   await env.DB.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES (?1, ?2, ?3, ?4, ?5)")
-    .bind(crypto.randomUUID(), u.id, task.id, body.code, body.passed ? 1 : 0).run();
+    .bind(crypto.randomUUID(), u.id, task.id, body.code, passed ? 1 : 0).run();
 
   let streak = effectiveStreak(u);
-  if (body.passed) {
+  if (passed) {
     streak = bumpStreak(u);
     await env.DB.prepare("UPDATE users SET streak_count = ?1, last_active_at = CURRENT_TIMESTAMP WHERE id = ?2").bind(streak, u.id).run();
   }
-  const firstSolve = body.passed && !earlier;
+  const firstSolve = passed && !earlier;
   return json({ ok: true, streak, firstSolve, xp: firstSolve ? task.xp : 0 });
 };

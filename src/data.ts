@@ -1,9 +1,9 @@
-import { LESSONS } from "./data/lessons.js";
-import type { Lesson } from "./types.ts";
+// Каталог курсів. Публічно відомі лише категорії й мови; список уроків і завдань приходить після входу (setOutline)
+import type { Outline, OutlineLesson, TaskMeta } from "./types.ts";
 
 export interface Category { title: string; desc: string; courses: string[] }
 export interface CourseMeta { name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
-export interface Course extends CourseMeta { L: Lesson[]; tasks: number }
+export interface Course extends CourseMeta { L: OutlineLesson[] }
 
 export const CATS: Record<string, Category> = {
   program: { title: "Програмування", desc: "Логічне мислення, алгоритми та мови, з яких починають і на яких працюють.", courses: ["python","go","java","cpp","pascal"] },
@@ -28,14 +28,20 @@ const META: Record<string, CourseMeta> = {
   sql: { name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: вибірка, фільтрація, групування та об'єднання таблиць." }
 };
 
+// До входу в кожного курсу L порожній: уроки з'являються лише після setOutline
 export const C: Record<string, Course> = {};
-for (const [k, m] of Object.entries(META)) {
-  const L = LESSONS[k];
-  C[k] = { ...m, L, tasks: L.reduce((s, l) => s + l.tasks.length, 0) };
+for (const [k, m] of Object.entries(META)) C[k] = { ...m, L: [] };
+
+let tasks: readonly TaskMeta[] = [];
+/** Підставляє структуру курсів із /api/courses; null прибирає її (вихід із акаунта або помилка) */
+export function setOutline(o: Outline | null): void {
+  for (const k of Object.keys(C)) C[k].L = o?.courses[k] ?? [];
+  tasks = o?.tasks ?? [];
 }
+export const allTasks = (): readonly TaskMeta[] => tasks;
+export const taskMeta = (id: string): TaskMeta | undefined => tasks.find((t) => t.id === id);
+/** Завдання, прив'язане до уроку n курсу k (за структурою курсу) */
+export const taskOf = (k: string, n: number): TaskMeta | undefined => { const id = C[k]?.L[n - 1]?.task; return id ? taskMeta(id) : undefined; };
+export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.L.length, 0);
 
 export const darkText = (k: string): string => (k === "python" || k === "js" ? "color:#14213D" : "");
-export const totals = Object.values(C).reduce(
-  (a, c) => ({ courses: a.courses + 1, lessons: a.lessons + c.L.length, tasks: a.tasks + c.tasks }),
-  { courses: 0, lessons: 0, tasks: 0 }
-);

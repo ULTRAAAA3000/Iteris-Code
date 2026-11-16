@@ -1,10 +1,11 @@
 // Особистий кабінет: вхід через Google, синхронізація прогресу, дашборд (#/dashboard)
-import { C, totals } from "./data.ts";
+import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
+import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
-import { TASKS, taskById } from "./tasks/index.ts";
 import { toast, ui } from "./ui.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
+import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
 import { onboardingHtml, setOnboarding } from "./onboarding.ts";
 import { escA, pl } from "./util.ts";
 
@@ -18,6 +19,7 @@ const GROUPS = [
   { t: "Інструменти розробника", courses: ["git", "bash"] },
   { t: "Основи мов", courses: ["cpp", "pascal"] },
 ] as const;
+const SHORT: Record<string, string> = { "Server & Backend": "Backend", "Інструменти розробника": "Інструменти" };   // короткі підписи осей радара
 const FOCUS_ORDER = ["python", "html", "js", "sql", "git", "go", "java", "php", "ts", "css", "bash", "cpp", "pascal"];
 
 const safeImg = (u: string | null | undefined): string => (typeof u === "string" && /^https:\/\//.test(u) ? u : "");
@@ -86,7 +88,7 @@ function openLogin(): void {
 export async function completeSignIn(): Promise<void> {
   const r = await api<{ user: PublicUser | null }>("/api/me");
   st.user = r.ok && r.data ? r.data.user : null;
-  if (st.user) await syncLocal();
+  if (st.user) { await loadOutline(); await syncLocal(); }   // уроки приходять лише після входу
   updateHeader();
   ui.notifyAuth();
   location.hash = "#/dashboard";
@@ -134,8 +136,9 @@ export function syncLesson(k: string, n: number, isDoneNow: boolean): void {
 }
 
 export interface CompleteResult { ok: boolean; status: number; streak?: number; firstSolve?: boolean; xp?: number }
-export async function completeTask(taskId: string, code: string): Promise<CompleteResult> {
-  const r = await post<{ streak: number; firstSolve: boolean; xp: number }>("/api/progress/complete", { taskId, code, passed: true });
+/** proof: підпис сервера з /api/run; потрібен для завдань, які запускає сервер (Go та ін.) */
+export async function completeTask(taskId: string, code: string, proof?: string): Promise<CompleteResult> {
+  const r = await post<{ streak: number; firstSolve: boolean; xp: number }>("/api/progress/complete", { taskId, code, passed: true, proof });
   if (r.ok && r.data && st.user) st.user.streak = r.data.streak;
   st.dash = null;
   return { ok: r.ok, status: r.status, ...(r.data ?? {}) };
@@ -157,6 +160,7 @@ async function openPortal(): Promise<void> {
 async function logout(): Promise<void> {
   await post("/api/auth/logout");
   st.user = null; st.dash = null;
+  clearContent();
   updateHeader();
   ui.notifyAuth();
   if (location.hash === "#/" || location.hash === "") ui.render(); else location.hash = "#/";
@@ -169,11 +173,11 @@ export async function init(): Promise<void> {
   st.siteKey = cfg.ok && typeof cfg.data?.turnstileSiteKey === "string" && cfg.data.turnstileSiteKey ? cfg.data.turnstileSiteKey : null;
   st.mail = cfg.ok && cfg.data?.mail === true;
   st.user = r.ok && r.data ? r.data.user : null;
-  if (st.user) await syncLocal();
+  if (st.user) { await loadOutline(); await syncLocal(); }
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^#\/(dashboard|login|register|forgot|reset|verify|start|path)/.test(location.hash)) ui.render();
+  if (/^#\/(dashboard|login|register|forgot|reset|verify|start|path|course|lesson)/.test(location.hash)) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -181,7 +185,7 @@ async function loadDash(): Promise<void> {
   st.loading = true;
   const r = await api<DashboardData>("/api/dashboard");
   st.loading = false;
-  if (r.status === 401) { st.user = null; st.dash = null; updateHeader(); }
+  if (r.status === 401) { st.user = null; st.dash = null; clearContent(); updateHeader(); }
   else {
     st.dash = r.ok && r.data ? r.data : { error: true };
     if (r.ok && r.data && st.user) { st.user = r.data.user; updateHeader(); ui.notifyAuth(); }   // статус Pro міг змінитися після оплати
@@ -194,8 +198,8 @@ const skeleton = `<div class="card dash-guest" aria-busy="true" aria-label="За
 const guestCard = (): string => `<div class="card dash-guest"><h1>Особистий кабінет</h1>
     <p>Увійдіть, щоб зберігати прогрес на всіх пристроях, бачити серію занять і карту навичок.</p>
     ${loginBtn("btn primary", "Увійти")}</div>`;
-const errorCard = (): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
-    <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="retry">Спробувати ще раз</button></div>`;
+const errorCard = (act = "retry"): string => `<div class="card dash-guest"><h1>Не вдалося завантажити кабінет</h1>
+    <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${act}">Спробувати ще раз</button></div>`;
 
 function focusLesson(set: Set<string>, last: string | null): [string, number] | null {
   const has = (k: string, n: number) => set.has(k + "/" + n);
@@ -230,31 +234,43 @@ function full(d: DashboardData): string {
   const skills = GROUPS.map((g) => {
     const ks = g.courses.filter((k) => C[k]);
     const tot = ks.reduce((s, k) => s + C[k].L.length, 0), dn = ks.reduce((s, k) => s + doneIn(k), 0), pct = tot ? Math.round((dn / tot) * 100) : 0;
-    const gt = TASKS.filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
+    const gt = allTasks().filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
     return `<div class="card skill"><h3><span>${escA(g.t)}</span><span>${pct}%</span></h3>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escA(g.t)}"><i style="width:${pct}%"></i></div>
         <ul>${ks.map((k) => `<li><a href="#/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${C[k].L.length}</span></li>`).join("")}</ul>
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
+  const lessonsPct = Math.round((set.size / (lessonTotal() || 1)) * 100);
+  const tasksPct = allTasks().length ? Math.round((d.tasksPassed / allTasks().length) * 100) : 0;
+  const radarItems = GROUPS.map((g) => {
+    const ks = g.courses.filter((k) => C[k]);
+    const tot = ks.reduce((s, k) => s + C[k].L.length, 0), dn = ks.reduce((s, k) => s + doneIn(k), 0);
+    return { t: SHORT[g.t] ?? g.t, pct: tot ? Math.round((dn / tot) * 100) : 0 };
+  });
   const subs = d.recentSubmissions.length
-    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskById(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
+    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA(taskMeta(s.taskId)?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
   const plan = u.isPro
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`
     : `<span class="plan free">Free</span> <button class="btn primary small" data-act="upgrade">Перейти на Pro за $5</button> <button class="btn small" data-act="retry">Оновити статус</button>`;
   return `<div class="dash">
-      <section class="card dash-head">${avatar(u, true)}
-        <div class="grow"><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p></div>
+      <section class="card dash-head dash-hero">${heroFx()}${avatarRing(avatar(u, true), d.xp ?? 0)}
+        <div class="grow"><span class="hero-hi">${greeting()}</span><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p>${heroChips(d.xp ?? 0, u.streak, set.size)}</div>
         <button class="btn small" data-act="logout">Вийти</button></section>
       <div class="dash-grid">
         <section class="card">${focus}</section>
         ${levelCard(d)}
         ${streakCard(u.streak, d.activity)}
         <section class="card"><h3>Підсумки</h3><div class="stats3">
-          <div><strong>${set.size}</strong><span>${pl(set.size, "урок", "уроки", "уроків")}</span></div>
-          <div><strong>${d.tasksPassed}</strong><span>${pl(d.tasksPassed, "завдання", "завдання", "завдань")}</span></div>
-          <div><strong>${Math.round((set.size / totals.lessons) * 100)}%</strong><span>теорії</span></div></div></section>
+          <div><i class="srg">${ring(lessonsPct)}</i><strong>${set.size}</strong><span>${pl(set.size, "урок", "уроки", "уроків")}</span></div>
+          <div><i class="srg">${ring(tasksPct, "ok")}</i><strong>${d.tasksPassed}</strong><span>${pl(d.tasksPassed, "завдання", "завдання", "завдань")}</span></div>
+          <div><i class="srg">${ring(lessonsPct, "vio")}</i><strong>${lessonsPct}%</strong><span>теорії</span></div></div></section>
         ${pathCard(d, set)}
+      </div>
+      <div class="dash-grid viz-grid">
+        ${activityCard(d.activity)}
+        ${radarCard(radarItems)}
+        ${medalsCard(u.streak)}
       </div>
       <section><h2 class="section-title">Карта навичок</h2><div class="skills">${skills}</div></section>
       ${calendarCard(d)}
@@ -267,6 +283,7 @@ function full(d: DashboardData): string {
 export function renderDashboard(): string {
   if (!st.ready) return skeleton;
   if (!st.user) return guestCard();
+  if (!outlineLoaded()) return errorCard("retry-outline");
   if (!st.dash) { void loadDash(); return skeleton; }
   return "error" in st.dash ? errorCard() : full(st.dash);
 }
@@ -279,6 +296,7 @@ document.addEventListener("click", (e) => {
   else if (a === "google") loginGoogle();
   else if (a === "logout") void logout();
   else if (a === "retry") { st.dash = null; ui.render(); }
+  else if (a === "retry-outline") void loadOutline().then(() => { st.dash = null; ui.render(); });
   else if (a === "upgrade") void startCheckout();
   else if (a === "manage") void openPortal();
 });

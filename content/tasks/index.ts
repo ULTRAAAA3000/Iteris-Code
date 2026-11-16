@@ -1,8 +1,10 @@
-import type { Task } from "./types.ts";
+import { GO_TASKS } from "./go.ts";
+import type { Task } from "../../src/tasks/types.ts";
 
 export type { Task };
 
 export const TASKS: readonly Task[] = [
+  ...GO_TASKS,
   {
     id: "js-safe-city",
     lesson: "js/3",
