@@ -21,6 +21,22 @@
 
 Если у человека уже есть аккаунт с той же подтверждённой почтой (Google или по паролю), GitHub привяжется к нему, а не создаст второй. Берётся основная подтверждённая почта GitHub; без неё вход отклоняется.
 
+## 1в. Свой домен и кабинет на поддомене (iteris-code.org + dashboard.iteris-code.org)
+
+Сайт открывается на основном домене, личный кабинет на `dashboard.iteris-code.org`. Это один и тот же проект Cloudflare Pages с двумя доменами, отдельного деплоя не нужно.
+
+1. Cloudflare Pages → проект → **Custom domains → Set up a custom domain**: добавьте `iteris-code.org`, затем `dashboard.iteris-code.org` (и при желании `www.iteris-code.org`). Если домен в Cloudflare DNS, записи CNAME создадутся сами; иначе добавьте CNAME на `<проект>.pages.dev` у регистратора.
+2. **Variables and Secrets** → `SITE_URL` = `https://iteris-code.org` (canonical, Open Graph, sitemap).
+3. В Google и GitHub OAuth добавьте адрес основного домена с косой чертой: `https://iteris-code.org/`. Вход всегда происходит на основном домене (на кабинете кнопка «Увійти» ведёт туда). Адрес `pages.dev` можно оставить.
+4. Новый деплой.
+
+Как это работает:
+- Cookie сессии ставится с `Domain=.iteris-code.org`, поэтому вход на основном домене действует и на кабинете. Старая cookie, привязанная только к хосту, при входе и выходе стирается автоматически. Эти пользователи просто войдут заново один раз.
+- `iteris-code.org/dashboard` (закладки, письма, адрес возврата после оплаты) автоматически переносит на `dashboard.iteris-code.org`. На кабинете главная страница `/` и есть кабинет, любая другая страница (включая логотип) ведёт на основной домен.
+- На `pages.dev`, `localhost` и превью-адресах ничего не меняется: кабинет остаётся на `/dashboard`.
+- Другой домен или название поддомена: переменные сборки `ROOT_DOMAIN` (по умолчанию `iteris-code.org`) и `DASH_SUBDOMAIN` (по умолчанию `dashboard`) в Cloudflare Pages, а для cookie `COOKIE_DOMAIN`. Все три задавайте согласованно.
+- Адрес возврата после оплаты можно указать как `https://dashboard.iteris-code.org/`.
+
 ## 2. База данных D1
 ```bash
 npx wrangler login

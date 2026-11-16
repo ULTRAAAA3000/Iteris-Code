@@ -42,5 +42,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const mail = list.find((e) => e.primary && e.verified) ?? list.find((e) => e.verified);
   if (!mail) return json({ error: "unverified_account" }, 401);
 
-  return signInWithProfile(env, { id: "gh-" + u.id, email: mail.email, name: u.name || u.login || null, picture: u.avatar_url ?? null });
+  return signInWithProfile(env, { id: "gh-" + u.id, email: mail.email, name: u.name || u.login || null, picture: u.avatar_url ?? null }, request);
 };

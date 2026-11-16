@@ -10,6 +10,7 @@ import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
 import { projectById } from "./projects/index.ts";
 import type { Project } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
+import { onDashHost } from "./domains.ts";
 import { initRouter, segments } from "./router.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
 import type { Task } from "./tasks/types.ts";
@@ -30,7 +31,7 @@ function locked(): string | null {
 
 function render(): void {
   const [a, b, c] = segments();
-  const page = findPage(location.pathname.replace(/\.html$/, ""));
+  const page = onDashHost() ? undefined : findPage(location.pathname.replace(/\.html$/, ""));   // на кабінетному піддомені «/» не головна, а кабінет
   let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | undefined;
   disposeWorkspace();
   disposeProject();

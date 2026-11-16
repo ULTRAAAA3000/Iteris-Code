@@ -104,6 +104,13 @@
 - Только фронтенд: сервер и база не менялись. Код: `src/dashviz.ts` (новый), `src/cabinet.ts`, `src/auth.ts`, `src/stage2.css`; +9 проверок интерфейса.
 - ❓ Визуально на 360/390/414 px в реальном браузере проверяет владелец (в разработке проверено на 390 px и 1440 px, светлая и тёмная темы).
 
+**Кабинет на поддомене (16.11.2026, ветка `feature-dashboard-subdomain`):**
+- Кабинет открывается на `dashboard.iteris-code.org` (на `/`), сайт на `iteris-code.org`. Один проект Pages, два домена. Логика: `src/domains.ts` (хосты и `resolveTarget`), `src/router.ts` (`navigate`, `pathOf`, нормализация хоста), скрипт в `<head>` шаблона (редирект до загрузки приложения, без мигания лендинга).
+- Cookie сессии с `Domain=.iteris-code.org` (`lib/session.ts`: `cookieDomain`, `sessionCookies`); при входе и выходе стирается старая cookie только для хоста. На `pages.dev` и localhost поведение прежнее.
+- Вход (OAuth и форма) остаётся на основном домене, кнопка «Увійти» на кабинете ведёт туда. Логотип всегда ведёт на `/` основного сайта, без `#`.
+- Домен и поддомен задаются `ROOT_DOMAIN` и `DASH_SUBDOMAIN` при сборке, `COOKIE_DOMAIN` для cookie. Настройка в `SETUP.md`, раздел 1в. Тесты: `tests/domains-ui.test.mjs`, `tests/cookie-domain.test.mjs`.
+- ❓ После деплоя владелец проверяет вручную: вход на основном домене → переход в кабинет без повторного входа; выход на кабинете.
+
 **Где этап 2 трогает общие файлы** (чтобы слияние с этапом 1 было простым):
 - Новые файлы только этапа 2: `src/xp.ts`, `src/onboarding.ts`, `src/path.ts`, `src/cabinet.ts`, `src/dashviz.ts`, `src/stage2.ts`, `src/stage2.css`, `lib/xp.ts`, `functions/api/onboarding.ts`, `functions/api/xp/sync.ts`, `migrations/0010_*.sql`, `tests/stage2*.test.mjs`.
 - Точечные правки общих: `schema.sql` (только две таблицы в конце), `functions/api/dashboard.ts` (поля `xp`, `onboarding`, `days`), `src/auth.ts` (разметка кабинета: карточки серии, календаря, уровня; событие `ic:progress` в `api()`), `src/main.ts` (маршруты `path` и `start`), `src/types.ts`, `src/index.template.html` (ссылка «Шлях» в меню), `build.mjs` (вставка `stage2.css`), `package.json` (скрипты тестов).

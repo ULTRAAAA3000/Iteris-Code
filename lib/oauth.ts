@@ -1,6 +1,6 @@
 // Общая часть входа через внешнего провайдера (Google, GitHub): создать или найти аккаунт и выдать сессию
 import type { Env } from "./env.ts";
-import { createSession, json, sessionCookie } from "./session.ts";
+import { createSession, json, sessionCookies } from "./session.ts";
 
 export interface OAuthProfile {
   /** Идентификатор у провайдера: у Google это sub, у GitHub "gh-<число>" */
@@ -12,7 +12,7 @@ export interface OAuthProfile {
 }
 
 /** Если с этой почтой уже есть аккаунт (в том числе созданный по паролю), привязываем провайдера к нему: почту подтвердил провайдер */
-export async function signInWithProfile(env: Env, p: OAuthProfile): Promise<Response> {
+export async function signInWithProfile(env: Env, p: OAuthProfile, request?: Request): Promise<Response> {
   const email = p.email.toLowerCase();
   let uid = p.id;
   try {
@@ -34,5 +34,5 @@ export async function signInWithProfile(env: Env, p: OAuthProfile): Promise<Resp
   } catch {
     return json({ error: "account_conflict" }, 409);
   }
-  return json({ ok: true }, 200, { "Set-Cookie": sessionCookie(await createSession(env, uid, 30), 30 * 86400) });
+  return json({ ok: true }, 200, { "Set-Cookie": sessionCookies(await createSession(env, uid, 30), 30 * 86400, request, env) });
 }

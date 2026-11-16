@@ -42,5 +42,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const p = (await profRes.json()) as GoogleProfile;
   if (!p.sub || !p.email || p.email_verified === false) return json({ error: "unverified_account" }, 401);
 
-  return signInWithProfile(env, { id: p.sub, email: p.email, name: p.name ?? null, picture: p.picture ?? null });
+  return signInWithProfile(env, { id: p.sub, email: p.email, name: p.name ?? null, picture: p.picture ?? null }, request);
 };
