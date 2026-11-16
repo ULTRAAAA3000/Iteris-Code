@@ -1,6 +1,6 @@
 // Этап 2, интерфейс: онбординг, путь, уровень/XP, серия, календарь, эффекты. Запуск: npm run build && npm i --no-save jsdom && node tests/stage2-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
-import { PROJECTS } from "../src/projects/index.ts";
+import { PROJECTS } from "../content/projects/index.ts";
 import { TASKS } from "../content/tasks/index.ts";
 import { LESSONS } from "../content/lessons.js";
 import { chaptersOf, LESSON_XP, startLesson } from "../src/xp.ts";

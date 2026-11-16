@@ -1,7 +1,8 @@
-import type { Task } from "../tasks/types.ts";
-import type { Project } from "./types.ts";
+// Проєкти за ТЗ: закритий контент (D17). Потрапляє лише в серверний код, браузер отримує проєкт після входу через /api/project.
+import type { Project } from "../../src/projects/types.ts";
+import type { Task } from "../../src/tasks/types.ts";
 
-export type { Project, Requirement } from "./types.ts";
+export type { Project, Requirement } from "../../src/projects/types.ts";
 
 const todoStarter = `<!DOCTYPE html>
 <html lang="uk">
@@ -156,4 +157,4 @@ export const projectForLesson = (lessonId: string): Project | undefined => PROJE
 
 /** Усе, за що нараховується XP як за практику: завдання з тестами й проєкти за ТЗ */
 export type Practice = Pick<Task, "id" | "lesson" | "course" | "title" | "premium" | "xp">;
-// practiceById (завдання або проєкт) живе у lib/practice.ts: тексти завдань лишаються в серверному коді
+// practiceById (завдання або проєкт) живе у lib/practice.ts

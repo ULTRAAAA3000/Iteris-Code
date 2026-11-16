@@ -1,7 +1,7 @@
 // Етап 3 (частина A), інтерфейс: рушій перевірки проєктів на справжніх рішеннях і сторінка проєкту.
 // Запуск: npm run build && npm i --no-save jsdom && node tests/stage3-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
-import { PROJECTS, projectById } from "../src/projects/index.ts";
+import { projectById } from "../content/projects/index.ts";
 import { buildSrcdoc, REPORT_TYPE, scoreReport } from "../src/projects/sandbox.ts";
 import { contentReply } from "./content-mock.mjs";
 import { PROJECT_SOLUTIONS } from "./solutions.mjs";
@@ -125,6 +125,8 @@ t("сторінка: проєкт запам'ятовується як вико�
 const gp = await page({ me: null, hash: "#/project/js-todo" });
 await sleep(150);
 t("сторінка (гість): проєкт, як і уроки, закритий: запрошення увійти, редактора й перевірки немає", !gp.$("#pj-run") && !gp.$("#pj-frame") && !!gp.$('#app [data-act="login"]') && posted(gp, "/api/progress/complete").length === 0);
+t("сторінка (гість): запит проєкту на сервер не надсилається", !gp.calls.some((c) => String(c.url).startsWith("/api/project")));
+t("публічна збірка не містить умов, вимог і заготовки проєкту (закритий контент, D17)", !bundle.includes("Список справ") && !bundle.includes("task-input") && !html.includes("task-input") && !bundle.includes("Купити молоко"));
 
 pg2.$('[data-pj="reset"]').click();
 t("сторінка: «Скинути» повертає заготовку й очищає позначки вимог", pg2.$("#editor textarea").value === todo.starter && pg2.$$("#pj-reqs li.ok, #pj-reqs li.bad").length === 0);
@@ -134,8 +136,10 @@ t("сторінка: невідомий проєкт дає «Такої сто�
 
 /* ---- входи до проєкту: урок, шлях, кабінет ---- */
 const ls = await page({ me: user, dash: base, hash: "#/lesson/js/17" });
+await sleep(200);
 t("урок js/17: у кінці картка «Проєкт за ТЗ» з посиланням на проєкт", !!ls.$('.pj-card a[href="/project/js-todo"]'));
 const lo = await page({ me: user, dash: base, hash: "#/lesson/js/1" });
+await sleep(200);
 t("інші уроки без проєкту не мають картки", !lo.$(".pj-card"));
 const ph = await page({ me: user, dash: base, hash: "#/path/js" });
 t("шлях: біля уроку 17 чип «Проєкт: …» веде на проєкт", ph.$$(".path-prac").some((a) => a.getAttribute("href") === "/project/js-todo" && a.textContent.includes("Проєкт: список справ")));

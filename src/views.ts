@@ -1,8 +1,7 @@
 // Сторінки, доступні лише після входу: список уроків курсу, урок із завданням. Публічні сторінки: src/pages.ts.
-import { C, CATS, darkText } from "./data.ts";
+import { C, CATS, darkText, projectOf } from "./data.ts";
 import { badge } from "./pages.ts";
 import { done, isDone, progress } from "./progress.ts";
-import { projectForLesson } from "./projects/index.ts";
 import type { LessonPayload } from "./types.ts";
 import { count, esc, escA, pad, store, W } from "./util.ts";
 import { workspaceHTML } from "./workspace.ts";
@@ -47,7 +46,7 @@ export function course(k: string): string {
 
 /** Картка «Проєкт за ТЗ» в кінці уроку, після якого пропонується проєкт */
 function projectCard(k: string, n: number): string {
-  const p = projectForLesson(`${k}/${n}`);
+  const p = projectOf(k, n);
   return p ? `<div class="callout pj-card"><b>Проєкт за ТЗ.</b> Закріпіть тему на практиці: <a href="/project/${escA(p.id)}">${escA(p.title)}</a> (до ${p.xp} XP). Ви отримаєте технічне завдання й перевірку кожної вимоги.</div>` : "";
 }
 

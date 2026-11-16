@@ -1,8 +1,7 @@
 // Особистий кабінет: вхід через Google і GitHub, синхронізація прогресу, дашборд (/dashboard)
-import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
+import { allTasks, C, lessonTotal, projectMeta, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
-import { projectById } from "./projects/index.ts";
 import { idolById, idolSrc } from "./data/idols.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
@@ -282,7 +281,7 @@ function full(d: DashboardData): string {
     return { t: SHORT[g.t] ?? g.t, pct: tot ? Math.round((dn / tot) * 100) : 0 };
   });
   const subs = d.recentSubmissions.length
-    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA((projectById(s.taskId) ?? taskMeta(s.taskId))?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
+    ? `<ul class="subs">${d.recentSubmissions.map((s) => `<li><span class="${s.passed ? "s-ok" : "s-fail"}">${s.passed ? "Пройдено" : "Не пройдено"}</span><span>${escA((projectMeta(s.taskId) ?? taskMeta(s.taskId))?.title ?? s.taskId)}</span><span class="dash-muted">${escA(fmtDate(s.at))}</span></li>`).join("")}</ul>`
     : `<p class="dash-muted">Поки що немає розв'язаних завдань. Вони з'являться тут, коли ви почнете практику.</p>`;
   const plan = u.isPro
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`

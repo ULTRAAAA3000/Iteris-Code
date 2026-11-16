@@ -1,7 +1,6 @@
 // Картки кабінету Етапу 2: рівень і XP, серія з анімацією, календар із деталями дня, шлях.
 // Модуль без залежності від auth.ts (лише HTML і DOM), щоб не створювати цикл імпортів.
-import { allTasks, C, taskMeta } from "./data.ts";
-import { PROJECTS, projectById } from "./projects/index.ts";
+import { allProjects, allTasks, C, projectMeta, taskMeta } from "./data.ts";
 import type { DashboardData } from "./types.ts";
 import { escA, pl } from "./util.ts";
 import { currentLesson, LESSON_XP, levelInfo, STREAK_BONUS, STREAK_MILESTONES } from "./xp.ts";
@@ -16,7 +15,7 @@ const dayCount = (d: DashboardData, key: string): { l: number; t: number; all: n
 };
 
 export function levelCard(d: DashboardData): string {
-  const i = levelInfo(d.xp ?? 0), maxTaskXp = Math.max(0, ...allTasks().map((t) => t.xp), ...PROJECTS.map((p) => p.xp));
+  const i = levelInfo(d.xp ?? 0), maxTaskXp = Math.max(0, ...allTasks().map((t) => t.xp), ...allProjects().map((p) => p.xp));
   return `<section class="card lvl-card"><h3>Рівень</h3>
     <div class="lvl-row"><span class="lvl-badge" aria-hidden="true">${i.level}</span>
       <div><b class="lvl-xp">${i.total} XP</b><span class="dash-muted">До рівня ${i.level + 1}: ${i.need - i.into} XP</span></div></div>
@@ -77,7 +76,7 @@ function dayDetail(key: string, days: Record<string, { l: string[]; t: string[] 
   const x = days[key];
   if (!x || !(x.l.length + x.t.length)) return `<h4>${escA(dayLabel(key))}</h4><p class="dash-muted">У цей день активності не було.</p>`;
   const ls = x.l.map((id) => { const [k, n] = id.split("/"), l = C[k]?.L[+n - 1]; return l ? `<li><a href="/lesson/${k}/${n}">${escA(C[k].name)} · урок ${n}: ${escA(l.t)}</a></li>` : ""; }).join("");
-  const ts = x.t.map((id) => { const t = projectById(id) ?? taskMeta(id); return t ? `<li><a href="${projectById(id) ? "/project/" + escA(id) : "/lesson/" + t.lesson}">${projectById(id) ? "📋" : "⚡"} ${escA(t.title)}</a></li>` : ""; }).join("");
+  const ts = x.t.map((id) => { const pr = projectMeta(id), t = pr ?? taskMeta(id); return t ? `<li><a href="${pr ? "/project/" + escA(id) : "/lesson/" + (t as { lesson: string }).lesson}">${pr ? "📋" : "⚡"} ${escA(t.title)}</a></li>` : ""; }).join("");
   return `<h4>${escA(dayLabel(key))}</h4>
     <p><b>${x.l.length}</b> ${pl(x.l.length, "урок", "уроки", "уроків")} · <b>${x.t.length}</b> ${pl(x.t.length, "завдання", "завдання", "завдань")}</p><ul>${ls}${ts}</ul>`;
 }

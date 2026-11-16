@@ -12,11 +12,13 @@ export interface Lesson {
 }
 
 /** Урок у списку курсу (відповідь /api/courses): без тексту, лише назва, глава й id завдання */
-export interface OutlineLesson { t: string; ch?: string; task?: string }
+export interface OutlineLesson { t: string; ch?: string; task?: string; project?: string }
 /** Короткий опис завдання для списків і кабінету (повний текст приходить разом з уроком) */
 export interface TaskMeta { id: string; title: string; xp: number; course: string; lesson: string }
 /** GET /api/courses (лише після входу): структура всіх курсів і список завдань */
-export interface Outline { courses: Record<string, OutlineLesson[]>; tasks: TaskMeta[] }
+/** Короткий опис проєкту за ТЗ (повний проєкт приходить з /api/project) */
+export interface ProjectMeta { id: string; title: string; xp: number; course: string; lesson: string }
+export interface Outline { courses: Record<string, OutlineLesson[]>; tasks: TaskMeta[]; projects: ProjectMeta[] }
 /** GET /api/lesson?k=js&n=3 (лише після входу): повний урок і його завдання, якщо воно є */
 export interface LessonPayload { lesson: Lesson; task: Task | null }
 
