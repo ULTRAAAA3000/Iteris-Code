@@ -35,8 +35,8 @@ async function page(opts = {}) {
     if (url === "/api/progress" && !o.method) return reply(200, { lessonIds: ["js/1", "js/2"] });
     if (url === "/api/progress") return reply(200, { ok: true, streak: 2 });
     if (url === "/api/auth/config") return reply(200, { clientId, githubClientId, turnstileSiteKey: siteKey, mail });
-    if (auth && url.startsWith("/api/auth/") && url !== "/api/auth/google") { const r = await auth(url, o.body ? JSON.parse(o.body) : null); if (r) return reply(r[0], r[1]); }
-    if (url === "/api/auth/google") return reply(200, { ok: true });
+    if (auth && url.startsWith("/api/auth/") && url !== "/api/auth/google" && url !== "/api/auth/github") { const r = await auth(url, o.body ? JSON.parse(o.body) : null); if (r) return reply(r[0], r[1]); }
+    if (url === "/api/auth/google" || url === "/api/auth/github") return reply(200, { ok: true });
     return reply(404, {});
   };
   try { Object.defineProperty(w, "crypto", { value: globalThis.crypto, configurable: true }); } catch {}
