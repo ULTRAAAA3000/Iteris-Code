@@ -25,6 +25,7 @@ npx wrangler d1 execute iteris-code --remote --file=schema.sql
   - `GOOGLE_CLIENT_ID` (обычная переменная)
   - `GOOGLE_CLIENT_SECRET` (**Secret**)
   - `SESSION_SECRET` (**Secret**, случайная строка: `openssl rand -base64 48`)
+  - `SITE_URL` (обычная переменная, необязательная): адрес сайта без косой черты, например `https://iteris-code.pages.dev` или ваш домен. Он попадает в `canonical`, Open Graph и `sitemap.xml`. Без неё берётся `https://iteris-code.pages.dev`.
 - **Build command** `npm run build`, **Build output directory** `dist` (рекомендуется). Если там стоит `/`, сайт тоже заработает: при сборке в Cloudflare готовые файлы дублируются в корень. Папка `functions/` подхватывается автоматически.
 
 После этого сделайте новый деплой. Кнопка «Увійти» в шапке должна открывать окно Google.
@@ -39,7 +40,7 @@ npx wrangler d1 execute iteris-code --remote --file=schema.sql
    - придумайте **Signing secret** (длинная случайная строка) и сохраните его как `LEMONSQUEEZY_WEBHOOK_SECRET` (**Secret**);
    - события: `subscription_created`, `subscription_updated`, `subscription_cancelled`, `subscription_resumed`, `subscription_expired`, `subscription_paused`, `subscription_unpaused` (остальные сайт всё равно игнорирует).
 4. По желанию `LEMONSQUEEZY_VARIANT_ID`: ID варианта товара. Тогда сайт принимает события только для него.
-5. В настройках товара укажите адрес возврата после оплаты: `https://iteris-code.pages.dev/#/dashboard`.
+5. В настройках товара укажите адрес возврата после оплаты: `https://iteris-code.pages.dev/dashboard`.
 6. Если база уже создана, один раз выполните миграцию (для новой базы достаточно `schema.sql`):
    ```bash
    npx wrangler d1 execute iteris-code --remote --file=migrations/0002_payments.sql

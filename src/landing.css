@@ -1,0 +1,74 @@
+/* Лендинг і публічні сторінки (Етап 2Б). Вбудовується в єдиний <style> під час збірки. */
+.lp-h1{font-size:clamp(1.9rem,4.4vw,3rem);font-weight:800;line-height:1.1;margin:0 0 12px}
+.lp-note{margin:16px 0 0;color:var(--muted);font-size:.92rem}
+.lp-article{margin-bottom:32px}
+.lp-article h2{margin-top:28px}
+.lp-article ul,.lp-article ol{padding-left:22px;margin:0 0 14px}
+
+/* Чотири кроки навчання */
+.lp-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px}
+.lp-step{position:relative;display:flex;flex-direction:column;gap:8px;padding:20px 18px 18px;background:var(--panel);border:2px solid var(--ink);border-radius:16px}
+.lp-step h3{font-size:1.1rem;margin:6px 0 0}
+.lp-step p{margin:0;color:var(--muted);font-size:.95rem;flex:1}
+.lp-n{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--hl);color:var(--hl-ink);border:2px solid var(--ink);font-family:var(--display);font-weight:800}
+.lp-soon{display:inline-block;margin-left:6px;padding:1px 8px;border:1.5px dashed var(--muted);border-radius:99px;font:600 .7rem var(--body);color:var(--muted);vertical-align:middle}
+.lp-viz{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding:12px;border:2px dashed var(--line);border-radius:10px;background:var(--paper);font-size:.82rem;min-height:104px;overflow:hidden}
+.lp-viz .ln{display:block;height:7px;border-radius:4px;background:var(--line)}
+.lp-viz .w80{width:80%}.lp-viz .w70{width:70%}.lp-viz .w60{width:60%}
+.lp-viz .cd{font-family:var(--code);font-weight:400;color:var(--pen);overflow-wrap:anywhere}
+.lp-term{font-family:var(--code);background:#14213D;border-color:#2B3963;color:#EAEFFC}
+.lp-term .cm{color:#9CA9C9}.lp-term .ok{color:#4CC988}.lp-term .no{color:#FF8A8D}
+.lp-spec b{font-size:.85rem}.lp-spec span{color:var(--muted)}
+.lp-report b{font-family:var(--display);font-size:1rem}
+.lp-report .bar{flex:none;width:100%;height:14px}
+
+/* Приклад шляху */
+.lp-path{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.lp-chap{padding:18px;background:var(--panel);border:2px solid var(--ink);border-radius:16px}
+.lp-chap h3{font-size:1rem;margin:0 0 14px}
+.lp-chap small{display:block;margin-top:12px;color:var(--muted)}
+.dots{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.dots .d{position:relative;display:block;width:22px;height:22px;border:2px solid var(--ink);border-radius:50%;background:var(--panel)}
+.dots .d.done{background:var(--ok);border-color:var(--ok)}
+.dots .d.now{background:var(--hl);box-shadow:0 0 0 4px var(--grid)}
+.dots .d em{position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);white-space:nowrap;font:700 .72rem var(--body);color:var(--ink)}
+
+/* XP */
+.lp-xp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.8fr);gap:40px;align-items:center}
+.lp-xp-card{display:grid;gap:14px}
+.lp-xp-card .lvl{display:flex;justify-content:space-between;align-items:baseline}
+.lp-xp-card .lvl b{font-family:var(--display);font-size:1.3rem}
+.lp-xp-card .lvl span{color:var(--muted)}
+.lp-xp-card .streak{margin:0}
+.lp-xp-card .streak b{font-size:1.6rem}
+.lp-xp-card .streak span:first-child{font-size:1.6rem}
+.lp-heat{display:grid;grid-template-columns:repeat(14,minmax(0,1fr));gap:4px}
+.lp-heat i{aspect-ratio:1;border-radius:3px;background:var(--grid);border:1px solid var(--line)}
+.lp-heat .l1{background:#BFD0FF}.lp-heat .l2{background:#86A2FF}.lp-heat .l3{background:#4F78F0}.lp-heat .l4{background:var(--pen)}
+.lp-heat i,.lp-heat .l1,.lp-heat .l2,.lp-heat .l3,.lp-heat .l4{border-color:transparent}
+
+/* FAQ */
+.lp-faq{background:var(--panel);border:2px solid var(--ink);border-radius:16px;overflow:hidden}
+.lp-faq details{border-bottom:2px solid var(--line)}
+.lp-faq details:last-child{border-bottom:0}
+.lp-faq summary{cursor:pointer;padding:16px 20px;font-weight:700;list-style:none;display:flex;justify-content:space-between;gap:16px}
+.lp-faq summary::-webkit-details-marker{display:none}
+.lp-faq summary::after{content:"+";flex:none;font-size:1.3rem;line-height:1}
+.lp-faq details[open] summary::after{content:"−"}
+.lp-faq summary:focus-visible{outline:3px solid var(--pen);outline-offset:-3px}
+.lp-faq p{margin:0;padding:0 20px 18px;color:var(--muted)}
+
+/* Заклик до дії */
+.lp-cta{margin:72px 0 24px;padding:36px 28px;text-align:center;background:var(--hl);color:var(--hl-ink);border:2px solid var(--ink);border-radius:16px;box-shadow:8px 8px 0 var(--ink)}
+.lp-cta h2{font-size:clamp(1.4rem,3vw,2rem);margin:0 0 8px}
+.lp-cta p{margin:0 0 20px}
+.lp-article+.lp-cta,.prose+.lp-cta{margin-top:40px}
+
+footer .foot-bottom{grid-column:1/-1;max-width:none;margin:8px 0 0;padding-top:16px;border-top:2px solid var(--line);font-size:.9rem}
+footer ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+footer h4{margin:0 0 10px}
+
+@media (max-width:980px){.lp-steps{grid-template-columns:repeat(2,minmax(0,1fr))}.lp-xp{grid-template-columns:1fr;gap:24px}}
+@media (max-width:760px){.lp-path{grid-template-columns:1fr}.lp-cta{padding:28px 18px;box-shadow:5px 5px 0 var(--ink)}}
+@media (max-width:560px){.lp-steps{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.lp-faq summary::after{transition:none}}

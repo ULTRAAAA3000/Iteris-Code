@@ -69,7 +69,7 @@ t("майстер: рівень «Впевнений» зсуває старт �
 change(ob, ob.$("#onb input[value=python]"), true);
 await submit(ob, "#onb-form");
 const sp = posted(ob, "/api/onboarding");
-t("майстер: на сервер іде рівень і вибрані курси, далі відкривається шлях першого курсу", sp.length === 1 && sp[0].body.level === "advanced" && JSON.stringify(sp[0].body.courses.sort()) === JSON.stringify(["js", "python"]) && ob.w.location.hash.startsWith("#/path/"));
+t("майстер: на сервер іде рівень і вибрані курси, далі відкривається шлях першого курсу", sp.length === 1 && sp[0].body.level === "advanced" && JSON.stringify(sp[0].body.courses.sort()) === JSON.stringify(["js", "python"]) && ob.w.location.pathname.startsWith("/path/"));
 
 const lim = await page({ me: user, dash: { ...base, onboarding: null } });
 for (const k of ["html", "css", "js", "ts", "python"]) change(lim, lim.$(`#onb input[value=${k}]`), true);
@@ -79,7 +79,7 @@ t("майстер: не більше 5 курсів, решта блокуєть
 const bad = await page({ me: user, dash: { ...base, onboarding: null }, saveOk: false });
 change(bad, bad.$("#onb input[value=js]"), true);
 await submit(bad, "#onb-form");
-t("майстер: помилка збереження пояснена, кнопка знову активна, шлях не відкривається", bad.$("#onb-msg").textContent.includes("Не вдалося") && !bad.$("#onb button[type=submit]").disabled && bad.w.location.hash === "#/dashboard");
+t("майстер: помилка збереження пояснена, кнопка знову активна, шлях не відкривається", bad.$("#onb-msg").textContent.includes("Не вдалося") && !bad.$("#onb button[type=submit]").disabled && bad.w.location.pathname === "/dashboard");
 
 const re = await page({ me: user, dash: base, hash: "#/start", onboarding: { level: "intermediate", courses: ["js", "sql"] } });
 await sleep(120);
@@ -97,13 +97,13 @@ await sleep(700);
 t("серія: анімований лічильник закінчує на справжньому числі", cab.$(".streak-n").textContent === "3");
 const quiet = await page({ me: user, dash: { ...base, activity: {} } });
 t("серія: без активності сьогодні вогонь згаслий і підказка про збереження серії", quiet.$(".flame").className.includes("dim") && quiet.$(".streak-card").textContent.includes("не втратити серію") && quiet.$(".streak-card").textContent.includes("UTC"));
-t("шлях у кабінеті: курс, рівень, наступний урок і посилання на шлях", cab.$(".path-card").textContent.includes("JavaScript") && cab.$(".path-card").textContent.includes("Середній") && !!cab.$('.path-card a[href="#/path/js"]') && !!cab.$('.path-card a[href="#/start"]'));
+t("шлях у кабінеті: курс, рівень, наступний урок і посилання на шлях", cab.$(".path-card").textContent.includes("JavaScript") && cab.$(".path-card").textContent.includes("Середній") && !!cab.$('.path-card a[href="/path/js"]') && !!cab.$('.path-card a[href="/start"]'));
 
 const cell = (p, k) => p.$(`.heat i[data-day="${k}"]`);
 t("календар: кожен день у вигляді клітинки, дні з активністю фокусуються з клавіатури, порожні ні", cab.$$(".heat i[data-day]").length >= 182 && cell(cab, dayX).getAttribute("tabindex") === "0" && cell(cab, daysAgo(10)).getAttribute("tabindex") === null && cell(cab, dayX).getAttribute("aria-label").includes("2 уроки, 1 завдання"));
 cell(cab, dayX).click();
 const det = cab.$("#day-detail");
-t("календар: клік по дню показує кількість і список уроків та завдань із посиланнями", det.textContent.includes("2 уроки") && det.textContent.includes("1 завдання") && !!det.querySelector('a[href="#/lesson/python/1"]') && !!det.querySelector(`a[href="#/lesson/${t0.lesson}"]`) && det.textContent.includes(t0.title) && cell(cab, dayX).className.includes("sel"));
+t("календар: клік по дню показує кількість і список уроків та завдань із посиланнями", det.textContent.includes("2 уроки") && det.textContent.includes("1 завдання") && !!det.querySelector('a[href="/lesson/python/1"]') && !!det.querySelector(`a[href="/lesson/${t0.lesson}"]`) && det.textContent.includes(t0.title) && cell(cab, dayX).className.includes("sel"));
 cell(cab, daysAgo(10)).click();
 t("календар: порожній день повідомляє про відсутність активності, виділення переходить", cab.$("#day-detail").textContent.includes("активності не було") && !cell(cab, dayX).className.includes("sel"));
 cell(cab, today).dispatchEvent(new cab.w.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
@@ -131,12 +131,12 @@ t("шлях: гостю закритий, замість нього запрош
 const g = await page({ me: user, hash: "#/path/js", done: { js: [1, 2, 3] } });
 const nodes = g.$$(".path-node");
 t("шлях: по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.js).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
-t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `#/lesson/js/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
-t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="#/lesson/js/4"]'));
+t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `/lesson/js/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
+t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="/lesson/js/4"]'));
 t("шлях: вкладки курсів, активний позначено", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript"));
 const withTask = TASKS.find((x) => x.course === "js");
 t("шлях: у підписах практики немає емодзі блискавки", !g.$(".path").textContent.includes("⚡"));
-t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="#/lesson/${withTask.lesson}"]`));
+t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="/lesson/${withTask.lesson}"]`));
 t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: user, hash: "#/path/nope" })).$$(".path-node").length > 0);
 const lineEdges = g.$$(".path-line .e");
 t("шлях: лінія з'єднує сусідні вузли, пройдені ділянки суцільні", g.$$(".path-line").length === 1 && lineEdges.length === jsN - 1 && g.$$(".path-line .e.done").length === 3);
@@ -149,7 +149,7 @@ const lv = await page({ me: user, dash: base, hash: "#/path/js", onboarding: { l
 await sleep(120);
 const startN = startLesson(LESSONS.js, "intermediate");
 t("шлях (вхід): рівень завантажується один раз і перемальовує сторінку, позначено «Ваш старт»", lv.calls.filter((c) => c.url === "/api/onboarding" && c.method === "GET").length === 1 && lv.$$(".path-chap.start").length === 1 && lv.$(".path-chap.start .flag").textContent === "Ваш старт" && lv.html().includes("Середній"));
-t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `#/lesson/js/${startN}` && startN > 1 && lv.$$(".path-node.before").length === startN - 1 && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
+t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `/lesson/js/${startN}` && startN > 1 && lv.$$(".path-node.before").length === startN - 1 && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
 t("шлях: курси онбордингу йдуть першими зі зірочкою", lv.$$(".path-tab")[0].textContent.includes("★ JavaScript") && lv.$$(".path-tab")[1].textContent.includes("★ Python"));
 
 /* ---- XP-ефекти ---- */

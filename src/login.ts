@@ -1,7 +1,8 @@
-// Вхід, реєстрація й відновлення пароля за поштою: #/login, #/register, #/forgot, #/reset/<токен>, #/verify/<токен>.
+// Вхід, реєстрація й відновлення пароля за поштою: /login, /register, /forgot, /reset/<токен>, /verify/<токен>.
 // Кожна форма захищена Cloudflare Turnstile; пароль на сервері хешується (PBKDF2), тут він лише передається по HTTPS.
 import { completeSignIn, getAuthConfig, getUser, isReady, loginGoogle, post } from "./auth.ts";
 import { toast } from "./ui.ts";
+import { navigate } from "./router.ts";
 import { notFound } from "./views.ts";
 
 interface TurnstileApi {
@@ -83,20 +84,20 @@ const googleBtn = (): string =>
 export function renderAuthPage(kind: Kind): string {
   const { mail } = getAuthConfig();
   if (!isReady()) return `<div class="card auth-card" aria-busy="true" aria-label="Завантаження"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
-  if (getUser()) return `<div class="card auth-card"><h1>Ви вже увійшли</h1><a class="btn primary" href="#/dashboard">Особистий кабінет</a></div>`;
+  if (getUser()) return `<div class="card auth-card"><h1>Ви вже увійшли</h1><a class="btn primary" href="/dashboard">Особистий кабінет</a></div>`;
   if (!mail && kind !== "login" && kind !== "register") return notFound();   // відновлення пароля й підтвердження пошти потребують листів
   const h = (t: string): string => `<h1>${t}</h1>`;
   const card = (inner: string): string => `<div class="card auth-card">${inner}</div>`;
   switch (kind) {
     case "login":
       return card(h("Вхід") + form(email + pass("current-password"), "Увійти") + googleBtn() +
-        `<p class="auth-links">${mail ? '<a href="#/forgot">Забули пароль?</a>' : ""}<a href="#/register">Створити акаунт</a></p>`);
+        `<p class="auth-links">${mail ? '<a href="/forgot">Забули пароль?</a>' : ""}<a href="/register">Створити акаунт</a></p>`);
     case "register":
       return card(h("Реєстрація") + form(fld("name", "Ім'я (необов'язково)", "text", 'autocomplete="name" maxlength="60"') + email + pass("new-password", "Пароль", rule), "Створити акаунт") +
-        googleBtn() + `<p class="auth-links"><a href="#/login">Вже є акаунт? Увійти</a></p>`);
+        googleBtn() + `<p class="auth-links"><a href="/login">Вже є акаунт? Увійти</a></p>`);
     case "forgot":
       return card(h("Відновлення пароля") + `<p class="dash-muted">Вкажіть пошту, і ми надішлемо посилання для нового пароля.</p>` + form(email, "Надіслати посилання") +
-        `<p class="auth-links"><a href="#/login">Назад до входу</a></p>`);
+        `<p class="auth-links"><a href="/login">Назад до входу</a></p>`);
     case "reset":
       return card(h("Новий пароль") + form(pass("new-password", "Новий пароль", rule), "Зберегти пароль"));
     case "verify":
@@ -178,7 +179,7 @@ export function mountAuthPage(kind: Kind, token = ""): void {
       return say(code === "invalid_token" && kind === "reset" ? ERRORS.invalid_token + ". Запросіть нове на сторінці відновлення пароля" : ERRORS[code] ?? GENERIC);
     }
     if (kind === "login" || r.data?.signedIn) return void (await completeSignIn());   // signedIn: реєстрація без листів одразу відкриває сесію
-    if (kind === "reset") { toast("Пароль змінено. Тепер увійдіть"); location.hash = "#/login"; return; }
+    if (kind === "reset") { toast("Пароль змінено. Тепер увійдіть"); navigate("/login"); return; }
     f.hidden = true;
     say(kind === "register"
       ? `Ми надіслали лист на ${body.email}. Перейдіть за посиланням у ньому, щоб підтвердити пошту. Якщо листа немає, перевірте «Спам».`

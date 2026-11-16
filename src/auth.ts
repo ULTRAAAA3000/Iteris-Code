@@ -1,8 +1,9 @@
-// Особистий кабінет: вхід через Google, синхронізація прогресу, дашборд (#/dashboard)
+// Особистий кабінет: вхід через Google, синхронізація прогресу, дашборд (/dashboard)
 import { allTasks, C, lessonTotal, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
 import { done, isDone, persist } from "./progress.ts";
 import { toast, ui } from "./ui.ts";
+import { navigate, pathOf } from "./router.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
 import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
@@ -62,7 +63,7 @@ export function updateHeader(): void {
   if (!el) return;
   if (!st.ready) { el.innerHTML = ""; return; }
   el.innerHTML = st.user
-    ? `<a class="acct-user" href="#/dashboard" title="Особистий кабінет">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
+    ? `<a class="acct-user" href="/dashboard" title="Особистий кабінет">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
     : loginBtn("btn small", "Увійти");
 }
 
@@ -79,7 +80,7 @@ export function loginGoogle(): void {
 
 // Кнопка «Увійти» відкриває форму входу
 function openLogin(): void {
-  location.hash = "#/login";
+  navigate("/login");
 }
 
 // Після успішного входу за поштою: підтягуємо користувача, зливаємо прогрес і відкриваємо кабінет
@@ -89,8 +90,7 @@ export async function completeSignIn(): Promise<void> {
   if (st.user) { await loadOutline(); await syncLocal(); }   // уроки приходять лише після входу
   updateHeader();
   ui.notifyAuth();
-  location.hash = "#/dashboard";
-  ui.render();
+  navigate("/dashboard");
 }
 
 async function handleCallback(): Promise<void> {
@@ -104,7 +104,7 @@ async function handleCallback(): Promise<void> {
   if (!saved || saved !== s) return toast("Не вдалося підтвердити вхід. Спробуйте ще раз");
   const r = await post("/api/auth/google", { code });
   if (!r.ok) return toast("Не вдалося увійти через Google");
-  location.hash = "#/dashboard";
+  navigate("/dashboard");
 }
 
 // Після входу: об'єднуємо локальний прогрес із серверним
@@ -161,7 +161,7 @@ async function logout(): Promise<void> {
   clearContent();
   updateHeader();
   ui.notifyAuth();
-  if (location.hash === "#/" || location.hash === "") ui.render(); else location.hash = "#/";
+  navigate("/");
 }
 
 export async function init(): Promise<void> {
@@ -175,7 +175,7 @@ export async function init(): Promise<void> {
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^#\/(dashboard|login|register|forgot|reset|verify|start|path|course|lesson)/.test(location.hash)) ui.render();
+  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson)(\/|$)/.test(pathOf())) ui.render();
 }
 
 async function loadDash(): Promise<void> {
@@ -188,7 +188,7 @@ async function loadDash(): Promise<void> {
     st.dash = r.ok && r.data ? r.data : { error: true };
     if (r.ok && r.data && st.user) { st.user = r.data.user; updateHeader(); ui.notifyAuth(); }   // статус Pro міг змінитися після оплати
   }
-  if (/^#\/dashboard/.test(location.hash)) ui.render();
+  if (pathOf() === "dashboard") ui.render();
 }
 
 /* ---------- Дашборд ---------- */
@@ -227,7 +227,7 @@ function full(d: DashboardData): string {
     ? `<h3>Продовжити навчання</h3><p class="dash-muted">${escA(C[f[0]].name)} · ${escA(C[f[0]].L[f[1] - 1].ch || "")}</p>
          <p class="dash-focus">Урок ${f[1]}: ${escA(C[f[0]].L[f[1] - 1].t)}</p>
          <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${C[f[0]].L.length}" aria-valuenow="${doneIn(f[0])}"><i style="width:${Math.round((doneIn(f[0]) / C[f[0]].L.length) * 100)}%"></i></div>
-         <p><a class="btn primary small" href="#/lesson/${f[0]}/${f[1]}">Продовжити</a></p>`
+         <p><a class="btn primary small" href="/lesson/${f[0]}/${f[1]}">Продовжити</a></p>`
     : `<h3>Усі курси пройдено</h3><p class="dash-muted">Вітаємо! Скоро тут з'являться нові практичні завдання.</p>`;
   const skills = GROUPS.map((g) => {
     const ks = g.courses.filter((k) => C[k]);
@@ -235,7 +235,7 @@ function full(d: DashboardData): string {
     const gt = allTasks().filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
     return `<div class="card skill"><h3><span>${escA(g.t)}</span><span>${pct}%</span></h3>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escA(g.t)}"><i style="width:${pct}%"></i></div>
-        <ul>${ks.map((k) => `<li><a href="#/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${C[k].L.length}</span></li>`).join("")}</ul>
+        <ul>${ks.map((k) => `<li><a href="/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${C[k].L.length}</span></li>`).join("")}</ul>
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
   const lessonsPct = Math.round((set.size / (lessonTotal() || 1)) * 100);
