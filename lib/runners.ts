@@ -44,4 +44,85 @@ export const goPlayground: RemoteRunner = {
   },
 };
 
-export const RUNNERS: Record<RemoteLang, RemoteRunner> = { go: goPlayground };
+// ---- Wandbox (wandbox.org): безкоштовна публічна пісочниця для Python, Java, C++, PHP, Pascal та інших мов ----
+// Версію компілятора не зашиваємо в код: беремо найновішу стабільну зі списку /api/list.json (кеш на годину),
+// тому оновлення версій на боці сервісу нам нічого не ламає.
+
+interface WandboxCompiler { name: string; language: string }
+interface WandboxReply {
+  status?: string | number; signal?: string;
+  compiler_error?: string; compiler_message?: string;
+  program_output?: string; program_error?: string; program_message?: string;
+}
+
+const WANDBOX = "https://wandbox.org/api";
+const LIST_TTL_MS = 60 * 60 * 1000;
+let listCache: { at: number; list: WandboxCompiler[] } | undefined;
+
+const versionOf = (name: string): number[] => (name.match(/\d+/g) ?? []).map(Number);
+function newer(a: number[], b: number[]): number {
+  for (let i = 0; i < Math.max(a.length, b.length); i++) if ((a[i] ?? -1) !== (b[i] ?? -1)) return (a[i] ?? -1) - (b[i] ?? -1);
+  return 0;
+}
+
+/** Найновіший стабільний компілятор мови: назва збігається з pattern, без head/trunk та прев'ю-збірок */
+export function pickCompiler(list: readonly WandboxCompiler[], language: string, pattern: RegExp): string | undefined {
+  const found = list.filter((c) => c.language === language && pattern.test(c.name) && !/head|trunk|dev|nightly|alpha|beta|rc\d/i.test(c.name));
+  found.sort((x, y) => newer(versionOf(y.name), versionOf(x.name)));
+  return found[0]?.name;
+}
+
+async function compilerList(fetcher: typeof fetch): Promise<WandboxCompiler[]> {
+  if (listCache && Date.now() - listCache.at < LIST_TTL_MS) return listCache.list;
+  const res = await fetcher(WANDBOX + "/list.json", { headers: { "User-Agent": "iteris-code (learning platform)" }, signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new RunnerUnavailable("wandbox list " + res.status);
+  const list = (await res.json()) as WandboxCompiler[];
+  if (!Array.isArray(list) || !list.length) throw new RunnerUnavailable("wandbox list is empty");
+  listCache = { at: Date.now(), list };
+  return list;
+}
+
+/** Для тестів: скинути кеш списку компіляторів */
+export const resetWandboxCache = (): void => { listCache = undefined; };
+
+/** file: ім'я файла в редакторі, на нього замінюємо prog.* у повідомленнях компілятора */
+function wandbox(language: string, pattern: RegExp, file: string): RemoteRunner {
+  return {
+    maxCode: 8000,
+    async run(code, fetcher = fetch) {
+      let data: WandboxReply;
+      try {
+        const compiler = pickCompiler(await compilerList(fetcher), language, pattern);
+        if (!compiler) throw new RunnerUnavailable("wandbox: no compiler for " + language);
+        const res = await fetcher(WANDBOX + "/compile.json", {
+          method: "POST",
+          headers: { "Content-Type": "application/json; charset=utf-8", "User-Agent": "iteris-code (learning platform)" },
+          body: JSON.stringify({ compiler, code, save: false }),
+          signal: AbortSignal.timeout(18000),
+        });
+        if (!res.ok) throw new RunnerUnavailable("wandbox " + res.status);
+        data = (await res.json()) as WandboxReply;
+      } catch (e) {
+        throw e instanceof RunnerUnavailable ? e : new RunnerUnavailable(e instanceof Error ? e.message : String(e));
+      }
+      const stdout = data.program_output ?? "";
+      const stderr = data.program_error ?? "";
+      const status = Number(data.status ?? 0) || 0;
+      const compilerText = ((data.compiler_error || data.compiler_message) ?? "").replace(/\bprog\.\w+/g, file).trim();
+      if (/kill|terminat|timeout|timed out/i.test(String(data.signal ?? "")) || status === 124) return { stdout, stderr, timedOut: true, error: "Перевищено час виконання. Імовірно, у коді нескінченний цикл." };
+      // Компіляція не вдалась: код завершення не нуль, а програма нічого не виводила
+      if (status !== 0 && !stdout && !stderr && compilerText) return { stdout, stderr, error: compilerText };
+      return { stdout, stderr, exitCode: status };
+    },
+  };
+}
+
+export const RUNNERS: Record<RemoteLang, RemoteRunner> = {
+  go: goPlayground,
+  python: wandbox("Python", /^cpython-3\./, "main.py"),
+  java: wandbox("Java", /^openjdk-/, "Main.java"),
+  cpp: wandbox("C++", /^gcc-\d/, "main.cpp"),
+  php: wandbox("PHP", /^php-\d/, "main.php"),
+  pascal: wandbox("Pascal", /^fpc-/, "main.pas"),
+  ts: wandbox("TypeScript", /^typescript/, "main.ts"),
+};
