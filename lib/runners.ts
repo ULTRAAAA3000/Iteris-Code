@@ -124,4 +124,5 @@ export const RUNNERS: Record<RemoteLang, RemoteRunner> = {
   cpp: wandbox("C++", /^gcc-\d/, "main.cpp"),
   php: wandbox("PHP", /^php-\d/, "main.php"),
   pascal: wandbox("Pascal", /^fpc-/, "main.pas"),
+  ts: wandbox("TypeScript", /^typescript/, "main.ts"),
 };

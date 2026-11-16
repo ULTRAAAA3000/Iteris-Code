@@ -20,7 +20,12 @@ const NO_TASK = {
 // Як запускати програму локально. LC_ALL=C навмисно: так видно, що вивід не залежить від кодування середовища
 const ENV = { ...process.env, LC_ALL: "C", GO111MODULE: "off" };
 const sh = (cmd, args, cwd, input) => spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 90000, env: ENV, input });
+const TSC = new URL("../node_modules/.bin/tsc", import.meta.url).pathname;
 const LANGS = {
+  ts: {
+    file: "main.ts", probe: ["node", "--version"],
+    run: (d) => { const c = sh(TSC, ["--strict", "--target", "ES2022", "--lib", "es2022,dom", "--module", "commonjs", "--outDir", "out", "main.ts"], d); return c.status !== 0 ? { r: { ...c, stderr: c.stdout + c.stderr }, compileFailed: () => true } : { r: sh("node", ["out/main.js"], d), compileFailed: () => false }; },
+  },
   go: { file: "main.go", probe: ["go", "version"], run: (d) => ({ r: sh("go", ["run", "main.go"], d), compileFailed: (r) => r.status === 1 && /main\.go:\d+/.test(r.stderr) }) },
   python: { file: "main.py", probe: ["python3", "--version"], run: (d) => ({ r: sh("python3", ["main.py"], d), compileFailed: (r) => /SyntaxError|IndentationError/.test(r.stderr) }) },
   java: {

@@ -1,5 +1,6 @@
 // Запуск: npm run build && npm i --no-save jsdom && node tests/ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
+import { TASKS } from "../content/tasks/index.ts";
 import { runSuite } from "../src/runner/core.ts";
 import { SOLUTIONS } from "./solutions.mjs";
 import { contentReply } from "./content-mock.mjs";
@@ -78,7 +79,8 @@ p = await page({ me: user, dash });
 let h = p.html();
 t("кабінет: ім'я екрановано, фокус на наступному уроці, серія 3 дні", h.includes("Олена &lt;b&gt;Коваль&lt;/b&gt;") && !h.includes("<b>Коваль</b>") && h.includes("#/lesson/js/4") && h.includes("дні поспіль"));
 t("кабінет: невалідні id відкинуто (5 уроків), 5 груп навичок", h.includes("<strong>5</strong>") && (h.match(/class="card skill"/g) || []).length === 5);
-t("кабінет: практика в групі Frontend 1/5, назва завдання замість id", h.includes("Практика: 1/5") && h.includes("Безпечне читання міста"));
+const frontendTasks = TASKS.filter((x) => ["html", "css", "js", "ts"].includes(x.course)).length;   // кількість завдань групи росте разом із курсами
+t(`кабінет: практика в групі Frontend 1/${frontendTasks}, назва завдання замість id`, h.includes(`Практика: 1/${frontendTasks}`) && h.includes("Безпечне читання міста"));
 t("кабінет: календар активності і Free-бейдж", (h.match(/<i class="l\d"/g) || []).length >= 182 && h.includes("Перейти на Pro за $5"));
 const pro = await page({ me: { ...user, isPro: true, proUntil: "2999-05-01 00:00:00" }, dash: { ...dash, user: { ...user, isPro: true, proUntil: "2999-05-01 00:00:00" } } });
 t("Pro: градієнтний бейдж і дата", pro.html().includes('class="plan pro"') && pro.html().includes("2999"));
