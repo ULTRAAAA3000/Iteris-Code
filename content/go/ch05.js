@@ -371,4 +371,463 @@ func main() {
       "Чому порядок гілок type switch важливий, коли одна з них — інтерфейс, наприклад fmt.Stringer?",
     ],
   },
+  {
+    t: "Stringer, error та інші стандартні інтерфейси",
+    ch: "Інтерфейси та generics",
+    easy: "Стандартні інтерфейси — це загальноприйняті «вилки й розетки» Go: якщо ваш тип має метод <code>String()</code>, то <code>fmt</code> вміє його красиво друкувати, а якщо <code>Error()</code> — то він годиться як помилка.",
+    p: [
+      "У стандартній бібліотеці є кілька крихітних інтерфейсів, на яких тримається більша частина Go-коду. <code>fmt.Stringer</code> — це <code>interface { String() string }</code>: «я вмію описати себе рядком». <code>error</code> — вбудований тип-інтерфейс <code>interface { Error() string }</code>: «я вмію описати, що пішло не так». <code>io.Closer</code> — <code>interface { Close() error }</code>: «мене треба закрити, коли закінчили». У кожного рівно один метод, і саме тому їх так легко реалізувати.",
+      "Навіщо це потрібно? Пакет <code>fmt</code> нічого не знає про ваші типи, але вміє перевіряти, чи є в значення метод <code>String()</code> або <code>Error()</code>. Модель у голові: <code>Println</code> отримує значення як <code>any</code>, тобто пару (тип, значення), і за типом у парі шукає метод. Якщо знаходить <code>Error()</code>, друкує його результат; інакше, якщо знаходить <code>String()</code>, друкує його; інакше виводить поля стандартним способом. Так <code>fmt.Println(t)</code> для <code>Celsius(21.5)</code> друкує «21.5°C», а не просто число.",
+      "Правила для <code>fmt</code> трохи тонші, ніж здається. Метод <code>String()</code> застосовується для дієслів <code>%v</code>, <code>%s</code>, <code>%q</code> (і <code>Print</code>/<code>Println</code>), але не для <code>%d</code>: це числове дієслово, і воно друкує сире значення. Метод викликається і для елементів слайса чи полів структури, якщо вони доступні для fmt. Якщо в типу є обидва методи, <code>Error()</code> має пріоритет над <code>String()</code>.",
+      "<code>error</code> — це просто інтерфейс, тому будь-який ваш тип стає помилкою, щойно отримає метод <code>Error() string</code>. Значення <code>nil</code> означає «помилки немає», і тому функції повертають <code>error</code> другим результатом: <code>if err != nil { ... }</code>. Прості помилки створюють через <code>errors.New(\"текст\")</code> і <code>fmt.Errorf(\"файл %s: не знайдено\", name)</code>. Власний тип корисний, коли разом із текстом треба нести дані: номер рядка, код, ім'я поля. Глибше про помилки (обгортання, <code>errors.Is</code>, <code>errors.As</code>) буде в наступній главі; тут важливо лише, що <code>error</code> — звичайний інтерфейс.",
+      "Пастка перша: отримувач. Якщо <code>String()</code> оголошено на <code>*T</code>, то значення <code>T</code> цей метод <i>не має</i> у своєму наборі методів, і <code>Println(t)</code> надрукує поля, а <code>Println(&amp;t)</code> викличе метод (див. приклад 4). Це те саме правило, що й у уроці про неявну реалізацію. Для <code>Stringer</code> та <code>error</code> здебільшого обирають отримувач-значення: тоді працюють і значення, і вказівник. Пастка друга: нескінченна рекурсія. Якщо всередині <code>String()</code> написати <code>fmt.Sprintf(\"%v\", c)</code> для самого отримувача, <code>fmt</code> знову викличе <code>String()</code>, і програма впаде з переповненням стека. Усередині методу форматуйте поля або перетворюйте значення до базового типу: <code>float64(c)</code>.",
+      "Ідіоми. Назви типів-помилок закінчують на <code>Error</code> (<code>ParseError</code>), а змінні-помилки зазвичай називають <code>err</code>. Повертайте помилку як інтерфейс <code>error</code>, а не як конкретний тип: функція з результатом <code>*MyErr</code>, що повернула нульовий вказівник, дасть «непорожній» <code>error</code> (про цю підступність було в уроці про <code>any</code>). Для ресурсів, які треба закрити, використовуйте <code>io.Closer</code>: функція, що приймає <code>io.Closer</code>, закриє і файл, і з'єднання. Далі розглянемо пару ще важливіших інтерфейсів: <code>io.Reader</code> та <code>io.Writer</code>.",
+    ],
+    code: [
+      String.raw`package main
+
+import "fmt"
+
+type Celsius float64
+
+func (c Celsius) String() string { return fmt.Sprintf("%.1f°C", float64(c)) }
+
+type Point struct{ X, Y int }
+
+func (p Point) String() string { return fmt.Sprintf("(%d; %d)", p.X, p.Y) }
+
+func main() {
+	t := Celsius(21.55)
+	fmt.Println(t)
+	fmt.Printf("%v | %s\n", t, t)
+	pts := []Point{{1, 2}, {3, 4}}
+	fmt.Println(pts)
+	fmt.Printf("%d\n", pts[0])
+	var s fmt.Stringer = Point{5, 6}
+	fmt.Println(s.String())
+}
+`,
+      String.raw`package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+type ParseError struct {
+	Line int
+	Msg  string
+}
+
+func (e ParseError) Error() string {
+	return fmt.Sprintf("рядок %d: %s", e.Line, e.Msg)
+}
+
+func parse(line int, s string) (int, error) {
+	if s == "" {
+		return 0, ParseError{line, "порожнє значення"}
+	}
+	n := 0
+	for _, r := range s {
+		if r < '0' || r > '9' {
+			return 0, ParseError{line, fmt.Sprintf("недопустимий символ %q", r)}
+		}
+		n = n*10 + int(r-'0')
+	}
+	return n, nil
+}
+
+func main() {
+	for i, s := range []string{"42", "", "4x2"} {
+		n, err := parse(i+1, s)
+		if err != nil {
+			fmt.Println("помилка:", err)
+			continue
+		}
+		fmt.Println("число:", n)
+	}
+	simple := errors.New("простий збій")
+	var err error = simple
+	fmt.Println(err, err == simple)
+	fmt.Println(fmt.Errorf("файл %s не знайдено", "a.txt"))
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"io"
+)
+
+type Conn struct{ Name string }
+
+func (c *Conn) Close() error {
+	fmt.Println("закрито", c.Name)
+	return nil
+}
+
+func closeAll(items []io.Closer) {
+	for _, it := range items {
+		if err := it.Close(); err != nil {
+			fmt.Println("помилка закриття:", err)
+		}
+	}
+}
+
+func main() {
+	closeAll([]io.Closer{&Conn{"db"}, &Conn{"cache"}})
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+type Temp struct{ V int }
+
+func (t *Temp) String() string { return "Temp!" }
+
+func main() {
+	t := Temp{1}
+	fmt.Println(t)
+	fmt.Println(&t)
+}
+`,
+    ],
+    note: "fmt шукає у значенні методи Error() і String(): Error() головніший, String() не діє для %d. Метод із отримувачем *T не входить до набору методів значення T. Усередині String() не друкуйте отримувача через %v: це нескінченна рекурсія.",
+    work: "String() роблять для типів, які часто потрапляють у логи й повідомлення (ID, гроші, статуси); власні типи error несуть код і контекст помилки; io.Closer дозволяє закривати різні ресурси однаковим кодом.",
+    tasks: [
+      "Чому fmt.Println(t) для значення t типу T не викликає String(), оголошений на *T, а fmt.Println(&t) викликає?",
+      "Що станеться, якщо всередині методу String() написати fmt.Sprintf(\"%v\", отримувач) і чому?",
+    ],
+  },
+  {
+    t: "io.Reader і io.Writer",
+    ch: "Інтерфейси та generics",
+    easy: "<code>io.Reader</code> — це кран, з якого тече потік байтів, а <code>io.Writer</code> — раковина, куди він стікає. Між ними можна ставити фільтри, і жоден кран не цікавить, що за раковина внизу.",
+    p: [
+      "Дані в програмах приходять звідусіль: файл, мережа, рядок у пам'яті, відповідь сервера. Якби кожне джерело мало свій спосіб читання, кожна функція обробки мусила б знати про всіх. Go вирішив це двома дрібними інтерфейсами: <code>io.Reader</code> має один метод <code>Read(p []byte) (n int, err error)</code>, а <code>io.Writer</code> — <code>Write(p []byte) (n int, err error)</code>. Усе, що вміє віддавати чи приймати байти, відповідає одному з них, і функція, написана для <code>io.Reader</code>, працює з будь-яким джерелом.",
+      "Контракт <code>Read</code> варто зрозуміти точно. Ви передаєте буфер <code>p</code>, метод заповнює його <i>скільки зміг</i> і повертає кількість записаних байтів <code>n</code>. Коли дані скінчилися, повертається спеціальна помилка <code>io.EOF</code> — це не збій, а сигнал «кінець потоку». Головне правило: спершу обробіть <code>n</code> байтів, і лише потім дивіться на <code>err</code>, бо <code>Read</code> має право повернути <code>n &gt; 0</code> разом із <code>io.EOF</code>. Для <code>Write</code> контракт простіший: запишіть усі байти або поверніть помилку; якщо <code>n &lt; len(p)</code>, помилка обов'язкова.",
+      "Готові реалізації, які треба знати. <code>strings.NewReader(s)</code> робить Reader із рядка (зручно в тестах і прикладах без файлів). <code>bytes.Buffer</code> — і Reader, і Writer: пишете в нього, потім читаєте або беріть <code>buf.String()</code>. <code>os.Stdout</code> — це <code>*os.File</code>, і він теж <code>io.Writer</code>; <code>fmt.Println(x)</code> — це лише скорочення від <code>fmt.Fprintln(os.Stdout, x)</code>. Функції сімейства <code>Fprint*</code> приймають будь-який Writer, тому один і той самий код виводить у консоль, у буфер чи у файл.",
+      "Що з цим робити. <code>io.Copy(dst, src)</code> переливає все з Reader у Writer шматками й повертає кількість байтів; <code>io.ReadAll(r)</code> збирає все в один <code>[]byte</code> (обережно з великими потоками: усе опиниться в пам'яті). Модель «труби» складається з таких цеглинок: Reader → обробка → Writer. Складність у тому, що самі цеглинки крихітні, а будівля виходить велика.",
+      "Сила інтерфейсів проявляється в <b>обгортках</b>. Створіть структуру, що тримає інший <code>io.Writer</code>, і в її методі <code>Write</code> щось зробіть із байтами (переведіть у верхній регістр, порахуйте, відфільтруйте), а потім передайте далі. Для зовнішнього коду обгортка — такий самий Writer, і її можна вставити в будь-який ланцюжок, нічого не змінюючи. Так працюють шифрування, стиснення, підрахунок байтів, логування в стандартній бібліотеці. Те саме з Reader: обгортка читає з вкладеного Reader і змінює дані дорогою.",
+      "Пастки. По-перше, <code>strings.NewReader</code> повертає <code>*strings.Reader</code>: метод <code>Read</code> має отримувач-вказівник (бо Reader запам'ятовує позицію), тож значення <code>strings.Reader{}</code> інтерфейсу <code>io.Reader</code> не відповідає, і компілятор скаже про це. По-друге, Reader одноразовий: після <code>io.ReadAll</code> повторне читання дасть порожній результат, бо позиція вже в кінці. По-третє, у циклі читання не порівнюйте <code>n</code> з нулем замість перевірки <code>io.EOF</code>: це може закінчитись нескінченним циклом. Ідіома: приймайте <code>io.Reader</code> і <code>io.Writer</code> замість <code>*os.File</code>, тоді функцію просто тестувати. Далі розглянемо ще один знайомий інтерфейс, <code>sort.Interface</code>.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"io"
+	"strings"
+)
+
+func main() {
+	r := strings.NewReader("привіт, Go!")
+	buf := make([]byte, 8)
+	for {
+		n, err := r.Read(buf)
+		fmt.Printf("n=%d %q\n", n, buf[:n])
+		if err == io.EOF {
+			break
+		}
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+)
+
+func main() {
+	fmt.Fprintln(os.Stdout, "це те саме, що Println")
+
+	var buf bytes.Buffer
+	fmt.Fprintf(&buf, "x=%d;", 42)
+	buf.WriteString("y=7")
+	fmt.Println(buf.String())
+
+	n, err := io.Copy(os.Stdout, strings.NewReader("з рядка в консоль\n"))
+	fmt.Println(n, err)
+
+	data, _ := io.ReadAll(strings.NewReader("усе одразу"))
+	fmt.Println(len(data), string(data))
+}
+`,
+      String.raw`package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+	"strings"
+)
+
+type upperWriter struct{ w io.Writer }
+
+func (u upperWriter) Write(p []byte) (int, error) {
+	_, err := u.w.Write(bytes.ToUpper(p))
+	return len(p), err
+}
+
+func main() {
+	uw := upperWriter{os.Stdout}
+	fmt.Fprintln(uw, "привіт, hello")
+	io.Copy(uw, strings.NewReader("копія через обгортку\n"))
+}
+`,
+      String.raw`// не компілюється: strings.Reader має метод Read з отримувачем *Reader, значення йому не відповідає
+package main
+
+import (
+	"fmt"
+	"io"
+	"strings"
+)
+
+func main() {
+	var r io.Reader = strings.Reader{}
+	fmt.Println(r)
+}
+`,
+    ],
+    note: "Read: спершу обробіть n байтів, потім дивіться на err; io.EOF означає кінець потоку, а не збій. Writer мусить записати всі байти або повернути помилку. Reader одноразовий. Приймайте io.Reader/io.Writer замість конкретних типів.",
+    work: "Файли, HTTP-тіла, стиснення, шифрування, логи й тести в Go спираються на io.Reader/io.Writer. Обробник, що приймає io.Writer, у тесті отримує bytes.Buffer, а в продакшені os.Stdout чи файл.",
+    tasks: [
+      "Чому в циклі читання треба спершу використати n прочитаних байтів, а вже потім перевіряти err на io.EOF?",
+      "Як зробити Writer-обгортку, що рахує записані байти, і чому її можна підставити туди, де очікують io.Writer?",
+    ],
+  },
+  {
+    t: "sort.Interface і власне порівняння",
+    ch: "Інтерфейси та generics",
+    adv: true,
+    easy: "Щоб відсортувати колоду карт, не обов'язково знати, що на картах: досить уміти сказати, яка з двох вища, і поміняти їх місцями. <code>sort.Interface</code> — це саме така пара умінь плюс «скільки карт».",
+    p: [
+      "Алгоритм сортування не повинен знати про ваші дані: йому потрібні лише три операції. Скільки елементів (<code>Len() int</code>), чи має елемент <code>i</code> стояти раніше за елемент <code>j</code> (<code>Less(i, j int) bool</code>) і як поміняти два елементи місцями (<code>Swap(i, j int)</code>). Ці три методи разом — інтерфейс <code>sort.Interface</code>. Функція <code>sort.Sort(data)</code> приймає будь-що з цими методами: слайс структур, колекцію в мапі з індексами, навіть список, який лежить не в пам'яті. Це типовий приклад «малого інтерфейсу», з яким алгоритм відділений від даних.",
+      "Як це виглядає на практиці. Для слайса <code>[]Person</code> оголошують новий тип <code>type byAge []Person</code> і дають йому три методи: <code>Len</code> повертає <code>len(a)</code>, <code>Swap</code> міняє <code>a[i], a[j] = a[j], a[i]</code>, <code>Less</code> порівнює потрібні поля. Потім <code>sort.Sort(byAge(people))</code>: перетворення типу не копіює дані, а лише дає той самий слайс нові методи. Для іншого порядку пишуть інший тип (<code>byName</code>), і дані лишаються тими самими. Модель у голові: сортування крутиться навколо індексів, а ви пояснюєте, що означає «менше».",
+      "Кілька ключів порівнюють у <code>Less</code> каскадом: спершу головний ключ, а коли вони рівні, наступний. Наприклад, <code>if a[i].Dept != a[j].Dept { return a[i].Dept &lt; a[j].Dept }; return a[i].Salary &gt; a[j].Salary</code>. Для зворотного порядку для готових типів є <code>sort.Reverse</code>: <code>sort.Sort(sort.Reverse(sort.IntSlice(x)))</code>. Для простих випадків є <code>sort.Ints</code>, <code>sort.Strings</code>, <code>sort.Float64s</code>. Перевірити, що слайс уже відсортований, можна через <code>sort.IsSorted</code> або <code>slices.IsSorted</code>.",
+      "Стабільність. <code>sort.Sort</code> <b>нестабільне</b>: елементи, що вважаються рівними, можуть опинитися в іншому порядку, ніж були. Якщо порядок рівних важливий (наприклад, спершу ви відсортували за іменем, тепер за відділом, і хочете, щоб імена всередині відділу лишились по порядку), використовуйте <code>sort.Stable</code> або <code>sort.SliceStable</code>. Нестабільний варіант швидший за пам'яттю й може дати інший порядок рівних на різних версіях Go, тому не покладайтеся на нього в тестах, де є рівні ключі.",
+      "Тритомний інтерфейс на кожен тип — це багато церемоній, тому є легші шляхи. <code>sort.Slice(s, func(i, j int) bool { ... })</code> приймає слайс будь-якого типу й функцію <code>less</code> за індексами; вона працює через рефлексію, тож трохи повільніша. Сучасний варіант із Go 1.21 — <code>slices.SortFunc(s, func(a, b T) int { ... })</code>: функція отримує самі елементи й повертає від'ємне, нуль чи додатне число, як <code>cmp.Compare(a, b)</code>. Вона швидша, безпечніша за типами, а для кількох ключів зручна комбінація <code>cmp.Or(cmp.Compare(a.Dept, b.Dept), cmp.Compare(b.Salary, a.Salary))</code> (Go 1.22). Загальна порада: у новому коді беріть <code>slices.SortFunc</code>, а <code>sort.Interface</code> лишайте для структур даних із нетривіальним доступом.",
+      "Пастки. Якщо типу бракує одного з трьох методів, <code>sort.Sort</code> не скомпілюється: <code>does not implement sort.Interface (missing method Swap)</code>. Функція <code>Less</code> має задавати <i>строгий</i> порядок: «менше», а не «менше або дорівнює». Якщо написати <code>&lt;=</code>, рівні елементи вважаються меншими один за одного, і результат стає непередбачуваним для стабільного сортування. Ще одна помилка — писати <code>Less</code> без урахування вже зміненого стану: Less і Swap працюють з поточним станом слайса, а не з початковим. Далі переходимо до generics: вони якраз дозволяють писати такі функції один раз для всіх типів.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+type Person struct {
+	Name string
+	Age  int
+}
+
+type byAge []Person
+
+func (a byAge) Len() int           { return len(a) }
+func (a byAge) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byAge) Less(i, j int) bool { return a[i].Age < a[j].Age }
+
+func main() {
+	people := []Person{{"Оля", 31}, {"Іван", 25}, {"Марія", 28}}
+	sort.Sort(byAge(people))
+	fmt.Println(people)
+	fmt.Println(sort.IsSorted(byAge(people)))
+
+	nums := []int{5, 2, 8, 1}
+	sort.Sort(sort.Reverse(sort.IntSlice(nums)))
+	fmt.Println(nums)
+}
+`,
+      String.raw`package main
+
+import (
+	"cmp"
+	"fmt"
+	"slices"
+	"sort"
+)
+
+type Item struct {
+	Group string
+	Price int
+}
+
+func main() {
+	items := []Item{{"b", 5}, {"a", 9}, {"b", 2}, {"a", 3}}
+
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Group != items[j].Group {
+			return items[i].Group < items[j].Group
+		}
+		return items[i].Price < items[j].Price
+	})
+	fmt.Println(items)
+
+	slices.SortFunc(items, func(a, b Item) int {
+		return cmp.Or(cmp.Compare(a.Group, b.Group), cmp.Compare(b.Price, a.Price))
+	})
+	fmt.Println(items)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+type Task struct {
+	Name     string
+	Priority int
+}
+
+func main() {
+	tasks := []Task{{"a", 2}, {"b", 1}, {"c", 2}, {"d", 1}, {"e", 2}}
+	sort.SliceStable(tasks, func(i, j int) bool {
+		return tasks[i].Priority < tasks[j].Priority
+	})
+	fmt.Println(tasks)
+}
+`,
+      String.raw`// не компілюється: типу бракує методу Swap, тому він не відповідає sort.Interface
+package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+type nums []int
+
+func (n nums) Len() int           { return len(n) }
+func (n nums) Less(i, j int) bool { return n[i] < n[j] }
+
+func main() {
+	x := nums{3, 1, 2}
+	sort.Sort(x)
+	fmt.Println(x)
+}
+`,
+    ],
+    note: "sort.Interface: Len, Less, Swap. Less має бути строгим («менше»), sort.Sort нестабільне, для стабільності беріть sort.Stable/SliceStable. У новому коді найчастіше досить slices.SortFunc із cmp.Compare.",
+    work: "Сортування звітів за кількома полями, топ-N за рейтингом, упорядкування черги за пріоритетом. sort.Interface зустрічається в бібліотеках і на структурах даних, а у прикладному коді його здебільшого заміняє slices.SortFunc.",
+    tasks: [
+      "Які три методи потрібні для sort.Interface і що робить кожен із них?",
+      "Чим sort.Sort відрізняється від sort.Stable і коли різниця помітна?",
+    ],
+  },
+  {
+    t: "Generics: функції",
+    ch: "Інтерфейси та generics",
+    easy: "Generic-функція — це шаблон конверта: «лист розміром T». Один раз описуєте, як упакувати, а що саме лежить усередині (число, рядок, структура), вирішує той, хто викликає.",
+    p: [
+      "Припустімо, потрібна функція «більше з двох». Для <code>int</code> одна, для <code>float64</code> друга, для <code>string</code> третя, і тіла однакові. Раніше в Go обирали між копіюванням і <code>any</code> із твердженнями типів, яке втрачає перевірки компілятора. З версії 1.18 є <b>generics</b>: функція має <b>параметр типу</b>, який пишуть у квадратних дужках перед звичайними параметрами: <code>func Max[T cmp.Ordered](a, b T) T</code>. Тут <code>T</code> — ім'я типу-заповнювача, а <code>cmp.Ordered</code> — його <b>обмеження</b> (constraint): допустимі лише типи, для яких визначено <code>&lt;</code>, <code>&gt;</code>.",
+      "Обмеження — це суть generics. Без нього компілятор не знав би, що можна робити зі значенням типу <code>T</code>. Тому з <code>T any</code> можна лише присвоювати, передавати й повертати значення, але не порівнювати й не додавати. Три найчастіші обмеження: <code>any</code> (будь-який тип, нічого не вимагає), <code>comparable</code> (типи, які можна порівнювати через <code>==</code>: числа, рядки, bool, вказівники, структури з такими полями) і <code>cmp.Ordered</code> (числа й рядки, для яких працює <code>&lt;</code>). Є ще й <code>constraints</code>-подібні набори, але для старту цих трьох досить.",
+      "Виклик. Найчастіше тип писати не треба: компілятор <b>виводить</b> його з аргументів: <code>Max(3, 7)</code> дає <code>T = int</code>, <code>Max(\"a\", \"b\")</code> — <code>T = string</code>. Явно вказують так: <code>Max[float64](1, 2.5)</code>. Явний варіант потрібен, коли вивести нема з чого (наприклад, функція повертає <code>T</code>, а параметрів типу <code>T</code> немає) або коли хочете інший тип, ніж за замовчуванням. Для змішаних аргументів на кшталт <code>Max(1, 2.5)</code> літерали-константи підлаштовуються під спільний тип <code>float64</code>, а ось змінні різних типів дадуть помилку.",
+      "Модель у голові: для кожного набору типів, із якими функцію викликали, компілятор (концептуально) створює окрему версію, як ніби ви самі написали <code>MaxInt</code>, <code>MaxString</code>. Тому під час виконання немає ні рефлексії, ні твердження типів, а помилки типів ловляться на етапі збирання. Дрібна пастка: нульове значення <code>T</code> отримують через <code>var zero T</code>, бо для <code>any</code> не можна написати <code>nil</code> чи <code>0</code>. Типова ідіома: <code>func First[T any](s []T) (T, bool)</code> повертає нуль і <code>false</code> на порожньому слайсі.",
+      "Приклади по сходинках. Найпростіший: <code>Max</code> з <code>cmp.Ordered</code>. Далі <code>Index[T comparable](s []T, v T) int</code> шукає елемент за <code>==</code>: для <code>[]string</code> і <code>[]int</code> один код. І <code>Reverse[T any](s []T) []T</code>, якому порівняння не потрібні, тому достатньо <code>any</code>. Обирайте <b>найслабше обмеження, яке дозволяє тіло функції</b>: тоді вона працює з найбільшою кількістю типів.",
+      "Коли generics <i>не</i> потрібні. Якщо функція лише викликає методи значення, інтерфейс простіший: <code>func Print(s fmt.Stringer)</code> не потребує <code>[T fmt.Stringer]</code>. Якщо тип один, нічого узагальнювати. Не кидайтесь переписувати все: «два-три однакові цикли» інколи читаються краще за абстракцію. А з готового вже є потрібне: вбудовані <code>min</code>, <code>max</code> (Go 1.21), пакети <code>slices</code> (<code>slices.Contains</code>, <code>slices.Index</code>, <code>slices.Max</code>) і <code>maps</code>. Пастки покажемо в прикладі 4: <code>T any</code> не підтримує оператор <code>+</code>, і компілятор скаже про це прямо. Далі: generic-типи, наприклад <code>Stack[T]</code>.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"cmp"
+	"fmt"
+)
+
+func Max[T cmp.Ordered](a, b T) T {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func main() {
+	fmt.Println(Max(3, 7))
+	fmt.Println(Max("яблуко", "банан"))
+	fmt.Println(Max[float64](1, 2.5))
+	fmt.Println(max(3, 7, 5))
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+func Index[T comparable](s []T, v T) int {
+	for i, x := range s {
+		if x == v {
+			return i
+		}
+	}
+	return -1
+}
+
+type Point struct{ X, Y int }
+
+func main() {
+	fmt.Println(Index([]string{"a", "b", "c"}, "c"))
+	fmt.Println(Index([]int{10, 20}, 5))
+	fmt.Println(Index([]Point{{1, 2}, {3, 4}}, Point{3, 4}))
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+func First[T any](s []T) (T, bool) {
+	if len(s) == 0 {
+		var zero T
+		return zero, false
+	}
+	return s[0], true
+}
+
+func Reverse[T any](s []T) []T {
+	out := make([]T, len(s))
+	for i, x := range s {
+		out[len(s)-1-i] = x
+	}
+	return out
+}
+
+func main() {
+	fmt.Println(First([]int{7, 8}))
+	fmt.Println(First([]string{}))
+	fmt.Println(Reverse([]string{"a", "b", "c"}))
+}
+`,
+      String.raw`// не компілюється: оператор + не визначений для T з обмеженням any
+package main
+
+import "fmt"
+
+func Sum[T any](s []T) T {
+	var total T
+	for _, x := range s {
+		total += x
+	}
+	return total
+}
+
+func main() {
+	fmt.Println(Sum([]int{1, 2, 3}))
+}
+`,
+    ],
+    note: "func F[T Обмеження](...) — параметр типу в квадратних дужках. Обмеження визначає, що можна робити з T: any (нічого), comparable (==), cmp.Ordered (&lt; &gt;). Тип зазвичай виводиться сам; обирайте найслабше обмеження, яке підходить.",
+    work: "Допоміжні функції для слайсів і мап (пошук, перетворення, мін/макс), що не залежать від типу елементів, пишуть generic-ом, а у стандартній бібліотеці вони вже є в slices і maps.",
+    tasks: [
+      "Чому з параметром T any не можна написати a &lt; b, і яке обмеження це дозволяє?",
+      "Коли компілятор виводить параметр типу сам, а коли його треба вказати явно?",
+    ],
+  },
 ];

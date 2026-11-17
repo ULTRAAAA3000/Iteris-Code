@@ -397,5 +397,94 @@ func main() {
       { on: "stdout", name: "Рівно три рядки виводу", equals: "[9 7 5 2 2] [5 2 9 2 7]\n[fig date kiwi pear plum apple banana]\n[pear fig apple kiwi date banana plum]" },
     ],
   },
+  {
+    ...base, id: "go-maps-cmp", lesson: "go/29", xp: 30,
+    title: "maps і cmp: ключі, злиття й значення за замовчуванням",
+    context: "Налаштування зазвичай зливають із типовими значеннями, не псуючи самих типових, а для логів і звітів ключі мапи виводять у стабільному порядку. Саме це робить зв'язка maps, slices і cmp.",
+    brief: [
+      "Допишіть <code>sortedKeys(m map[string]int) []string</code>: ключі мапи за алфавітом (<code>slices.Sorted</code> і <code>maps.Keys</code>).",
+      "Допишіть <code>merged(defaults, override map[string]int) map[string]int</code>: <b>нова</b> мапа з типових значень, поверх яких записано <code>override</code>. Мапа <code>defaults</code> не змінюється.",
+      "Допишіть <code>firstNonEmpty(a, b, c string) string</code>: перший непорожній рядок (<code>cmp.Or</code>). Додайте потрібні імпорти.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func sortedKeys(m map[string]int) []string {
+	// TODO: ключі за алфавітом
+	return nil
+}
+
+func merged(defaults, override map[string]int) map[string]int {
+	// TODO: клон defaults + значення з override
+	return defaults
+}
+
+func firstNonEmpty(a, b, c string) string {
+	// TODO: перший непорожній
+	return ""
+}
+
+func main() {
+	defaults := map[string]int{"retries": 3, "timeout": 30}
+	override := map[string]int{"timeout": 10, "debug": 1}
+	m := merged(defaults, override)
+	fmt.Println(sortedKeys(m))
+	fmt.Println(m)
+	fmt.Println(defaults)
+	fmt.Println(firstNonEmpty("", "", "типово"), firstNonEmpty("", "b", "c"))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Ключі за алфавітом", has: "[debug retries timeout]", hint: "slices.Sorted приймає результат maps.Keys(m)" },
+      { on: "stdout", name: "Злиття: override перекриває типові", has: "map[debug:1 retries:3 timeout:10]", hint: "Спершу maps.Clone(defaults), потім maps.Copy(клон, override)" },
+      { on: "stdout", name: "Типові значення лишилися цілими", has: "map[retries:3 timeout:30]", hint: "Не пишіть у defaults: працюйте з клоном" },
+      { on: "stdout", name: "Перший непорожній рядок", has: "типово b", hint: "cmp.Or(a, b, c) повертає перше ненульове значення" },
+      { on: "source", name: "Використано maps.Keys і maps.Clone", matches: "maps\\.Keys[\\s\\S]*maps\\.Clone|maps\\.Clone[\\s\\S]*maps\\.Keys" },
+      { on: "source", name: "Використано cmp.Or", has: "cmp.Or(" },
+      { on: "stdout", name: "Рівно чотири рядки виводу", equals: "[debug retries timeout]\nmap[debug:1 retries:3 timeout:10]\nmap[retries:3 timeout:30]\nтипово b" },
+    ],
+  },
+  {
+    ...base, id: "go-word-count", lesson: "go/30", xp: 40,
+    title: "Частотний словник: підрахунок і рейтинг",
+    context: "Рейтинг «що трапляється найчастіше» (слова, помилки в логах, запити) будують за схемою: нормалізувати, порахувати в мапі, впорядкувати ключі. Вивід має бути однаковим за кожного запуску.",
+    brief: [
+      "Допишіть <code>wordCount(text string) map[string]int</code>: слова в нижньому регістрі без розділових знаків (<code>strings.FieldsFunc</code>, <code>strings.ToLower</code>, <code>unicode.IsLetter</code>) і скільки разів кожне зустрілося.",
+      "Допишіть <code>topWords(counts map[string]int, n int) []string</code>: не більш як <code>n</code> слів, спершу найчастіші, за однакової частоти за алфавітом.",
+      "Додайте потрібні імпорти. Мапу не обходьте без сортування, інакше вивід буде різним.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func wordCount(text string) map[string]int {
+	// TODO: нормалізація й підрахунок
+	return nil
+}
+
+func topWords(counts map[string]int, n int) []string {
+	// TODO: ключі, сортування за частотою й алфавітом, обрізання до n
+	return nil
+}
+
+func main() {
+	counts := wordCount("Go is fun, and go is fast. GO!")
+	fmt.Println(len(counts))
+	for _, w := range topWords(counts, 3) {
+		fmt.Println(w, counts[w])
+	}
+	fmt.Println(len(topWords(counts, 10)))
+}
+`,
+    checks: [
+      { on: "stdout", name: "П'ять різних слів після нормалізації", has: "5\n", hint: "«Go», «go» і «GO!» мають стати одним ключем: ToLower і викинути пунктуацію" },
+      { on: "stdout", name: "Рейтинг: go 3, is 2, and 1", has: "go 3\nis 2\nand 1", hint: "Порівнюйте частоти за спаданням, а за рівних порівняйте самі слова" },
+      { on: "stdout", name: "Для n більшого за кількість слів повертаються всі п'ять", has: "and 1\n5", hint: "Обрізайте слайс до min(n, len(words))" },
+      { on: "source", name: "Слова розрізано з урахуванням літер", matches: "FieldsFunc|unicode\\.IsLetter" },
+      { on: "source", name: "Ключі впорядковано", matches: "slices\\.Sort|sort\\.Slice|sort\\.Strings" },
+      { on: "stdout", name: "Рівно п'ять рядків виводу", equals: "5\ngo 3\nis 2\nand 1\n5" },
+    ],
+  },
   // NEXT
 ];

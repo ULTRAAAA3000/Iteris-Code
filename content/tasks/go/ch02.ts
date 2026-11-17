@@ -244,5 +244,166 @@ func main() {
       { on: "source", name: "Вивід через Fprintf до os.Stdout", matches: "fmt\\.Fprintf\\(\\s*os\\.Stdout" },
     ],
   },
+  {
+    ...base, id: "go-if-category", lesson: "go/11", xp: 20,
+    title: "Вікові категорії й розбір віку",
+    context: "Перевірки введення, ранній вихід із функції та розбір рядка в короткому <code>if</code> — основа обробки будь-якої форми чи запиту.",
+    brief: [
+      "Допишіть <code>category(age int) string</code> із раннім виходом через <code>return</code>: менше нуля — <code>помилка</code>, до 12 — <code>дитина</code>, до 18 — <code>підліток</code>, інакше — <code>дорослий</code>.",
+      "Допишіть <code>parseAge(s string) string</code>: розберіть рядок у <b>короткому оголошенні в <code>if</code></b>. Якщо розбір вдався — поверніть <code>category(n)</code>, інакше <code>не число</code>.",
+    ],
+    starter: raw`package main
+
+import (
+	"fmt"
+	"strconv"
+)
+
+func category(age int) string {
+	// TODO: ранні return для кожної категорії
+	return ""
+}
+
+func parseAge(s string) string {
+	// TODO: if n, err := ...; err != nil { ... }
+	_, _ = strconv.Atoi(s)
+	return ""
+}
+
+func main() {
+	fmt.Println(category(-1))
+	fmt.Println(category(5))
+	fmt.Println(category(15))
+	fmt.Println(category(40))
+	fmt.Println(parseAge("17"))
+	fmt.Println(parseAge("abc"))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Категорії: помилка, дитина, підліток, дорослий", has: "помилка\nдитина\nпідліток\nдорослий", hint: "Перевіряйте від меншого до більшого: if age < 0 { return … }" },
+      { on: "stdout", name: "Рядок «17» дає «підліток»", has: "підліток\nне число", hint: "if n, err := strconv.Atoi(s); err == nil { return category(n) }" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "помилка\nдитина\nпідліток\nдорослий\nпідліток\nне число" },
+      { on: "source", name: "Коротке оголошення в if", matches: "if\\s+\\w+,\\s*\\w+\\s*:=" },
+    ],
+  },
+  {
+    ...base, id: "go-switch-calendar", lesson: "go/12", xp: 20,
+    title: "Дні в місяці та оцінки",
+    context: "Таблиці відповідності (код → текст, місяць → кількість днів, бал → оцінка) у Go природно пишуться через <code>switch</code>.",
+    brief: [
+      "Допишіть <code>daysIn(month int, leap bool) int</code> через <code>switch</code> зі значеннями через кому: 31 день у місяцях 1, 3, 5, 7, 8, 10, 12; 30 — у 4, 6, 9, 11; лютий (2) має 28 або 29 днів залежно від <code>leap</code>; для інших номерів поверніть 0.",
+      "Допишіть <code>rating(score int) string</code> через <b>switch без виразу</b>: від 90 — <code>відмінно</code>, від 75 — <code>добре</code>, від 60 — <code>задовільно</code>, інакше <code>незадовільно</code>.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func daysIn(month int, leap bool) int {
+	// TODO: switch month { case 1, 3, ...: }
+	return 0
+}
+
+func rating(score int) string {
+	// TODO: switch без виразу
+	return ""
+}
+
+func main() {
+	fmt.Println(daysIn(1, false), daysIn(4, false), daysIn(2, false), daysIn(2, true), daysIn(13, false))
+	fmt.Println(rating(95), rating(80), rating(60), rating(10))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Дні: 31 30 28 29 0", has: "31 30 28 29 0", hint: "Лютий: if leap { return 29 }, інакше 28; default → 0" },
+      { on: "stdout", name: "Оцінки за балами", has: "відмінно добре задовільно незадовільно", hint: "case score >= 90: … — гілки зверху вниз, від найвищого порогу" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "31 30 28 29 0\nвідмінно добре задовільно незадовільно" },
+      { on: "source", name: "Використано switch", matches: "\\bswitch\\b" },
+      { on: "source", name: "Кілька значень в одному case", matches: "case\\s+\\d+,\\s*\\d+" },
+    ],
+  },
+  {
+    ...base, id: "go-for-forms", lesson: "go/13", xp: 25,
+    title: "Три форми циклу for",
+    context: "Сума, обчислення «поки не» й повторення N разів — три найчастіші причини писати цикл. У кожного своя форма <code>for</code>.",
+    brief: [
+      "Допишіть <code>sumTo(n int) int</code> класичним циклом із трьома частинами: сума чисел від 1 до <code>n</code>.",
+      "Допишіть <code>steps(n int) int</code> циклом із умовою: скільки кроків потрібно, щоб за правилом «парне діли на 2, непарне множ на 3 і додай 1» дійти до 1. Для 6 це 8 кроків.",
+      "Допишіть <code>repeat(s string, k int) string</code>: склейте <code>s</code> рівно <code>k</code> разів через <code>for range</code> за <b>цілим числом</b> (Go 1.22).",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func sumTo(n int) int {
+	// TODO: for i := 1; i <= n; i++
+	return 0
+}
+
+func steps(n int) int {
+	// TODO: for n != 1 { ... }
+	return 0
+}
+
+func repeat(s string, k int) string {
+	// TODO: for range k
+	return ""
+}
+
+func main() {
+	fmt.Println(sumTo(100), steps(6), steps(27))
+	fmt.Println(repeat("ab", 3))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Суми й кроки: 5050 8 111", has: "5050 8 111", hint: "У steps: якщо n%2 == 0 { n /= 2 } інакше { n = 3*n + 1 }, і лічильник кроків" },
+      { on: "stdout", name: "Повтор рядка: ababab", has: "ababab", hint: "result += s на кожній ітерації" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "5050 8 111\nababab" },
+      { on: "source", name: "Класичний цикл із трьома частинами", matches: "for\\s+\\w+\\s*:=\\s*\\w+;" },
+      { on: "source", name: "Цикл за цілим числом: for range", matches: "for\\s+(\\w+\\s*:=\\s*)?range\\s+\\w+" },
+    ],
+  },
+  {
+    ...base, id: "go-loop-control", lesson: "go/14", xp: 30,
+    title: "Пошук пари й прості числа з мітками",
+    context: "Вихід із вкладених циклів і відсів зайвого — щоденні задачі при обробці таблиць, сіток і журналів. Мітки роблять це явним.",
+    brief: [
+      "Допишіть <code>oddSumUnder(max int) int</code>: додавайте непарні числа 1, 3, 5, … (парні пропускайте через <code>continue</code>), але зупиніться через <code>break</code>, щойно наступна сума перевищила б <code>max</code>. Для 50 результат 49.",
+      "Допишіть <code>search(target int) string</code>: у вкладених циклах <code>a</code> від 1 до 9 і <code>b</code> від <code>a</code> до 9 знайдіть першу пару з <code>a*b == target</code>, запишіть її як <code>4x9</code> і вийдіть з обох циклів через <code>break</code> із міткою. Якщо пари немає, поверніть <code>немає</code>.",
+      "Допишіть <code>countPrimes(limit int) int</code>: кількість простих чисел менших за <code>limit</code>; для відсіву складених використайте <code>continue</code> із міткою зовнішнього циклу.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func oddSumUnder(max int) int {
+	// TODO: continue для парних, break при перевищенні
+	return 0
+}
+
+func search(target int) string {
+	// TODO: outer: for a ... { for b ... { break outer } }
+	return ""
+}
+
+func countPrimes(limit int) int {
+	// TODO: next: for n ... { for d ... { continue next } }
+	return 0
+}
+
+func main() {
+	fmt.Println(oddSumUnder(50))
+	fmt.Println(search(36), search(7), search(100))
+	fmt.Println(countPrimes(20))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Сума непарних: 49", has: "49\n", hint: "Перед додаванням перевірте sum+i > max, і тоді break" },
+      { on: "stdout", name: "Пошук пар: 4x9 1x7 немає", has: "4x9 1x7 немає", hint: "Результат запишіть у змінну й зробіть break outer" },
+      { on: "stdout", name: "Простих менше 20: вісім", has: "\n8" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "49\n4x9 1x7 немає\n8" },
+      { on: "source", name: "break з міткою", matches: "break\\s+\\w+" },
+      { on: "source", name: "continue з міткою", matches: "continue\\s+\\w+" },
+    ],
+  },
 //__END__
 ];

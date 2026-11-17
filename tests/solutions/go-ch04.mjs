@@ -212,4 +212,137 @@ func main() {
 	fmt.Println(Warn >= Info)
 }
 `,
+  "go-compare-copy": raw`package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type Point struct {
+	X, Y int
+}
+
+func distinct(pts []Point) int {
+	seen := map[Point]bool{}
+	for _, p := range pts {
+		seen[p] = true
+	}
+	return len(seen)
+}
+
+type Team struct {
+	Name    string
+	Members []string
+}
+
+func (t Team) Clone() Team {
+	members := make([]string, len(t.Members))
+	copy(members, t.Members)
+	t.Members = members
+	return t
+}
+
+type User struct {
+	Name  string ${BT}json:"name"${BT}
+	Email string ${BT}json:"email,omitempty"${BT}
+	Age   int    ${BT}json:"-"${BT}
+}
+
+func main() {
+	pts := []Point{{1, 2}, {3, 4}, {1, 2}, {3, 4}, {5, 6}}
+	fmt.Println(distinct(pts))
+
+	a := Team{"Alpha", []string{"Ірина", "Олег"}}
+	b := a.Clone()
+	b.Members[0] = "Марко"
+	fmt.Println(a.Members, b.Members)
+
+	t := reflect.TypeOf(User{})
+	for i := range t.NumField() {
+		f := t.Field(i)
+		fmt.Printf("%s %q\n", f.Name, f.Tag.Get("json"))
+	}
+}
+`,
+  "go-functional-options": raw`package main
+
+import "fmt"
+
+type Server struct {
+	host    string
+	port    int
+	tls     bool
+	timeout int
+}
+
+type Option func(*Server)
+
+func WithPort(p int) Option {
+	return func(s *Server) {
+		s.port = p
+	}
+}
+
+func WithTLS() Option {
+	return func(s *Server) {
+		s.tls = true
+	}
+}
+
+func WithTimeout(sec int) Option {
+	return func(s *Server) {
+		s.timeout = sec
+	}
+}
+
+func NewServer(host string, opts ...Option) *Server {
+	s := &Server{host: host, port: 8080, timeout: 30}
+	for _, opt := range opts {
+		opt(s)
+	}
+	return s
+}
+
+func main() {
+	a := NewServer("localhost")
+	b := NewServer("example.com", WithPort(443), WithTLS(), WithTimeout(5))
+	c := NewServer("x.io", WithPort(1), WithPort(9000))
+	fmt.Printf("%+v\n", *a)
+	fmt.Printf("%+v\n", *b)
+	fmt.Println(c.port)
+}
+`,
+  "go-memory-layout": raw`package main
+
+import (
+	"fmt"
+	"unsafe"
+)
+
+type Bad struct {
+	Active bool
+	ID     int64
+	Flag   bool
+	Count  int32
+	Small  int8
+}
+
+type Good struct {
+	ID     int64
+	Count  int32
+	Active bool
+	Flag   bool
+	Small  int8
+}
+
+func savedBytes(n int) uintptr {
+	return uintptr(n) * (unsafe.Sizeof(Bad{}) - unsafe.Sizeof(Good{}))
+}
+
+func main() {
+	fmt.Println(unsafe.Sizeof(Bad{}), unsafe.Sizeof(Good{}))
+	fmt.Println(savedBytes(1000000))
+}
+`,
 };

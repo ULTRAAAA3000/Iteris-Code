@@ -1053,5 +1053,282 @@ func main() {
       "Що таке стабільне сортування й коли воно важливе? Наведіть приклад зі словами однакової довжини.",
     ],
   },
+  {
+    t: "Пакети maps і cmp",
+    ch: "Колекції",
+    adv: true,
+    easy: "Пакет <code>maps</code> — це набір готових дій над мапою: скопіювати, порівняти, дістати ключі. Пакет <code>cmp</code> — «лінійка», якою порівнюють два значення й обирають перше ненульове.",
+    p: [
+      "У мапах двічі виникає однакова біда: порядок обходу випадковий, а копіювати й порівнювати їх оператором <code>==</code> не можна. Раніше для цього писали цикли вручну. Пакет <code>maps</code> (Go 1.21) дає готові функції, а з Go 1.23 його <code>Keys</code> і <code>Values</code> повертають не слайс, а <b>ітератор</b>. Ітератор тут можна уявити як «функцію, яку вміє обходити <code>for range</code>»: вона віддає елементи по одному й не будує слайс у пам'яті. Тип називається <code>iter.Seq[string]</code> (послідовність рядків), але вам не потрібно імпортувати <code>iter</code>.",
+      "<b>Ключі за алфавітом.</b> Найчастіша потреба — пройти мапою у стабільному порядку. Ідіома з Go 1.23: <code>slices.Sorted(maps.Keys(m))</code>. Функція <code>maps.Keys</code> віддає ключі, а <code>slices.Sorted</code> збирає їх у <b>новий відсортований слайс</b>. Для значень те саме: <code>slices.Sorted(maps.Values(m))</code>. Якщо сортувати не треба, вживайте <code>slices.Collect(maps.Keys(m))</code>: він збере ітератор у слайс у довільному порядку (порядок мапи не гарантований, тому для виводу так не робіть). Старий спосіб — цикл із <code>append</code> і <code>sort.Strings</code> — працює й досі, але ідіома коротша й нічого не забуде.",
+      "<b>Копіювання.</b> Присвоєння <code>b := a</code> для мап копіює лише <i>посилання</i>: це одна й та сама мапа (так само, як із слайсами). Справжню незалежну копію дає <code>maps.Clone(m)</code>; вона неглибока, тобто значення-слайси чи вкладені мапи лишаються спільними. Клон <code>nil</code>-мапи теж <code>nil</code>. <code>maps.Copy(dst, src)</code> переписує пари з <code>src</code> у наявну мапу <code>dst</code>: збіжні ключі перезаписуються. Так зливають налаштування за замовчуванням із користувацькими. <code>maps.Equal(a, b)</code> каже, чи однакові всі пари (потрібні порівнювані значення).",
+      "<b>Видалення за умовою.</b> <code>maps.DeleteFunc(m, func(k K, v V) bool)</code> видаляє всі пари, для яких функція повертає <code>true</code>. Видаляти елементи під час <code>range</code> Go дозволяє, але <code>DeleteFunc</code> виразніша: умова записана в одному місці. Наприклад, прибрати з складу товари з нульовим залишком: <code>maps.DeleteFunc(stock, func(k string, v int) bool { return v == 0 })</code>. Мапа змінюється <b>на місці</b>, нічого не повертається.",
+      "<b>Пакет cmp.</b> <code>cmp.Compare(a, b)</code> повертає <code>-1</code>, <code>0</code> або <code>1</code> для будь-яких впорядкованих типів (числа, рядки). Саме таку функцію чекає <code>slices.SortFunc</code>, тому писати <code>if a &lt; b { return -1 }</code> вручну не треба; <code>cmp.Less(a, b)</code> дає <code>bool</code>. Для <code>float64</code> <code>Compare</code> ще й коректно ставиться до NaN (вважає його меншим за все). Друга функція — <code>cmp.Or(x, y, z...)</code>: вона повертає <b>перше значення, що не дорівнює нулю</b> свого типу. Це зручно для значень за замовчуванням: <code>cmp.Or(port, 8080)</code> дасть 8080, якщо <code>port</code> нульовий, а <code>cmp.Or(name, \"невідомо\")</code> замінить порожній рядок.",
+      "<b>Сортування за кількома ключами.</b> Поєднайте обидві функції: <code>cmp.Or(cmp.Compare(b.Count, a.Count), cmp.Compare(a.Name, b.Name))</code>. Перший <code>Compare</code> порівнює за кількістю (аргументи поміняно, тож порядок спадний). Якщо кількість однакова, він повертає 0, а <code>Or</code> пропускає нуль і бере результат другого порівняння: за іменем. Це чистіша заміна вкладеним <code>if</code>. Зверніть увагу: усі аргументи <code>Or</code> обчислюються заздалегідь (це звичайна функція), що для дешевих порівнянь нормально.",
+      "<b>Пастки.</b> Перша: <code>maps.Keys</code> — не слайс, тож <code>len(maps.Keys(m))</code> і <code>sort.Strings(maps.Keys(m))</code> не компілюються. Потрібен <code>slices.Collect</code> або <code>slices.Sorted</code>. Друга: порядок <code>Collect</code> непередбачуваний, і тест чи вивід на ньому «моргатимуть». Третя: <code>cmp.Or</code> вважає <i>нуль</i> «відсутнім», тож якщо 0 — допустиме значення (наприклад, прапорець), використовуйте звичайний <code>if</code>. Обидва пакети разом із <code>slices</code> складають мінімальний набір для роботи з колекціями; далі зберемо їх у практичній задачі про частотний словник.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"maps"
+	"slices"
+)
+
+func main() {
+	stock := map[string]int{"яблуко": 5, "груша": 0, "слива": 3}
+
+	keys := slices.Sorted(maps.Keys(stock))
+	fmt.Println(keys)
+
+	vals := slices.Sorted(maps.Values(stock))
+	fmt.Println(vals)
+
+	unsorted := slices.Collect(maps.Keys(stock))
+	fmt.Println(len(unsorted))
+
+	for _, k := range slices.Sorted(maps.Keys(stock)) {
+		fmt.Println(k, stock[k])
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"maps"
+)
+
+func main() {
+	orig := map[string]int{"a": 1, "b": 2, "c": 3}
+	cp := maps.Clone(orig)
+	cp["a"] = 100
+	fmt.Println(orig["a"], cp["a"])
+
+	alias := orig
+	alias["b"] = 20
+	fmt.Println(orig["b"])
+
+	maps.DeleteFunc(cp, func(k string, v int) bool { return v > 50 })
+	fmt.Println(len(cp), maps.Equal(orig, cp))
+
+	defaults := map[string]int{"x": 1, "y": 2}
+	override := map[string]int{"y": 20, "z": 30}
+	maps.Copy(defaults, override)
+	fmt.Println(defaults)
+
+	var none map[string]int
+	c := maps.Clone(none)
+	fmt.Println(c == nil, len(c))
+}
+`,
+      String.raw`package main
+
+import (
+	"cmp"
+	"fmt"
+	"slices"
+)
+
+type Item struct {
+	Name  string
+	Count int
+}
+
+func main() {
+	fmt.Println(cmp.Compare(3, 7), cmp.Compare("b", "a"), cmp.Compare(2.5, 2.5))
+	fmt.Println(cmp.Less(1, 2))
+
+	fmt.Println(cmp.Or("", "", "типово"), cmp.Or(0, 8080, 9090))
+	port := 0
+	fmt.Println(cmp.Or(port, 8080))
+
+	items := []Item{{"fig", 2}, {"apple", 5}, {"kiwi", 5}, {"date", 2}}
+	slices.SortFunc(items, func(a, b Item) int {
+		return cmp.Or(
+			cmp.Compare(b.Count, a.Count),
+			cmp.Compare(a.Name, b.Name),
+		)
+	})
+	fmt.Println(items)
+}
+`,
+      String.raw`// не компілюється: maps.Keys повертає ітератор, а не слайс
+package main
+
+import (
+	"fmt"
+	"maps"
+	"sort"
+)
+
+func main() {
+	m := map[string]int{"b": 2, "a": 1}
+	keys := maps.Keys(m)
+	sort.Strings(keys)
+	fmt.Println(keys, len(keys))
+}
+`,
+    ],
+    note: "<code>maps.Keys</code> і <code>maps.Values</code> віддають ітератор, не слайс: для впорядкованого виводу пишіть <code>slices.Sorted(maps.Keys(m))</code>. <code>maps.Clone</code> — неглибока копія, а <code>b := a</code> копії не робить. <code>cmp.Or</code> повертає перше <b>ненульове</b> значення.",
+    work: "Стабільний порядок ключів потрібен у логах, звітах, відповідях API й тестах, де вивід має збігатися щораз. <code>maps.Clone</code> захищає від випадкових змін спільної мапи (наприклад, конфігурації), а <code>cmp.Or</code> із <code>cmp.Compare</code> стала стандартною формою багатополівного сортування й значень за замовчуванням у сучасному Go-коді.",
+    tasks: [
+      "Є мапа <code>map[string]int</code>. Виведіть пари за зростанням ключа, використавши <code>maps.Keys</code> і <code>slices.Sorted</code>.",
+      "Чому <code>b := a</code> для мап не створює копію й чим допомагає <code>maps.Clone</code>? Що залишається спільним після неглибокого клонування?",
+    ],
+  },
+  {
+    t: "Практика: частотний словник",
+    ch: "Колекції",
+    easy: "Частотний словник — це табличка «слово → скільки разів зустрілося», у якій найчастіші слова стоять нагорі. Так само підраховують голоси на виборах: кожен голос додає одиницю до свого кандидата.",
+    p: [
+      "Практика: об'єднаємо все з глави в одну програму. <b>Частотний словник</b> — задача, яку розв'язують і в навчанні, і в роботі: порахувати, скільки разів зустрівся кожен елемент (слово в тексті, код помилки в логах, URL у трафіку), і показати найчастіші. Вона торкається всього: рядків, слайсів, мап, сортування. Розіб'ємо її на кроки: <i>розрізати текст на слова</i>, <i>порахувати</i>, <i>впорядкувати</i>, <i>вивести</i>. Кожен крок маленька функція, яку легко перевірити окремо.",
+      "<b>Крок 1: слова.</b> Функція <code>strings.Fields(s)</code> ріже рядок за будь-якими пробільними символами (пробіл, таб, перенесення рядка) і викидає порожні шматки. Для простого тексту цього досить: <code>\"go is fun\"</code> дає три слова. <b>Крок 2: підрахунок.</b> Створюємо мапу <code>counts := make(map[string]int)</code> й для кожного слова пишемо <code>counts[w]++</code>. Це працює завдяки нульовому значенню: відсутній ключ читається як <code>0</code>, тож <code>++</code> перетворює його на <code>1</code>, а перевіряти наявність ключа не треба. Це найпоширеніша ідіома мап у Go.",
+      "<b>Нормалізація.</b> Справжній текст брудніший: «Go», «go!» і «GO?» для людини одне слово, а для мапи — три різні ключі. Тому слова нормалізують: приводять до нижнього регістру (<code>strings.ToLower</code>, працює й з кирилицею) і відкидають розділові знаки. Для цього є <code>strings.FieldsFunc(s, f)</code>: вона ріже рядок у тих місцях, де функція <code>f(r rune) bool</code> повертає <code>true</code>. Нам потрібні «не літери», тож <code>f</code> — це <code>!unicode.IsLetter(r)</code> (пакет <code>unicode</code> знає літери всіх мов). Функція отримує <b>руни</b>, а не байти, тому українські слова не ламаються (пам'ятаєте урок про рядки й руни). Якщо апостроф має лишатися частиною слова (<code>it's</code>), додайте його у виняток.",
+      "<b>Крок 3: впорядкування.</b> Мапа не має порядку, а нам потрібен рейтинг: найчастіші спершу, а за однакової частоти за алфавітом (інакше вивід буде різним за кожного запуску). Збираємо ключі: <code>slices.Collect(maps.Keys(counts))</code>, і сортуємо їх через <code>slices.SortFunc</code>. Порівнювач замикається на мапу й порівнює <i>частоти</i>: <code>cmp.Compare(counts[b], counts[a])</code> (аргументи поміняно, бо порядок спадний), а якщо вони рівні, <code>cmp.Or</code> переходить до <code>cmp.Compare(a, b)</code>, тобто до алфавіту. Це той самий прийом із попереднього уроку, тільки тепер на живому завданні. Структур ще не знаємо, тому обходимося мапою й відсортованим слайсом ключів: слайс задає порядок, мапа дає числа.",
+      "<b>Крок 4: вивід і топ-N.</b> Перебір слайсу ключів у циклі дає детермінований вивід: <code>for i, w := range words { fmt.Printf(\"%d. %-5s %d\\n\", i+1, w, counts[w]) }</code>. Дієслово <code>%-5s</code> вирівнює слово по лівому краю в полі з п'яти символів, тож колонки стоять рівно. Щоб узяти лише топ-3, обріжте слайс: <code>words[:3]</code>, але спершу перевірте довжину (<code>min(3, len(words))</code> робить це в один вираз), інакше на коротких даних буде аварія. Повний приклад із кількома рядками тексту, функціями <code>frequencies</code> та <code>ranked</code> дивіться нижче: він збирає всі кроки докупи.",
+      "<b>Пастки.</b> Перша: <b>запис у <code>nil</code>-мапу</b> — аварія. <code>var counts map[string]int</code> дає нульову мапу: читати з неї можна, а <code>counts[w]++</code> викликає <code>panic: assignment to entry in nil map</code>. Завжди створюйте мапу через <code>make</code> або літерал. Друга: порядок обходу мапи <code>for w := range counts</code> випадковий, тож виводити результат без сортування не можна. (<code>fmt.Println(counts)</code> виняток: <code>fmt</code> сам друкує мапу з відсортованими ключами.) Третя: порожній рядок і пунктуація дають «порожні слова», якщо різати вручну через <code>strings.Split(text, \" \")</code>: подвійний пробіл породжує порожній елемент. Тому віддавайте перевагу <code>Fields</code> і <code>FieldsFunc</code>.",
+      "<b>Ідіоми й підсумок.</b> Розділяйте обчислення й вивід: <code>frequencies(lines)</code> повертає мапу, <code>ranked(counts)</code> повертає впорядкований слайс, а <code>main</code> лише друкує. Так функції легко перевірити по одній, і тепер ви бачите, як усі колекції працюють разом: слайс слів, мапа лічильників, відсортований слайс ключів. Наступна глава про структури й вказівники: вони дадуть змогу тримати слово й частоту разом в одному значенні, а не у двох паралельних структурах.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"strings"
+)
+
+func main() {
+	text := "go is fun and go is fast"
+	words := strings.Fields(text)
+	fmt.Println(len(words), words)
+
+	counts := make(map[string]int)
+	for _, w := range words {
+		counts[w]++
+	}
+	fmt.Println(counts)
+	fmt.Println(counts["go"], counts["rust"])
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"strings"
+	"unicode"
+)
+
+func tokens(text string) []string {
+	return strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !unicode.IsLetter(r) && r != '\''
+	})
+}
+
+func main() {
+	fmt.Printf("%q\n", strings.Fields("Go, go! GO?"))
+	fmt.Printf("%q\n", tokens("Go, go! GO?"))
+	fmt.Printf("%q\n", tokens("Привіт, світе! ПРИВІТ... it's fine"))
+}
+`,
+      String.raw`package main
+
+import (
+	"cmp"
+	"fmt"
+	"maps"
+	"slices"
+)
+
+func main() {
+	counts := map[string]int{"go": 3, "is": 2, "fun": 1, "and": 1, "fast": 1}
+
+	words := slices.Collect(maps.Keys(counts))
+	slices.SortFunc(words, func(a, b string) int {
+		return cmp.Or(
+			cmp.Compare(counts[b], counts[a]),
+			cmp.Compare(a, b),
+		)
+	})
+	for i, w := range words {
+		fmt.Printf("%d. %-5s %d\n", i+1, w, counts[w])
+	}
+
+	if len(words) > 3 {
+		words = words[:3]
+	}
+	fmt.Println(words)
+}
+`,
+      String.raw`package main
+
+import (
+	"cmp"
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
+	"unicode"
+)
+
+func frequencies(lines []string) map[string]int {
+	counts := make(map[string]int)
+	for _, line := range lines {
+		words := strings.FieldsFunc(strings.ToLower(line), func(r rune) bool {
+			return !unicode.IsLetter(r)
+		})
+		for _, w := range words {
+			counts[w]++
+		}
+	}
+	return counts
+}
+
+func ranked(counts map[string]int) []string {
+	words := slices.Collect(maps.Keys(counts))
+	slices.SortFunc(words, func(a, b string) int {
+		return cmp.Or(cmp.Compare(counts[b], counts[a]), cmp.Compare(a, b))
+	})
+	return words
+}
+
+func main() {
+	lines := []string{
+		"Go is fun, and Go is fast.",
+		"Fast code? Go!",
+		"Мова Go: проста мова.",
+	}
+	counts := frequencies(lines)
+	total := 0
+	for _, n := range counts {
+		total += n
+	}
+	fmt.Println("унікальних:", len(counts), "усього:", total)
+	for _, w := range ranked(counts)[:4] {
+		fmt.Println(w, counts[w])
+	}
+}
+`,
+      String.raw`// аварія: запис у nil-мапу
+package main
+
+import "fmt"
+
+func main() {
+	var counts map[string]int
+	fmt.Println(counts["go"], len(counts))
+	counts["go"]++
+	fmt.Println(counts)
+}
+`,
+    ],
+    note: "Лічильник у мапі пишуть як <code>counts[w]++</code>: відсутній ключ дорівнює нулю. Мапу створюйте через <code>make</code> (запис у <code>nil</code>-мапу — аварія), а для виводу впорядковуйте ключі, інакше порядок щоразу інший. Перед підрахунком слова нормалізують: нижній регістр і без розділових знаків.",
+    work: "Частотні підрахунки трапляються в аналітиці логів (які помилки найчастіші), пошуку (вага слів), аналізі трафіку, тегах і хмарах слів. Шаблон «розрізати → порахувати в мапі → впорядкувати ключі → вивести» ви зустрінете в сотнях програм, а топ-N за частотою часто питають на співбесідах.",
+    tasks: [
+      "Змініть <code>ranked</code> так, щоб за однакової частоти слова йшли за <i>спаданням</i> алфавіту. Що саме треба поміняти в порівнювачі?",
+      "Чому <code>for w := range counts</code> без сортування ключів не годиться для виводу, і що станеться, якщо спробувати збільшити лічильник у мапі, оголошеній через <code>var counts map[string]int</code>?",
+    ],
+  },
   // NEXT
 ];

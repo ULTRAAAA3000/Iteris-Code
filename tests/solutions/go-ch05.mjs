@@ -127,4 +127,153 @@ func main() {
 	}
 }
 `,
+  "go-money-stringer": raw`package main
+
+import "fmt"
+
+type Money int
+
+func (m Money) String() string {
+	return fmt.Sprintf("%d.%02d грн", int(m)/100, int(m)%100)
+}
+
+type NoFunds struct{ Need, Have Money }
+
+func (e NoFunds) Error() string {
+	return fmt.Sprintf("недостатньо коштів: потрібно %s, є %s", e.Need, e.Have)
+}
+
+func Withdraw(balance, amount Money) (Money, error) {
+	if amount > balance {
+		return balance, NoFunds{amount, balance}
+	}
+	return balance - amount, nil
+}
+
+func main() {
+	b := Money(10050)
+	fmt.Println(b)
+	b, err := Withdraw(b, 2575)
+	fmt.Println(b, err)
+	_, err = Withdraw(b, 50000)
+	fmt.Println("помилка:", err)
+}
+`,
+  "go-line-counter-writer": raw`package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strings"
+)
+
+type LineCounter struct {
+	W     io.Writer
+	Lines int
+}
+
+func (c *LineCounter) Write(p []byte) (int, error) {
+	c.Lines += bytes.Count(p, []byte("\n"))
+	return c.W.Write(p)
+}
+
+func main() {
+	var buf bytes.Buffer
+	lc := &LineCounter{W: &buf}
+	n, err := io.Copy(lc, strings.NewReader("a\nb\nc\n"))
+	fmt.Println(n, err, lc.Lines)
+	fmt.Fprintf(lc, "x\ny")
+	fmt.Println("Рядків:", lc.Lines)
+	fmt.Printf("%q\n", buf.String())
+}
+`,
+  "go-sort-interface": raw`package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+type Employee struct {
+	Name   string
+	Dept   string
+	Salary int
+}
+
+type ByDeptSalary []Employee
+
+func (b ByDeptSalary) Len() int      { return len(b) }
+func (b ByDeptSalary) Swap(i, j int) { b[i], b[j] = b[j], b[i] }
+func (b ByDeptSalary) Less(i, j int) bool {
+	if b[i].Dept != b[j].Dept {
+		return b[i].Dept < b[j].Dept
+	}
+	if b[i].Salary != b[j].Salary {
+		return b[i].Salary > b[j].Salary
+	}
+	return b[i].Name < b[j].Name
+}
+
+func main() {
+	staff := []Employee{
+		{"Ann", "dev", 5000}, {"Bob", "ops", 3000}, {"Cid", "dev", 7000},
+		{"Dan", "ops", 3000}, {"Eva", "dev", 5000},
+	}
+	sort.Sort(ByDeptSalary(staff))
+	for _, e := range staff {
+		fmt.Println(e.Dept, e.Name, e.Salary)
+	}
+	fmt.Println("відсортовано:", sort.IsSorted(ByDeptSalary(staff)))
+}
+`,
+  "go-generic-funcs": raw`package main
+
+import (
+	"cmp"
+	"fmt"
+)
+
+func Max[T cmp.Ordered](s []T) (T, bool) {
+	var zero T
+	if len(s) == 0 {
+		return zero, false
+	}
+	m := s[0]
+	for _, x := range s[1:] {
+		if x > m {
+			m = x
+		}
+	}
+	return m, true
+}
+
+func IndexOf[T comparable](s []T, v T) int {
+	for i, x := range s {
+		if x == v {
+			return i
+		}
+	}
+	return -1
+}
+
+func Reverse[T any](s []T) []T {
+	out := make([]T, len(s))
+	for i, x := range s {
+		out[len(s)-1-i] = x
+	}
+	return out
+}
+
+func main() {
+	fmt.Println(Max([]int{3, 9, 4}))
+	fmt.Println(Max([]string{"kiwi", "apple", "pear"}))
+	fmt.Println(Max([]float64{}))
+	fmt.Println(IndexOf([]string{"a", "b", "c"}, "c"))
+	fmt.Println(IndexOf([]int{1, 2}, 7))
+	orig := []int{1, 2, 3}
+	fmt.Println(Reverse(orig), orig)
+	fmt.Println(Reverse([]string{"a", "b"}))
+}
+`,
 };

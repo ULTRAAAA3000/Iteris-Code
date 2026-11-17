@@ -143,5 +143,169 @@ func main() {
 	fmt.Fprintf(os.Stdout, "%d = %x = %b\n", 255, 255, 255)
 }
 `,
+  "go-if-category": raw`package main
+
+import (
+	"fmt"
+	"strconv"
+)
+
+func category(age int) string {
+	if age < 0 {
+		return "помилка"
+	}
+	if age < 12 {
+		return "дитина"
+	}
+	if age < 18 {
+		return "підліток"
+	}
+	return "дорослий"
+}
+
+func parseAge(s string) string {
+	if n, err := strconv.Atoi(s); err == nil {
+		return category(n)
+	}
+	return "не число"
+}
+
+func main() {
+	fmt.Println(category(-1))
+	fmt.Println(category(5))
+	fmt.Println(category(15))
+	fmt.Println(category(40))
+	fmt.Println(parseAge("17"))
+	fmt.Println(parseAge("abc"))
+}
+`,
+  "go-switch-calendar": raw`package main
+
+import "fmt"
+
+func daysIn(month int, leap bool) int {
+	switch month {
+	case 1, 3, 5, 7, 8, 10, 12:
+		return 31
+	case 4, 6, 9, 11:
+		return 30
+	case 2:
+		if leap {
+			return 29
+		}
+		return 28
+	default:
+		return 0
+	}
+}
+
+func rating(score int) string {
+	switch {
+	case score >= 90:
+		return "відмінно"
+	case score >= 75:
+		return "добре"
+	case score >= 60:
+		return "задовільно"
+	default:
+		return "незадовільно"
+	}
+}
+
+func main() {
+	fmt.Println(daysIn(1, false), daysIn(4, false), daysIn(2, false), daysIn(2, true), daysIn(13, false))
+	fmt.Println(rating(95), rating(80), rating(60), rating(10))
+}
+`,
+  "go-for-forms": raw`package main
+
+import "fmt"
+
+func sumTo(n int) int {
+	sum := 0
+	for i := 1; i <= n; i++ {
+		sum += i
+	}
+	return sum
+}
+
+func steps(n int) int {
+	count := 0
+	for n != 1 {
+		if n%2 == 0 {
+			n /= 2
+		} else {
+			n = 3*n + 1
+		}
+		count++
+	}
+	return count
+}
+
+func repeat(s string, k int) string {
+	result := ""
+	for range k {
+		result += s
+	}
+	return result
+}
+
+func main() {
+	fmt.Println(sumTo(100), steps(6), steps(27))
+	fmt.Println(repeat("ab", 3))
+}
+`,
+  "go-loop-control": raw`package main
+
+import "fmt"
+
+func oddSumUnder(max int) int {
+	sum := 0
+	for i := 1; ; i++ {
+		if i%2 == 0 {
+			continue
+		}
+		if sum+i > max {
+			break
+		}
+		sum += i
+	}
+	return sum
+}
+
+func search(target int) string {
+	result := "немає"
+outer:
+	for a := 1; a < 10; a++ {
+		for b := a; b < 10; b++ {
+			if a*b == target {
+				result = fmt.Sprintf("%dx%d", a, b)
+				break outer
+			}
+		}
+	}
+	return result
+}
+
+func countPrimes(limit int) int {
+	count := 0
+next:
+	for n := 2; n < limit; n++ {
+		for d := 2; d*d <= n; d++ {
+			if n%d == 0 {
+				continue next
+			}
+		}
+		count++
+	}
+	return count
+}
+
+func main() {
+	fmt.Println(oddSumUnder(50))
+	fmt.Println(search(36), search(7), search(100))
+	fmt.Println(countPrimes(20))
+}
+`,
 //__END__
 };

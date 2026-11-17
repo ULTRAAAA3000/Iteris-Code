@@ -162,4 +162,186 @@ func main() {
       { on: "source", name: "Є гілка case nil", matches: "case\\s+nil\\b" },
     ],
   },
+  {
+    ...base, id: "go-money-stringer", lesson: "go/44", xp: 25,
+    title: "Money: Stringer і власна помилка",
+    context: "Типи з власним String() гарно виглядають у логах, а власні типи помилок несуть контекст: скільки не вистачило, чого немає. Обидва рішення спираються на малі стандартні інтерфейси.",
+    brief: [
+      "<code>Money</code> зберігає копійки. Метод <code>String()</code> має повертати формат <code>100.50 грн</code> (гривні, крапка, дві цифри копійок). Не друкуйте отримувача через <code>%v</code> всередині методу.",
+      "<code>NoFunds</code> реалізує <code>error</code>: <code>недостатньо коштів: потрібно 500.00 грн, є 74.75 грн</code>. <code>Withdraw(balance, amount Money) (Money, error)</code> повертає новий баланс, або старий баланс і <code>NoFunds</code>, якщо коштів замало.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+type Money int
+
+func (m Money) String() string {
+	return ""
+}
+
+type NoFunds struct{ Need, Have Money }
+
+func (e NoFunds) Error() string {
+	return ""
+}
+
+func Withdraw(balance, amount Money) (Money, error) {
+	return balance, nil
+}
+
+func main() {
+	b := Money(10050)
+	fmt.Println(b)
+	b, err := Withdraw(b, 2575)
+	fmt.Println(b, err)
+	_, err = Withdraw(b, 50000)
+	fmt.Println("помилка:", err)
+}
+`,
+    checks: [
+      { on: "stdout", name: "Money друкується як 100.50 грн", has: "100.50 грн\n" },
+      { on: "stdout", name: "Після зняття 74.75 грн і nil-помилка", has: "74.75 грн <nil>" },
+      { on: "stdout", name: "Помилка нестачі коштів із сумами", has: "помилка: недостатньо коштів: потрібно 500.00 грн, є 74.75 грн", hint: "У Error() скористайтеся форматуванням Money через %s або %v: тип уже має String()" },
+      { on: "source", name: "Метод String() для Money", matches: "func\\s*\\(\\s*\\w+\\s+Money\\s*\\)\\s*String\\(\\)\\s*string" },
+      { on: "source", name: "Метод Error() для NoFunds", matches: "func\\s*\\(\\s*\\w+\\s+\\*?NoFunds\\s*\\)\\s*Error\\(\\)\\s*string" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "100.50 грн\n74.75 грн <nil>\nпомилка: недостатньо коштів: потрібно 500.00 грн, є 74.75 грн" },
+    ],
+  },
+  {
+    ...base, id: "go-line-counter-writer", lesson: "go/45", xp: 30,
+    title: "Writer-обгортка LineCounter",
+    context: "Обгортки навколо io.Writer роблять підрахунок байтів, логування, стиснення без жодних змін у решті коду. Це основний спосіб розширювати потоки даних у Go.",
+    brief: [
+      "Допишіть метод <code>Write</code> для <code>*LineCounter</code>: він має передати байти вкладеному <code>W</code>, додати до <code>Lines</code> кількість символів переведення рядка <code>\\n</code> у <code>p</code> і повернути результат запису в <code>W</code>.",
+      "Для підрахунку скористайтеся <code>bytes.Count</code>. Тоді <code>io.Copy</code> і <code>fmt.Fprintf</code> працюватимуть із вашою обгорткою як зі звичайним Writer.",
+    ],
+    starter: raw`package main
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"strings"
+)
+
+type LineCounter struct {
+	W     io.Writer
+	Lines int
+}
+
+func (c *LineCounter) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func main() {
+	var buf bytes.Buffer
+	lc := &LineCounter{W: &buf}
+	n, err := io.Copy(lc, strings.NewReader("a\nb\nc\n"))
+	fmt.Println(n, err, lc.Lines)
+	fmt.Fprintf(lc, "x\ny")
+	fmt.Println("Рядків:", lc.Lines)
+	fmt.Printf("%q\n", buf.String())
+}
+`,
+    checks: [
+      { on: "stdout", name: "io.Copy переніс 6 байтів, 3 рядки", has: "6 <nil> 3" },
+      { on: "stdout", name: "Після Fprintf усього 4 переведення рядка", has: "Рядків: 4", hint: "Лічіть bytes.Count(p, []byte(\"\\n\")) у кожному виклику Write і додавайте до c.Lines" },
+      { on: "stdout", name: "Дані дійшли до вкладеного буфера", has: "\"a\\nb\\nc\\nx\\ny\"", hint: "Передайте p далі: c.W.Write(p)" },
+      { on: "source", name: "Write на *LineCounter", matches: "func\\s*\\(\\s*\\w+\\s+\\*LineCounter\\s*\\)\\s*Write\\(" },
+      { on: "source", name: "Використано bytes.Count", matches: "bytes\\.Count\\(" },
+    ],
+  },
+  {
+    ...base, id: "go-sort-interface", lesson: "go/46", xp: 40,
+    title: "Сортування штату через sort.Interface",
+    context: "Звіти майже завжди сортують за кількома ключами: спершу відділ, потім зарплата за спаданням. sort.Interface дозволяє описати такий порядок один раз і не залежати від типу даних.",
+    brief: [
+      "Реалізуйте методи <code>Len</code>, <code>Swap</code> і <code>Less</code> для <code>ByDeptSalary</code>. Порядок: відділ за зростанням, у відділі зарплата за спаданням, при рівності за іменем за зростанням.",
+      "Відсортуйте штат через <code>sort.Sort</code> і перевірте результат через <code>sort.IsSorted</code>. Порівняння має бути строгим.",
+    ],
+    starter: raw`package main
+
+import (
+	"fmt"
+	"sort"
+)
+
+type Employee struct {
+	Name   string
+	Dept   string
+	Salary int
+}
+
+type ByDeptSalary []Employee
+
+func (b ByDeptSalary) Len() int           { return 0 }
+func (b ByDeptSalary) Swap(i, j int)      {}
+func (b ByDeptSalary) Less(i, j int) bool { return false }
+
+func main() {
+	staff := []Employee{
+		{"Ann", "dev", 5000}, {"Bob", "ops", 3000}, {"Cid", "dev", 7000},
+		{"Dan", "ops", 3000}, {"Eva", "dev", 5000},
+	}
+	sort.Sort(ByDeptSalary(staff))
+	for _, e := range staff {
+		fmt.Println(e.Dept, e.Name, e.Salary)
+	}
+	fmt.Println("відсортовано:", sort.IsSorted(ByDeptSalary(staff)))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Спершу відділ dev, найбільша зарплата вгорі", has: "dev Cid 7000\ndev Ann 5000\ndev Eva 5000" },
+      { on: "stdout", name: "Відділ ops, рівні зарплати за іменем", has: "ops Bob 3000\nops Dan 3000", hint: "Каскад у Less: відділ, потім Salary за спаданням, потім Name" },
+      { on: "stdout", name: "IsSorted повертає true", has: "відсортовано: true" },
+      { on: "source", name: "Swap міняє елементи місцями", matches: "\\w+\\[i\\]\\s*,\\s*\\w+\\[j\\]\\s*=\\s*\\w+\\[j\\]\\s*,\\s*\\w+\\[i\\]", hint: "b[i], b[j] = b[j], b[i]" },
+      { on: "source", name: "Len повертає довжину слайса", matches: "Len\\(\\)\\s*int\\s*\\{\\s*return\\s+len\\(" },
+    ],
+  },
+  {
+    ...base, id: "go-generic-funcs", lesson: "go/47", xp: 30,
+    title: "Узагальнені Max, IndexOf і Reverse",
+    context: "Допоміжні функції для слайсів потрібні в кожному проєкті. Generics дозволяють написати їх один раз для int, string, float64 і власних типів, не втрачаючи перевірок компілятора.",
+    brief: [
+      "<code>Max</code> повертає найбільший елемент і <code>true</code>, а для порожнього слайса нульове значення й <code>false</code>. Обмеження: <code>cmp.Ordered</code> (не забудьте імпорт <code>cmp</code>).",
+      "<code>IndexOf</code> повертає індекс першого збігу або <code>-1</code> (обмеження <code>comparable</code>). <code>Reverse</code> повертає новий слайс у зворотному порядку й не змінює вхідний (достатньо <code>any</code>).",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func Max[T any](s []T) (T, bool) {
+	var zero T
+	return zero, false
+}
+
+func IndexOf[T any](s []T, v T) int {
+	return -1
+}
+
+func Reverse[T any](s []T) []T {
+	return s
+}
+
+func main() {
+	fmt.Println(Max([]int{3, 9, 4}))
+	fmt.Println(Max([]string{"kiwi", "apple", "pear"}))
+	fmt.Println(Max([]float64{}))
+	fmt.Println(IndexOf([]string{"a", "b", "c"}, "c"))
+	fmt.Println(IndexOf([]int{1, 2}, 7))
+	orig := []int{1, 2, 3}
+	fmt.Println(Reverse(orig), orig)
+	fmt.Println(Reverse([]string{"a", "b"}))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Max для int і string", has: "9 true\npear true" },
+      { on: "stdout", name: "Max для порожнього слайса: нуль і false", has: "0 false" },
+      { on: "stdout", name: "IndexOf знаходить і не знаходить", has: "2\n-1" },
+      { on: "stdout", name: "Reverse не чіпає оригінал", has: "[3 2 1] [1 2 3]\n[b a]", hint: "Створіть out := make([]T, len(s)) і заповніть його з кінця" },
+      { on: "source", name: "Max обмежено cmp.Ordered", matches: "\\[\\s*\\w+\\s+cmp\\.Ordered\\s*\\]" },
+      { on: "source", name: "IndexOf обмежено comparable", matches: "\\[\\s*\\w+\\s+comparable\\s*\\]" },
+    ],
+  },
 ];

@@ -296,5 +296,77 @@ func main() {
 	fmt.Println(words)
 }
 `,
+  "go-maps-cmp": raw`package main
+
+import (
+	"cmp"
+	"fmt"
+	"maps"
+	"slices"
+)
+
+func sortedKeys(m map[string]int) []string {
+	return slices.Sorted(maps.Keys(m))
+}
+
+func merged(defaults, override map[string]int) map[string]int {
+	res := maps.Clone(defaults)
+	maps.Copy(res, override)
+	return res
+}
+
+func firstNonEmpty(a, b, c string) string {
+	return cmp.Or(a, b, c)
+}
+
+func main() {
+	defaults := map[string]int{"retries": 3, "timeout": 30}
+	override := map[string]int{"timeout": 10, "debug": 1}
+	m := merged(defaults, override)
+	fmt.Println(sortedKeys(m))
+	fmt.Println(m)
+	fmt.Println(defaults)
+	fmt.Println(firstNonEmpty("", "", "типово"), firstNonEmpty("", "b", "c"))
+}
+`,
+  "go-word-count": raw`package main
+
+import (
+	"cmp"
+	"fmt"
+	"maps"
+	"slices"
+	"strings"
+	"unicode"
+)
+
+func wordCount(text string) map[string]int {
+	counts := make(map[string]int)
+	words := strings.FieldsFunc(strings.ToLower(text), func(r rune) bool {
+		return !unicode.IsLetter(r)
+	})
+	for _, w := range words {
+		counts[w]++
+	}
+	return counts
+}
+
+func topWords(counts map[string]int, n int) []string {
+	words := slices.Collect(maps.Keys(counts))
+	slices.SortFunc(words, func(a, b string) int {
+		return cmp.Or(cmp.Compare(counts[b], counts[a]), cmp.Compare(a, b))
+	})
+	return words[:min(n, len(words))]
+}
+
+func main() {
+	counts := wordCount("Go is fun, and go is fast. GO!")
+	fmt.Println(len(counts))
+	for _, w := range topWords(counts, 3) {
+		fmt.Println(w, counts[w])
+	}
+	fmt.Println(len(topWords(counts, 10)))
+}
+`,
   // NEXT
 };
