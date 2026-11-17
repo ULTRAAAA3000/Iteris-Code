@@ -18,6 +18,8 @@ export interface Env {
   RESEND_API_KEY?: string;
   /** Адреса відправника, наприклад "Iteris Code <noreply@your-domain>" */
   MAIL_FROM?: string;
+  /** Куди пересилати звернення з форми підтримки (/contact). Без нього звернення лише зберігаються в базі */
+  SUPPORT_EMAIL?: string;
   /** Lemon Squeezy: секрет подписи вебхука */
   LEMONSQUEEZY_WEBHOOK_SECRET?: string;
   /** Lemon Squeezy: ссылка на оплату тарифа Pro, например https://магазин.lemonsqueezy.com/checkout/buy/<id> */

@@ -3,13 +3,13 @@ import type { Env } from "./env.ts";
 
 export const mailConfigured = (env: Pick<Env, "RESEND_API_KEY" | "MAIL_FROM">): boolean => Boolean(env.RESEND_API_KEY && env.MAIL_FROM);
 
-export async function sendMail(env: Pick<Env, "RESEND_API_KEY" | "MAIL_FROM">, to: string, subject: string, text: string): Promise<boolean> {
+export async function sendMail(env: Pick<Env, "RESEND_API_KEY" | "MAIL_FROM">, to: string, subject: string, text: string, replyTo?: string): Promise<boolean> {
   if (!env.RESEND_API_KEY || !env.MAIL_FROM) return false;
   try {
     const r = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: "Bearer " + env.RESEND_API_KEY, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, text }),
+      body: JSON.stringify({ from: env.MAIL_FROM, to: [to], subject, text, ...(replyTo ? { reply_to: replyTo } : {}) }),
     });
     return r.ok;
   } catch {

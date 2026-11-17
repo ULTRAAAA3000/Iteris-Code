@@ -1,0 +1,44 @@
+/* Форма підтримки /contact: поява, фокус, лічильник, успіх із «малюванням» галочки. Вбудовується в index.html під час збірки.
+   Анімації вимикає глобальне правило prefers-reduced-motion (воно з !important). */
+.sp{display:grid;gap:24px;align-items:start;margin:8px 0 40px}
+@media (min-width:860px){.sp{grid-template-columns:minmax(0,1fr) minmax(0,1.3fr)}}
+@media (max-width:859px){.sp-card{order:-1}}   /* на телефоні форма першою, підказки під нею */
+.sp-info,.sp-card{box-shadow:6px 6px 0 var(--ink);animation:sp-in .5s cubic-bezier(.2,.9,.3,1.1) backwards}
+.sp-card{animation-delay:.08s}
+@keyframes sp-in{from{opacity:0;transform:translateY(16px) scale(.97);box-shadow:0 0 0 var(--ink)}}
+.sp-info h1{margin:0 0 8px}
+.card .sp-lead{margin:0 0 16px;color:var(--muted)}
+.sp-tips{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.sp-tips li{padding:12px 14px;border:2px dashed var(--line);border-radius:12px;animation:sp-rise .45s cubic-bezier(.2,.8,.2,1) backwards}
+.sp-tips li:nth-child(1){animation-delay:.2s}.sp-tips li:nth-child(2){animation-delay:.28s}.sp-tips li:nth-child(3){animation-delay:.36s}
+@keyframes sp-rise{from{opacity:0;transform:translateY(10px)}}
+.sp-card form{display:grid;gap:16px}
+.sp-card form[hidden],.sp-ok[hidden]{display:none}
+.sp-card form.shake{animation:sp-shake .4s cubic-bezier(.36,.07,.19,.97)}
+@keyframes sp-shake{20%,60%{transform:translateX(-7px)}40%,80%{transform:translateX(7px)}}
+.sp-topics{border:0;margin:0;padding:0;min-width:0}
+.sp-topics legend{font-weight:800;margin-bottom:8px;padding:0}
+.sp .fld textarea{width:100%;min-height:128px;max-height:360px;resize:vertical;padding:11px 12px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);font:inherit;font-weight:400;color:inherit;line-height:1.5;transition:border-color .15s,box-shadow .15s,transform .15s}
+.sp .fld textarea:hover{border-color:var(--pen)}
+.sp .fld textarea:focus{outline:2px solid transparent;outline-offset:2px;border-color:var(--pen);box-shadow:4px 4px 0 var(--pen);transform:translate(-2px,-2px)}
+.sp .fld textarea[aria-invalid=true],.sp .fld input[aria-invalid=true]{border-color:var(--margin);box-shadow:4px 4px 0 var(--margin)}
+.sp .fld .lbl{transition:color .15s}
+.sp .fld:focus-within .lbl{color:var(--pen)}
+.sp .fld .lbl small{font-weight:400;color:var(--muted)}
+.sp-count{justify-self:end;transition:color .2s}
+.sp-count.warn{color:var(--margin);font-weight:700}
+.sp-hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.sp .btn{justify-content:center}
+.sp .btn.is-loading::after{content:"";width:16px;height:16px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp-spin .7s linear infinite}
+.sp .btn:disabled{opacity:.75;cursor:progress}
+@keyframes sp-spin{to{transform:rotate(360deg)}}
+.sp .form-msg{margin:12px 0 0;color:var(--margin);font-weight:600;overflow-wrap:anywhere;animation:sp-msg .3s ease backwards}
+.sp .form-msg:empty{display:none}
+@keyframes sp-msg{from{opacity:0;transform:translateY(-6px)}}
+.sp-ok{display:grid;justify-items:center;gap:10px;text-align:center;padding:20px 8px;animation:sp-rise .5s ease backwards}
+.sp-ok h2{margin:0}
+.card .sp-ok p{margin:0 0 6px;color:var(--muted)}
+.sp-check{width:84px;height:84px;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.sp-check circle{stroke:var(--ok);stroke-dasharray:151;stroke-dashoffset:151;animation:sp-draw .6s ease-out forwards}
+.sp-check path{stroke:var(--ok);stroke-dasharray:44;stroke-dashoffset:44;animation:sp-draw .4s ease-out .5s forwards}
+@keyframes sp-draw{to{stroke-dashoffset:0}}

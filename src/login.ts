@@ -36,7 +36,7 @@ const serverFailure = (status: number, code?: string): string =>
     : `Помилка сервера (код ${status}${code ? ", " + code : ""}). Спробуйте ще раз трохи пізніше`;
 
 let tsLoad: Promise<TurnstileApi | null> | null = null;
-function loadTurnstile(): Promise<TurnstileApi | null> {
+export function loadTurnstile(): Promise<TurnstileApi | null> {
   if (window.turnstile) return Promise.resolve(window.turnstile);
   return (tsLoad ??= new Promise((res) => {
     const s = document.createElement("script");
