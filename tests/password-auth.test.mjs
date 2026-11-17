@@ -57,7 +57,7 @@ globalThis.fetch = async (url, opts = {}) => {
 };
 const tokenFrom = (mail, kind) => mail.text.match(new RegExp("#/" + kind + "/([A-Za-z0-9_-]+)"))[1];
 const lastMail = () => mails[mails.length - 1];
-const reg = (over = {}) => call(register, req("/api/auth/register", { body: { email: "Ann@Example.com", password: "correct-horse", name: "Ann", turnstile: OK, ...over } }));
+const reg = (over = {}) => call(register, req("/api/auth/register", { body: { age: 20, email: "Ann@Example.com", password: "correct-horse", name: "Ann", turnstile: OK, ...over } }));
 const log = (over = {}, e = env) => call(login, req("/api/auth/login", { body: { email: "ann@example.com", password: "correct-horse", turnstile: OK, ...over } }), e);
 
 let passed = 0;
@@ -91,7 +91,7 @@ await test("реєстрація: відмови (Origin, пошта, слабк
   assert.equal((await reg({ password: "x".repeat(129) })).data.error, "weak_password");
   assert.equal((await reg({ turnstile: "bad" })).data.error, "captcha_failed");
   assert.equal((await reg({ turnstile: undefined })).data.error, "captcha_failed");
-  assert.equal((await call(register, req("/api/auth/register", { body: { email: "a@b.ua", password: "correct-horse", turnstile: OK } }), { ...env, SESSION_SECRET: undefined })).status, 503);
+  assert.equal((await call(register, req("/api/auth/register", { body: { age: 20, email: "a@b.ua", password: "correct-horse", turnstile: OK } }), { ...env, SESSION_SECRET: undefined })).status, 503);
   assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM users").get().c, 0);
 });
 
@@ -251,7 +251,7 @@ await test("Google і пошта: акаунт за паролем прив'яз
 await test("без Turnstile форми працюють без токена (захист вмикається лише з обома ключами)", async () => {
   const open = { ...env, TURNSTILE_SITE_KEY: undefined, TURNSTILE_SECRET_KEY: undefined };
   const justSecret = { ...env, TURNSTILE_SITE_KEY: undefined };
-  const r = await call(register, req("/api/auth/register", { body: { email: "free@example.com", password: "correct-horse" } }), open);
+  const r = await call(register, req("/api/auth/register", { body: { age: 20, email: "free@example.com", password: "correct-horse" } }), open);
   assert.equal(r.status, 200);
   const v = tokenFrom(lastMail(), "verify");
   assert.equal((await call(verify, req("/api/auth/verify", { body: { token: v } }), open)).status, 200);
@@ -263,7 +263,7 @@ await test("без Turnstile форми працюють без токена (з
 await test("без пошти: реєстрація одразу відкриває сесію, дубль 409, відновлення вимкнено", async () => {
   const nomail = { ...env, RESEND_API_KEY: undefined };
   const n = mails.length;
-  const r = await call(register, req("/api/auth/register", { body: { email: "nomail@example.com", password: "correct-horse", turnstile: OK } }), nomail);
+  const r = await call(register, req("/api/auth/register", { body: { age: 20, email: "nomail@example.com", password: "correct-horse", turnstile: OK } }), nomail);
   assert.equal(r.status, 200); assert.equal(r.data.signedIn, true);
   const c = r.headers.get("Set-Cookie").split(";")[0];
   assert.equal((await call(me, req("/api/me", { method: "GET", cookie: c }))).data.user.email, "nomail@example.com");
@@ -272,7 +272,7 @@ await test("без пошти: реєстрація одразу відкрив�
   const before = row();
   assert.equal(before.v, 0);
   assert.equal((await log({ email: "nomail@example.com" }, nomail)).status, 200);   // без пошти підтвердження не вимагається
-  const dup = await call(register, req("/api/auth/register", { body: { email: "nomail@example.com", password: "attacker-password", turnstile: OK } }), nomail);
+  const dup = await call(register, req("/api/auth/register", { body: { age: 20, email: "nomail@example.com", password: "attacker-password", turnstile: OK } }), nomail);
   assert.equal(dup.status, 409); assert.equal(dup.data.error, "email_taken");
   assert.equal(row().password_hash, before.password_hash);
   assert.equal((await call(forgot, req("/api/auth/forgot", { body: { email: "nomail@example.com", turnstile: OK } }), nomail)).status, 503);

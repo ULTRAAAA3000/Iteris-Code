@@ -106,7 +106,12 @@ export function renderPublic(nick: string): { html: string; title: string; index
   if (pub.s === "err") return { html: `${back}<div class="card"><h1>Не вдалося завантажити профіль</h1><p class="dash-muted">Перевірте з'єднання й спробуйте ще раз.</p><button class="btn primary" data-act="retry-profile">Спробувати ще раз</button></div>`, title: "Профіль", index: false };
   if (pub.s === "nf" || !pub.p) return { html: `${back}<div class="card"><h1>Профіль не знайдено</h1><p class="dash-muted">Такого користувача немає, або він закрив свій профіль.</p><a class="btn primary" href="/courses">До курсів</a></div>`, title: "Профіль не знайдено", index: false };
   const note = pub.own && !pub.open ? `<p class="pf-note">Профіль закритий: його бачите тільки ви. <a href="/profile">Відкрити в налаштуваннях</a></p>` : pub.own ? `<p class="pf-note ok">Так вас бачать інші. <a href="/profile">Налаштувати профіль</a></p>` : "";
-  return { html: `${back}${profileView(pub.p, note)}`, title: `@${pub.p.nick}: профіль`, index: !!pub.open };
+  const report = !pub.own && getUser() ? `<details class="pf-report card"><summary>Поскаржитись на профіль</summary>
+    <label class="sr-only" for="pf-rep-reason">Причина скарги</label>
+    <select id="pf-rep-reason"><option value="spam">Спам або реклама</option><option value="abuse">Образи</option><option value="personal">Особисті дані</option><option value="other">Інше</option></select>
+    <button class="btn small" type="button" data-act="report-profile" data-nick="${escA(pub.p.nick)}">Надіслати</button>
+    <p class="form-msg" id="pf-rep-msg" role="status"></p></details>` : "";
+  return { html: `${back}${profileView(pub.p, note)}${report}`, title: `@${pub.p.nick}: профіль`, index: !!pub.open };
 }
 
 // ---------- налаштування ----------
@@ -172,6 +177,12 @@ export function renderSettings(): string {
       <p class="form-msg" id="pf-msg" role="alert"></p>
       <button class="btn primary" type="submit">Зберегти</button>
     </form>
+    <section class="card pf-data">
+      <h2>Мої дані й акаунт</h2>
+      <p class="dash-muted">Ви можете завантажити всі свої дані файлом або видалити акаунт. Докладніше: <a href="/privacy">Політика конфіденційності</a>.</p>
+      <p class="pf-data-btns"><a class="btn" href="/api/account" download>Завантажити мої дані</a> <button class="btn danger" type="button" data-act="delete-account">Видалити акаунт</button></p>
+      <p class="form-msg" id="pf-del-msg" role="alert"></p>
+    </section>
   </div>`;
 }
 
@@ -221,6 +232,18 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   if (b.dataset.act === "retry-profile") { pub = null; ui.render(); }
   else if (b.dataset.act === "retry-settings") { mine = undefined; ui.render(); }
+  else if (b.dataset.act === "delete-account") {
+    // Подвійне підтвердження: видалення незворотне (прогрес, XP, профіль)
+    if (!confirm("Видалити акаунт назавжди? Прогрес, XP і профіль буде стерто, відновити їх не можна.")) return;
+    if (prompt("Щоб підтвердити, введіть слово ВИДАЛИТИ") !== "ВИДАЛИТИ") return;
+    b.setAttribute("disabled", "");
+    void post<{ error?: string }>("/api/account", { confirm: "delete" }).then((r) => {
+      if (r.ok) { location.assign("/"); return; }
+      b.removeAttribute("disabled");
+      const m = document.getElementById("pf-del-msg");
+      if (m) m.textContent = "Не вдалося видалити акаунт. Спробуйте ще раз або напишіть нам.";
+    });
+  }
   else if (b.dataset.act === "copy-profile") {
     const url = b.dataset.url ?? "";
     void navigator.clipboard?.writeText(url).then(() => toast("Посилання скопійовано"), () => toast(url));

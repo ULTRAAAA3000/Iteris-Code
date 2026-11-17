@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS users (
   nick TEXT,                         -- ник публичного профиля (a-z, 0-9, _), хранится в нижнем регистре, задаётся один раз
   avatar_id TEXT,                    -- выбранный герой-аватар (id из src/data/idols.ts); NULL = фото из входа или герой по умолчанию
   bio TEXT,                          -- о себе, до 160 символов, без ссылок
-  profile_public INTEGER DEFAULT 0   -- 1 = профиль открыт по адресу /u/<ник>; по умолчанию закрыт
+  profile_public INTEGER DEFAULT 0,  -- 1 = профиль открыт по адресу /u/<ник>; по умолчанию закрыт
+  session_ver INTEGER DEFAULT 0      -- версия сессий: смена пароля и «выйти всюду» увеличивают её, старые cookie перестают действовать
 );
 CREATE UNIQUE INDEX IF NOT EXISTS idx_users_nick ON users(nick) WHERE nick IS NOT NULL;
 
@@ -105,3 +106,13 @@ CREATE TABLE IF NOT EXISTS support_messages (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_support_time ON support_messages(created_at);
+
+-- Жалобы на публичные профили (смотрим вручную: SELECT * FROM reports ORDER BY created_at DESC)
+CREATE TABLE IF NOT EXISTS reports (
+  id TEXT PRIMARY KEY,
+  reporter_id TEXT NOT NULL,
+  nick TEXT NOT NULL,
+  reason TEXT NOT NULL,              -- spam | abuse | personal | other
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE (reporter_id, nick)         -- один человек жалуется на профиль один раз
+);

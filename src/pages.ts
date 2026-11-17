@@ -3,6 +3,7 @@
 import { C, CATS, darkText, publicLessonTotal } from "./data.ts";
 import { REF } from "./data/reference/index.ts";
 import { contactHtml } from "./contact.ts";
+import { PRIVACY_HTML, PRIVACY_TITLE, TERMS_HTML, TERMS_TITLE } from "./legal.ts";
 import { count, esc, W } from "./util.ts";
 
 export const BRAND = "Iteris Code";
@@ -233,6 +234,13 @@ const aboutHtml = (loggedIn: boolean): string => `
   </div>
   <section class="lp-cta"><h2>Почніть вчитись</h2><p>Реєстрація безкоштовна.</p>${cta(loggedIn)}</section>`;
 
+/* ---------- Політика й умови ---------- */
+
+const legalHtml = (title: string, path: string, body: string): string => `
+  ${crumbsHtml([[title, path]])}
+  <h1 class="lp-h1">${title}</h1>
+  <div class="lp-article prose legal">${body}</div>`;
+
 /* ---------- Напрям і довідник мови ---------- */
 
 function dirHtml(key: string): string {
@@ -297,6 +305,16 @@ export function publicPages(): PageDef[] {
       path: "/contact", kind: "info", active: "contact", crumbs: [["Підтримка", "/contact"]], html: () => contactHtml(crumbsHtml([["Підтримка", "/contact"]])),
       title: `Підтримка: написати нам | ${BRAND}`,
       desc: "Напишіть у підтримку Iteris Code: ефекти й візуал, помилка в роботі сайту, ідея або побажання. Ми читаємо кожне звернення й відповімо на вашу пошту.",
+    },
+    {
+      path: "/privacy", kind: "info", active: "", crumbs: [[PRIVACY_TITLE, "/privacy"]], html: () => legalHtml(PRIVACY_TITLE, "/privacy", PRIVACY_HTML),
+      title: `${PRIVACY_TITLE} | ${BRAND}`,
+      desc: `${BRAND}: які дані ми збираємо, навіщо, кому передаємо і як ви можете їх переглянути чи видалити.`,
+    },
+    {
+      path: "/terms", kind: "info", active: "", crumbs: [[TERMS_TITLE, "/terms"]], html: () => legalHtml(TERMS_TITLE, "/terms", TERMS_HTML),
+      title: `${TERMS_TITLE} | ${BRAND}`,
+      desc: `Правила користування платформою ${BRAND}: акаунт, вік, безкоштовність, що заборонено, права на матеріали.`,
     },
   ];
   for (const [key, c] of Object.entries(CATS)) {

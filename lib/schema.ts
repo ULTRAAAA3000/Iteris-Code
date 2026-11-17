@@ -9,7 +9,7 @@ const TABLES: string[] = [
     is_pro INTEGER DEFAULT 0, pro_until DATETIME, streak_count INTEGER DEFAULT 0, last_active_at DATETIME,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP, portal_url TEXT, subscription_id TEXT, billing_updated_at TEXT,
     password_hash TEXT, email_verified INTEGER DEFAULT 1,
-    nick TEXT, avatar_id TEXT, bio TEXT, profile_public INTEGER DEFAULT 0)`,
+    nick TEXT, avatar_id TEXT, bio TEXT, profile_public INTEGER DEFAULT 0, session_ver INTEGER DEFAULT 0)`,
   `CREATE TABLE IF NOT EXISTS user_progress (
     user_id TEXT, lesson_id TEXT, completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, lesson_id), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`,
@@ -30,6 +30,10 @@ const TABLES: string[] = [
     user_id TEXT NOT NULL, amount INTEGER NOT NULL, reason TEXT NOT NULL, ref TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (user_id, reason, ref), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`,
   `CREATE INDEX IF NOT EXISTS idx_xp_user_time ON xp_events(user_id, created_at)`,
+  // Жалобы на профили (модерация вручную до появления админки, этап 6)
+  `CREATE TABLE IF NOT EXISTS reports (
+    id TEXT PRIMARY KEY, reporter_id TEXT NOT NULL, nick TEXT NOT NULL, reason TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE (reporter_id, nick))`,
   `CREATE TABLE IF NOT EXISTS user_onboarding (
     user_id TEXT PRIMARY KEY, level TEXT NOT NULL, courses TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`,
@@ -44,6 +48,7 @@ const USER_COLUMNS: [string, string][] = [
   ["portal_url", "TEXT"], ["subscription_id", "TEXT"], ["billing_updated_at", "TEXT"],
   ["password_hash", "TEXT"], ["email_verified", "INTEGER DEFAULT 1"],   // существующие (Google) аккаунты считаются подтверждёнными
   ["nick", "TEXT"], ["avatar_id", "TEXT"], ["bio", "TEXT"], ["profile_public", "INTEGER DEFAULT 0"],   // этап 4: публичный профиль
+  ["session_ver", "INTEGER DEFAULT 0"],   // версия сессий: смена пароля / «выйти всюду» отзывают старые cookie
 ];
 
 async function run(env: Pick<Env, "DB">): Promise<void> {

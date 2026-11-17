@@ -86,3 +86,5 @@ footer h4{margin:0 0 10px}
 /* Кнопки входу через Google і GitHub */
 .auth-oauth{display:grid;gap:10px}
 .auth-oauth .btn{justify-content:center;width:100%}
+
+.legal .tbl{overflow-x:auto;margin:0 0 14px}.legal table{border-collapse:collapse;width:100%;min-width:420px}.legal th,.legal td{border:2px solid var(--ink);padding:8px 10px;text-align:left;vertical-align:top}.legal th{background:var(--panel)}
