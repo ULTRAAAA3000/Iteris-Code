@@ -7,6 +7,7 @@ import type { ProfileSettings, PublicProfile } from "./types.ts";
 import { toast, ui } from "./ui.ts";
 import { escA, pl } from "./util.ts";
 import { avatarRing } from "./dashviz.ts";
+import { ACHIEVEMENTS, achIcon } from "./data/achievements.ts";
 import { levelInfo } from "./xp.ts";
 
 export const BIO_MAX = 160;
@@ -66,7 +67,18 @@ function languages(p: PublicProfile): string {
 }
 
 /** Готовий вигляд профілю (без запитів): шапка, цифри, мови, карта активності */
-export function profileView(p: PublicProfile, note = ""): string {
+/** Значки: власник бачить усі (неотримані сірі), інші лише отримані */
+function badges(p: PublicProfile, own: boolean): string {
+  const got = new Set(p.badges ?? []);
+  const list = ACHIEVEMENTS.filter((a) => own || got.has(a.id));
+  if (!list.length) return "";
+  return `<section class="card"><h2>Досягнення${own ? ` <small class="dash-muted">${got.size} з ${ACHIEVEMENTS.length}</small>` : ""}</h2><ul class="pf-badges">${list.map((a) => {
+    const on = got.has(a.id);
+    return `<li class="pf-badge${on ? " got" : ""}" title="${escA(a.desc)}">${achIcon(a.icon)}<b>${escA(a.title)}</b><span class="sr-only">${on ? "Отримано" : "Ще не отримано"}: ${escA(a.desc)}</span></li>`;
+  }).join("")}</ul></section>`;
+}
+
+export function profileView(p: PublicProfile, note = "", own = false): string {
   const idol = idolById(p.avatarId) ?? defaultIdol(p.nick), i = levelInfo(p.xp);
   const stats: [string, string][] = [
     [`${p.xp}`, "XP"], [`${p.streak}`, pl(p.streak, "день серії", "дні серії", "днів серії")],
@@ -84,6 +96,7 @@ export function profileView(p: PublicProfile, note = ""): string {
     </section>
     <ul class="pf-stats">${stats.map(([n, t]) => `<li><b>${escA(n)}</b><span>${escA(t)}</span></li>`).join("")}</ul>
     <section class="card"><h2>Мови та знання</h2>${languages(p)}</section>
+    ${badges(p, own)}
     <section class="card"><h2>Активність</h2>${heatmap(p.activity)}</section>
   </div>`;
 }
@@ -111,7 +124,7 @@ export function renderPublic(nick: string): { html: string; title: string; index
     <select id="pf-rep-reason"><option value="spam">Спам або реклама</option><option value="abuse">Образи</option><option value="personal">Особисті дані</option><option value="other">Інше</option></select>
     <button class="btn small" type="button" data-act="report-profile" data-nick="${escA(pub.p.nick)}">Надіслати</button>
     <p class="form-msg" id="pf-rep-msg" role="status"></p></details>` : "";
-  return { html: `${back}${profileView(pub.p, note)}${report}`, title: `@${pub.p.nick}: профіль`, index: !!pub.open };
+  return { html: `${back}${profileView(pub.p, note, !!pub.own)}${report}`, title: `@${pub.p.nick}: профіль`, index: !!pub.open };
 }
 
 // ---------- налаштування ----------

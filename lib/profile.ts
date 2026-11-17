@@ -3,7 +3,8 @@
 import type { Env } from "./env.ts";
 import { LESSONS } from "../content/lessons.js";
 import { idolById } from "../src/data/idols.ts";
-import { levelInfo } from "../src/xp.ts";
+import { levelInfo, STREAK_MILESTONES } from "../src/xp.ts";
+import { earnedAchievements } from "../src/data/achievements.ts";
 import { effectiveStreak } from "./session.ts";
 import { xpTotal } from "./xp.ts";
 
@@ -54,6 +55,8 @@ export interface PublicProfile {
   courses: CourseProgress[];
   /** Дії за останні 182 дні (UTC): "2026-11-16" → кількість */
   activity: Record<string, number>;
+  /** Ідентифікатори отриманих досягнень (каталог: src/data/achievements.ts) */
+  badges: string[];
 }
 
 interface ProfileRow { id: string; nick: string; avatar_id: string | null; bio: string | null; created_at: string | null; streak_count: number; last_active_at: string | null; profile_public: number }
@@ -65,11 +68,12 @@ export async function findByNick(env: Pick<Env, "DB">, nick: string): Promise<Pr
 
 export async function buildProfile(env: Pick<Env, "DB">, u: ProfileRow): Promise<PublicProfile> {
   const q = (sql: string) => env.DB.prepare(sql).bind(u.id);
-  const [lessons, tasks, actL, actT] = (await env.DB.batch<Record<string, string | number>>([
+  const [lessons, tasks, actL, actT, streaks] = (await env.DB.batch<Record<string, string | number>>([
     q("SELECT lesson_id AS v FROM user_progress WHERE user_id = ?1"),
     q("SELECT DISTINCT task_id AS v FROM task_submissions WHERE user_id = ?1 AND is_passed = 1"),
     q("SELECT date(completed_at) AS d, COUNT(*) AS c FROM user_progress WHERE user_id = ?1 AND completed_at >= date('now', '-182 day') GROUP BY d"),
     q("SELECT date(created_at) AS d, COUNT(*) AS c FROM task_submissions WHERE user_id = ?1 AND created_at >= date('now', '-182 day') GROUP BY d"),
+    q("SELECT ref AS v FROM xp_events WHERE user_id = ?1 AND reason = 'streak'"),
   ])).map((r) => r.results);
 
   const perCourse = new Map<string, number>();
@@ -84,17 +88,22 @@ export async function buildProfile(env: Pick<Env, "DB">, u: ProfileRow): Promise
   const activity: Record<string, number> = {};
   for (const r of [...actL, ...actT]) activity[String(r.d)] = (activity[String(r.d)] || 0) + Number(r.c);
   const xp = await xpTotal(env, u.id);
+  const level = levelInfo(xp).level, streak = effectiveStreak({ streak_count: u.streak_count, last_active_at: u.last_active_at });
+  // найкраща серія: поточна або найбільша досягнута віха (віхи нараховуються назавжди)
+  const streakBest = Math.max(streak, ...streaks.map((r) => (STREAK_MILESTONES.includes(+r.v) ? +r.v : 0)));
+  const coursesDone = [...perCourse].filter(([k, n]) => n >= LESSONS[k].length).length;
   return {
     nick: u.nick,
     avatarId: idolById(u.avatar_id) ? u.avatar_id : null,
     bio: u.bio ?? "",
     since: u.created_at ? String(u.created_at).slice(0, 7) : null,
     xp,
-    level: levelInfo(xp).level,
-    streak: effectiveStreak({ streak_count: u.streak_count, last_active_at: u.last_active_at }),
+    level,
+    streak,
     lessons: done,
     tasks: tasks.length,
     courses: [...perCourse].map(([key, n]) => ({ key, done: n, total: LESSONS[key].length })).sort((a, b) => b.done / b.total - a.done / a.total || b.done - a.done),
     activity,
+    badges: earnedAchievements({ lessons: done, tasks: tasks.length, level, streakBest, coursesDone }),
   };
 }
