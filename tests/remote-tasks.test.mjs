@@ -3,7 +3,7 @@
 // Потрібні інструменти: go, python3, javac+java, g++, php, fpc. Якщо інструмента немає, запуск цієї мови пропускається (структура перевіряється завжди).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { evalChecks } from "../src/runner/checks.ts";
@@ -22,6 +22,11 @@ const ENV = { ...process.env, LC_ALL: "C", GO111MODULE: "off" };
 const sh = (cmd, args, cwd, input) => spawnSync(cmd, args, { cwd, encoding: "utf8", timeout: 90000, env: ENV, input });
 const TSC = new URL("../node_modules/.bin/tsc", import.meta.url).pathname;
 const LANGS = {
+  sql: {
+    file: "main.sql", probe: ["sqlite3", "--version"],
+    run: (d) => { const r = spawnSync("sqlite3", [":memory:"], { cwd: d, encoding: "utf8", env: ENV, input: readFileSync(join(d, "main.sql"), "utf8") }); return { r: { ...r, status: /(Parse error|Error:)/.test(r.stderr ?? "") ? 1 : r.status }, compileFailed: () => false }; },
+  },
+  bash: { file: "main.sh", probe: ["bash", "--version"], run: (d) => ({ r: sh("bash", ["main.sh"], d), compileFailed: (r) => /syntax error/.test(r.stderr) }) },
   ts: {
     file: "main.ts", probe: ["node", "--version"],
     run: (d) => { const c = sh(TSC, ["--strict", "--target", "ES2022", "--lib", "es2022,dom", "--module", "commonjs", "--outDir", "out", "main.ts"], d); return c.status !== 0 ? { r: { ...c, stderr: c.stdout + c.stderr }, compileFailed: () => true } : { r: sh("node", ["out/main.js"], d), compileFailed: () => false }; },
@@ -44,23 +49,27 @@ const LANGS = {
 };
 
 const want = process.argv.slice(2);
-const langs = want.length ? want : Object.keys(LANGS);
+const remote = TASKS.filter(isRemote);
+const courses = want.length ? want : [...new Set(remote.map((t) => t.course))];
 let passed = 0, skipped = 0;
 const test = async (name, fn) => { await fn(); passed++; console.log("ok  -", name); };
 
 await test("id завдань унікальні, кожна мова відома тесту", () => {
   assert.equal(new Set(TASKS.map((t) => t.id)).size, TASKS.length);
-  for (const t of TASKS.filter(isRemote)) assert.ok(LANGS[t.lang], `невідома мова ${t.lang} у ${t.id}`);
+  for (const t of remote) assert.ok(LANGS[t.lang], `невідома мова ${t.lang} у ${t.id}`);
 });
 
-for (const lang of langs) {
-  const tasks = TASKS.filter((t) => isRemote(t) && t.lang === lang);
-  const skip = NO_TASK[lang] ?? {};
-  await test(`${lang}: рівно одне завдання на кожен урок (крім відомих винятків), структура завдань`, () => {
-    const expected = LESSONS[lang].map((_, i) => i + 1).filter((n) => !skip[n]);
-    assert.deepEqual(tasks.map((t) => t.lesson), expected.map((n) => `${lang}/${n}`), "завдання мають іти по порядку уроків");
+const hasTool = (lang) => !spawnSync(LANGS[lang].probe[0], LANGS[lang].probe.slice(1)).error;
+
+for (const course of courses) {
+  // Завдання курсу; мова запуску беремо із самого завдання (курс sql містить і завдання Python)
+  const tasks = remote.filter((t) => t.course === course);
+  const skip = NO_TASK[course] ?? {};
+  await test(`${course}: рівно одне завдання на кожен урок (крім відомих винятків), структура завдань`, () => {
+    const expected = LESSONS[course].map((_, i) => i + 1).filter((n) => !skip[n]);
+    assert.deepEqual(tasks.map((t) => t.lesson), expected.map((n) => `${course}/${n}`), "завдання мають іти по порядку уроків");
     for (const t of tasks) {
-      assert.equal(t.file, LANGS[lang].file, `${t.id}: ім'я файла`);
+      assert.equal(t.file, LANGS[t.lang].file, `${t.id}: ім'я файла`);
       assert.ok(SOLUTIONS[t.id], `немає еталона для ${t.id}`);
       assert.ok(t.checks.length >= 3, `${t.id}: потрібно мінімум 3 перевірки`);
       assert.ok(t.checks.some((c) => c.on === "stdout"), `${t.id}: потрібна перевірка виводу`);
@@ -70,11 +79,8 @@ for (const lang of langs) {
     }
   });
 
-  if (spawnSync(LANGS[lang].probe[0], LANGS[lang].probe.slice(1)).error) {
-    console.log(`    ${lang}: інструмента немає, запуск пропущено`); skipped++; continue;
-  }
-  const dir = mkdtempSync(join(tmpdir(), `ic-${lang}-`));
-  const exec = (code) => {
+  const dir = mkdtempSync(join(tmpdir(), `ic-${course}-`));
+  const exec = (lang, code) => {
     rmSync(dir, { recursive: true, force: true });   // чисте середовище для кожного запуску
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, LANGS[lang].file), code);
@@ -83,11 +89,12 @@ for (const lang of langs) {
     return { stdout: r.stdout ?? "", stderr: r.stderr ?? "", exitCode: r.status ?? 1 };
   };
   for (const t of tasks) {
+    if (!hasTool(t.lang)) { console.log(`    ${t.id}: інструмента ${t.lang} немає, запуск пропущено`); skipped++; continue; }
     await test(`${t.id}: заготовка не проходить, еталон проходить усі перевірки`, () => {
-      const starter = exec(t.starter);
+      const starter = exec(t.lang, t.starter);
       const starterResults = starter.error ? [] : evalChecks(t.checks, t.starter, starter);
       assert.ok(starter.error || starter.exitCode || starterResults.some((r) => !r.passed), "заготовка не повинна проходити всі перевірки");
-      const solved = exec(SOLUTIONS[t.id]);
+      const solved = exec(t.lang, SOLUTIONS[t.id]);
       assert.ok(!solved.error, "еталон не компілюється:\n" + solved.error);
       assert.equal(solved.exitCode, 0, "еталон завершився аварійно:\n" + solved.stderr);
       const res = evalChecks(t.checks, SOLUTIONS[t.id], solved);

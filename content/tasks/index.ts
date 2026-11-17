@@ -1,3 +1,4 @@
+import { BASH_TASKS } from "./bash.ts";
 import { CPP_TASKS } from "./cpp.ts";
 import { CSS_TASKS } from "./css.ts";
 import { GO_TASKS } from "./go.ts";
@@ -7,6 +8,7 @@ import { JS_TASKS } from "./js.ts";
 import { PASCAL_TASKS } from "./pascal.ts";
 import { PHP_TASKS } from "./php.ts";
 import { PYTHON_TASKS } from "./python.ts";
+import { SQL_TASKS } from "./sql.ts";
 import { TS_TASKS } from "./ts.ts";
 import type { Task } from "../../src/tasks/types.ts";
 
@@ -23,6 +25,8 @@ export const TASKS: readonly Task[] = [
   ...JS_TASKS,
   ...HTML_TASKS,
   ...CSS_TASKS,
+  ...SQL_TASKS,
+  ...BASH_TASKS,
   {
     id: "js-safe-city",
     lesson: "js/3",
