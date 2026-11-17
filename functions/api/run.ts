@@ -10,6 +10,7 @@ import { taskById } from "../../content/tasks/index.ts";
 import { isRemote } from "../../src/tasks/types.ts";
 
 const MAX_PER_MINUTE = 12;
+const MAX_PER_DAY = 500;       // добовий ліміт запусків на користувача (зовнішня пісочниця безкоштовна, її не можна вичерпати одним акаунтом)
 const MAX_STDOUT = 20000;
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -25,6 +26,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const u = await currentUser(request, env);
   if (!u) return json({ error: "unauthorized" }, 401);
   if (!(await allow(env, "run:u:" + u.id, MAX_PER_MINUTE, 60))) return json({ error: "rate_limited" }, 429);
+  if (!(await allow(env, "run-day:" + u.id, MAX_PER_DAY, 86400))) return json({ error: "rate_limited" }, 429);
   if (task.premium && !isProActive(u)) return json({ error: "pro_required" }, 402);
 
   let out;

@@ -106,7 +106,12 @@ export function renderPublic(nick: string): { html: string; title: string; index
   if (pub.s === "err") return { html: `${back}<div class="card"><h1>Не вдалося завантажити профіль</h1><p class="dash-muted">Перевірте з'єднання й спробуйте ще раз.</p><button class="btn primary" data-act="retry-profile">Спробувати ще раз</button></div>`, title: "Профіль", index: false };
   if (pub.s === "nf" || !pub.p) return { html: `${back}<div class="card"><h1>Профіль не знайдено</h1><p class="dash-muted">Такого користувача немає, або він закрив свій профіль.</p><a class="btn primary" href="/courses">До курсів</a></div>`, title: "Профіль не знайдено", index: false };
   const note = pub.own && !pub.open ? `<p class="pf-note">Профіль закритий: його бачите тільки ви. <a href="/profile">Відкрити в налаштуваннях</a></p>` : pub.own ? `<p class="pf-note ok">Так вас бачать інші. <a href="/profile">Налаштувати профіль</a></p>` : "";
-  return { html: `${back}${profileView(pub.p, note)}`, title: `@${pub.p.nick}: профіль`, index: !!pub.open };
+  const report = !pub.own && getUser() ? `<details class="pf-report card"><summary>Поскаржитись на профіль</summary>
+    <label class="sr-only" for="pf-rep-reason">Причина скарги</label>
+    <select id="pf-rep-reason"><option value="spam">Спам або реклама</option><option value="abuse">Образи</option><option value="personal">Особисті дані</option><option value="other">Інше</option></select>
+    <button class="btn small" type="button" data-act="report-profile" data-nick="${escA(pub.p.nick)}">Надіслати</button>
+    <p class="form-msg" id="pf-rep-msg" role="status"></p></details>` : "";
+  return { html: `${back}${profileView(pub.p, note)}${report}`, title: `@${pub.p.nick}: профіль`, index: !!pub.open };
 }
 
 // ---------- налаштування ----------

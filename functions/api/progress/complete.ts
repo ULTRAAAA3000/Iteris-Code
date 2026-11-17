@@ -1,5 +1,6 @@
 // POST /api/progress/complete — зберегти результат практичного завдання
 import type { Env } from "../../../lib/env.ts";
+import { allow } from "../../../lib/auth.ts";
 import { verifyProof } from "../../../lib/proof.ts";
 import { bumpStreak, currentUser, effectiveStreak, isProActive, json, sameOrigin } from "../../../lib/session.ts";
 import { taskById } from "../../../content/tasks/index.ts";
@@ -10,6 +11,8 @@ import { isRemote } from "../../../src/tasks/types.ts";
 const MAX_CODE = 20000;
 const MAX_PROJECT_CODE = 60000;   // проєкт — це цілий файл HTML, CSS і JS
 const MAX_PER_MINUTE = 20;
+const MAX_PER_DAY = 600;       // суточный лимит спроб на користувача: захист від заповнення бази й накрутки
+const KEEP_FAILED = 5;         // скільки останніх невдалих спроб за завдання зберігаємо
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (!sameOrigin(request)) return json({ error: "forbidden" }, 403);
@@ -39,11 +42,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   ).bind(u.id).first<{ c: number }>();
   if ((recent?.c ?? 0) >= MAX_PER_MINUTE) return json({ error: "rate_limited" }, 429);
 
+  if (!(await allow(env, "sub-day:" + u.id, MAX_PER_DAY, 86400))) return json({ error: "rate_limited" }, 429);
+
   const earlier = await env.DB.prepare("SELECT 1 AS x FROM task_submissions WHERE user_id = ?1 AND task_id = ?2 AND is_passed = 1 LIMIT 1")
     .bind(u.id, task.id).first();
 
-  await env.DB.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES (?1, ?2, ?3, ?4, ?5)")
-    .bind(crypto.randomUUID(), u.id, task.id, body.code, passed ? 1 : 0).run();
+  // Зберігаємо не все підряд: пройдений розв'язок один на завдання, невдалих лише останні KEEP_FAILED (інакше акаунт роздуває базу)
+  if (!(passed && earlier)) {
+    await env.DB.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES (?1, ?2, ?3, ?4, ?5)")
+      .bind(crypto.randomUUID(), u.id, task.id, body.code, passed ? 1 : 0).run();
+    await env.DB.prepare(
+      `DELETE FROM task_submissions WHERE user_id = ?1 AND task_id = ?2 AND is_passed = 0 AND id NOT IN
+         (SELECT id FROM task_submissions WHERE user_id = ?1 AND task_id = ?2 AND is_passed = 0 ORDER BY created_at DESC, rowid DESC LIMIT ?3)`
+    ).bind(u.id, task.id, KEEP_FAILED).run();
+  }
 
   let streak = effectiveStreak(u);
   if (passed) {
