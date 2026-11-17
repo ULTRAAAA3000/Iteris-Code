@@ -20,6 +20,8 @@ export interface Env {
   MAIL_FROM?: string;
   /** Куди пересилати звернення з форми підтримки (/contact). Без нього звернення лише зберігаються в базі */
   SUPPORT_EMAIL?: string;
+  /** Пошти власників через кому: лише їм відкривається закрита сторінка /admin з аналітикою */
+  ADMIN_EMAILS?: string;
   /** Lemon Squeezy: секрет подписи вебхука */
   LEMONSQUEEZY_WEBHOOK_SECRET?: string;
   /** Lemon Squeezy: ссылка на оплату тарифа Pro, например https://магазин.lemonsqueezy.com/checkout/buy/<id> */

@@ -87,3 +87,14 @@
   .pf-nick-row{flex-wrap:wrap}.pf-nick-row input{flex-basis:60%}
 }
 @media (prefers-reduced-motion:reduce){.pf-ava,.pf-skel .sk-line{transition:none;animation:none}}
+
+/* Закрита аналітика /admin */
+.adm{display:grid;gap:16px}.adm-h{margin:0 0 12px}
+.adm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.adm-tot{display:flex;flex-direction:column;gap:4px}.adm-tot b{font-size:1.8rem}
+.adm-step{margin-bottom:12px}.adm-row{display:flex;justify-content:space-between;gap:12px;margin-bottom:4px}
+.adm-track{height:10px;border-radius:6px;background:var(--panel);overflow:hidden}.adm-track i{display:block;height:100%;background:var(--accent,#8246FC);border-radius:6px}
+.adm-rets{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px}.adm-ret{display:flex;flex-direction:column;gap:2px}.adm-ret b{font-size:2rem}
+.adm-bars{display:flex;align-items:flex-end;gap:3px;height:120px}.adm-bar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.adm-bar i{display:block;width:100%;background:var(--accent,#8246FC);border-radius:3px 3px 0 0}.adm-bar span{font-size:.62rem;color:var(--muted)}
+.adm-note{color:var(--muted);font-size:.85rem;margin:8px 0 0}
