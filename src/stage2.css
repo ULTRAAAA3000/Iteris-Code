@@ -288,3 +288,15 @@
 .pj-card{margin-top:20px}
 .pj-prev-h{font-size:1rem;margin:14px 0 4px}
 .pj .ws-editor{min-height:340px}
+
+/* ---- Плашка «Цікавий факт» у кабінеті ---- */
+.fact-card{border-left:10px solid var(--fc,var(--hl));margin-bottom:18px;animation:fact-in .45s ease both}
+.fact-top{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:8px}
+.fact-kind{font-weight:800;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em}
+.fact-lang{padding:2px 12px;border:2px solid var(--ink);border-radius:99px;background:var(--fc,var(--hl));color:#fff;font-size:.82rem;font-weight:700}
+.fact-text{margin:0 0 14px;font-size:1.05rem;line-height:1.6;overflow-wrap:anywhere;color:var(--ink)}
+.fact-text code{padding:1px 6px;border-radius:6px;background:var(--grid);font-size:.92em}
+.fact-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+@keyframes fact-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.fact-card{animation:none}}
+
