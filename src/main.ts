@@ -1,4 +1,5 @@
 import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
+import { mountContact } from "./contact-mount.ts";
 import { cachedLesson, cachedProject, fetchLesson, fetchProject, lessonFailed, outlineLoaded, projectFailed, retryLesson, retryProject } from "./content.ts";
 import { C, projectMeta } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
@@ -77,6 +78,7 @@ function render(): void {
   if (page?.kind === "home") initHome();
   if (task) void mountWorkspace(task);
   if (project) void mountProject(project);
+  if (page?.path === "/contact") mountContact(getUser());
   if (isAuthRoute(a)) mountAuthPage(a, b);
   if (a === "profile" && getUser()) mountSettings();
   mountStage2(a);

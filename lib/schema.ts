@@ -33,6 +33,10 @@ const TABLES: string[] = [
   `CREATE TABLE IF NOT EXISTS user_onboarding (
     user_id TEXT PRIMARY KEY, level TEXT NOT NULL, courses TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`,
+  `CREATE TABLE IF NOT EXISTS support_messages (
+    id TEXT PRIMARY KEY, user_id TEXT, name TEXT, email TEXT NOT NULL, topic TEXT NOT NULL, message TEXT NOT NULL, meta TEXT,
+    emailed INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,
+  `CREATE INDEX IF NOT EXISTS idx_support_time ON support_messages(created_at)`,
 ];
 
 // Колонки, которые появились после первой версии таблицы users

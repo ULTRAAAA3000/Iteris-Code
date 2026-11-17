@@ -2,6 +2,7 @@
 // Модуль чистий (без DOM, мережі й входу): той самий HTML малює браузер, а збірка заздалегідь створює з нього готові сторінки для пошуковиків.
 import { C, CATS, darkText, publicLessonTotal } from "./data.ts";
 import { REF } from "./data/reference/index.ts";
+import { contactHtml } from "./contact.ts";
 import { count, esc, W } from "./util.ts";
 
 export const BRAND = "Iteris Code";
@@ -291,6 +292,11 @@ export function publicPages(): PageDef[] {
       path: "/about", kind: "info", active: "about", crumbs: [["Про проєкт", "/about"]], html: aboutHtml,
       title: `Про проєкт | ${BRAND}`,
       desc: `${BRAND}: безкоштовна платформа, де можна вивчити мову програмування так, щоб працювати. Принципи, зміст курсів і технології.`,
+    },
+    {
+      path: "/contact", kind: "info", active: "contact", crumbs: [["Підтримка", "/contact"]], html: () => contactHtml(crumbsHtml([["Підтримка", "/contact"]])),
+      title: `Підтримка: написати нам | ${BRAND}`,
+      desc: "Напишіть у підтримку Iteris Code: ефекти й візуал, помилка в роботі сайту, ідея або побажання. Ми читаємо кожне звернення й відповімо на вашу пошту.",
     },
   ];
   for (const [key, c] of Object.entries(CATS)) {

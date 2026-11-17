@@ -91,3 +91,17 @@ CREATE TABLE IF NOT EXISTS user_onboarding (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
+
+-- Обращения из формы поддержки (/contact): эффекты и визуал, ошибки, идеи
+CREATE TABLE IF NOT EXISTS support_messages (
+  id TEXT PRIMARY KEY,
+  user_id TEXT,                      -- NULL для гостя
+  name TEXT,
+  email TEXT NOT NULL,
+  topic TEXT NOT NULL,               -- visual | bug | idea | other
+  message TEXT NOT NULL,
+  meta TEXT,                         -- JSON: страница, размер окна, браузер, «уменьшение движения»
+  emailed INTEGER DEFAULT 0,         -- 1, если копия ушла на SUPPORT_EMAIL
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_support_time ON support_messages(created_at);
