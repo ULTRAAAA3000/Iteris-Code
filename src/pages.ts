@@ -3,6 +3,7 @@
 import { C, CATS, darkText, publicLessonTotal } from "./data.ts";
 import { REF } from "./data/reference/index.ts";
 import { contactHtml } from "./contact.ts";
+import { NEWS_PATH, NEWS_TITLE, newsHtml } from "./changelog.ts";
 import { PRIVACY_HTML, PRIVACY_TITLE, TERMS_HTML, TERMS_TITLE } from "./legal.ts";
 import { count, esc, W } from "./util.ts";
 
@@ -305,6 +306,11 @@ export function publicPages(): PageDef[] {
       path: "/contact", kind: "info", active: "contact", crumbs: [["Підтримка", "/contact"]], html: () => contactHtml(crumbsHtml([["Підтримка", "/contact"]])),
       title: `Підтримка: написати нам | ${BRAND}`,
       desc: "Напишіть у підтримку Iteris Code: ефекти й візуал, помилка в роботі сайту, ідея або побажання. Ми читаємо кожне звернення й відповімо на вашу пошту.",
+    },
+    {
+      path: NEWS_PATH, kind: "info", active: "", crumbs: [[NEWS_TITLE, NEWS_PATH]], html: () => newsHtml(crumbsHtml([[NEWS_TITLE, NEWS_PATH]])),
+      title: `${NEWS_TITLE} і що скоро: оновлення платформи | ${BRAND}`,
+      desc: `Оновлення ${BRAND}: нові можливості й зміни за останні дні та плани. Скоро: монети, магазин і напарник-герой, що росте разом із вами.`,
     },
     {
       path: "/privacy", kind: "info", active: "", crumbs: [[PRIVACY_TITLE, "/privacy"]], html: () => legalHtml(PRIVACY_TITLE, "/privacy", PRIVACY_HTML),
