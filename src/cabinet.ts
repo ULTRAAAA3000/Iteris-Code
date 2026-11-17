@@ -1,8 +1,8 @@
 // Картки кабінету Етапу 2: рівень і XP, серія з анімацією, календар із деталями дня, шлях.
 // Модуль без залежності від auth.ts (лише HTML і DOM), щоб не створювати цикл імпортів.
-import { allProjects, allTasks, C, projectMeta, taskMeta } from "./data.ts";
+import { allProjects, allTasks, C, darkText, projectMeta, taskMeta } from "./data.ts";
 import type { DashboardData } from "./types.ts";
-import { escA, pl } from "./util.ts";
+import { esc, escA, pl, store } from "./util.ts";
 import { currentLesson, LESSON_XP, levelInfo, STREAK_BONUS, STREAK_MILESTONES } from "./xp.ts";
 import { LEVEL_TEXT, startPoint } from "./onboarding.ts";
 
@@ -101,7 +101,31 @@ function countUp(el: HTMLElement): void {
   requestAnimationFrame(tick);
 }
 
+const FACT_SEEN = "ic-fact-seen";
+
+/** Текст у зворотних лапках показуємо як код */
+const withCode = (s: string): string => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
+const eta = (ms: number): string => {
+  const m = Math.max(1, Math.ceil(ms / 60000)), h = Math.floor(m / 60);
+  return h ? `${h} год ${m % 60 ? (m % 60) + " хв" : ""}`.trim() : `${m} хв`;
+};
+
+/** Плашка «Цікавий факт» (або порада) про напрямок, який обрала людина. Нова з'являється раз на 5 годин; «Зрозуміло» ховає її до наступної */
+export function factCard(d: DashboardData): string {
+  const f = d.fact;
+  if (!f || store.get<string>(FACT_SEEN, "") === f.id) return "";
+  const c = C[f.lang];
+  const left = Math.max(0, Date.parse(f.nextAt) - Date.now());
+  return `<section class="card fact-card" data-fact="${escA(f.id)}" style="--fc:${c ? c.color : "var(--hl)"}" aria-label="${f.kind === "tip" ? "Корисна порада" : "Цікавий факт"}">
+    <div class="fact-top"><span class="fact-kind">${f.kind === "tip" ? "Корисна порада" : "Цікавий факт"}</span><span class="fact-lang" style="${c ? darkText(f.lang) : ""}">${escA(c ? c.name : "Програмування")}</span></div>
+    <p class="fact-text">${withCode(f.text)}</p>
+    <div class="fact-foot"><span class="dash-muted">Наступний за ${eta(left)}</span><button class="btn small" type="button" data-fact-ok>Зрозуміло</button></div>
+  </section>`;
+}
+
 export function mountCabinet(): void {
+  const fact = document.querySelector<HTMLElement>(".fact-card");
+  fact?.querySelector("[data-fact-ok]")?.addEventListener("click", () => { store.set(FACT_SEEN, fact.dataset.fact ?? ""); fact.remove(); });
   document.querySelectorAll<HTMLElement>(".dash .cnt[data-to]").forEach(countUp);
   // Вступна анімація карток грає один раз за відвідування: після перемальовування (нове XP) картки не «стрибають» знову
   if (shown) document.querySelector(".dash")?.classList.add("again"); else shown = true;
