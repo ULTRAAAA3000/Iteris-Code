@@ -53,6 +53,9 @@ export interface PublicProfile {
 /** GET /api/profile: свої налаштування профілю */
 export interface ProfileSettings { nick: string | null; avatarId: string | null; bio: string; public: boolean }
 
+/** Плашка «Цікавий факт»: новий запис раз на 5 годин, про напрямок, який обрала людина */
+export interface DailyFact { id: string; lang: string; kind: "fact" | "tip"; text: string; nextAt: string }
+
 export interface DashboardData {
   user: PublicUser;
   completedLessons: string[];
@@ -65,4 +68,5 @@ export interface DashboardData {
   xp?: number;
   onboarding?: { level: "beginner" | "intermediate" | "advanced"; courses: string[] } | null;
   days?: Record<string, { l: string[]; t: string[] }>;
+  fact?: DailyFact | null;
 }
