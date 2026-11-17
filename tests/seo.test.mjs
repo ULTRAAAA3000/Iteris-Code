@@ -66,10 +66,11 @@ t("публічні сторінки не містять вмісту закри
   const home = files.find((f) => f.file === "index.html").html.toLowerCase();
   for (const w of ["профіл", "монет", "магазин", "пошт"]) assert.ok(!home.includes(w), "головна: " + w);
 });
-t("головна: заклик «Зареєструйся і вчись безкоштовно», підпис «Powered by VSB» без посилання", () => {
+t("головна: заклик «Зареєструйся і вчись безкоштовно», підпис «Powered by WYSB» із посиланням на wysb.eu", () => {
   const home = files.find((f) => f.file === "index.html").html;
   assert.ok(home.includes("Зареєструйся і вчись безкоштовно"));
-  assert.ok(/Powered by VSB(?!<\/a>)/.test(home) && !/<a[^>]*>[^<]*Powered by VSB/.test(home));
+  assert.ok(/Powered by <a href="https:\/\/wysb\.eu"[^>]*>WYSB<\/a>/.test(home));
+  assert.ok(!/VSB/.test(home), "старої назви VSB не лишилось");
 });
 t("findPage розпізнає адреси з .html і скісною рискою, невідомі повертають undefined", () => {
   assert.equal(findPage("/ref/js/")?.path, "/ref/js");
