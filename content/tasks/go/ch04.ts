@@ -133,4 +133,144 @@ func main() {
       { on: "stdout", name: "Нічого зайвого у виводі", equals: "24 20\n212\n-40" },
     ],
   },
+  {
+    ...base, id: "go-receivers-counter", lesson: "go/34", xp: 25,
+    title: "Лічильник і точка: який отримувач вибрати",
+    context: "Типи зі станом (лічильник, кеш, сервіс) мають методи з вказівником, а малі незмінні значення (точка, гроші) передають за значенням. Помилка у виборі дає метод, який «нічого не робить».",
+    brief: [
+      "Зараз <code>Counter</code> має методи з отримувачем-значенням, тому <code>Inc</code> і <code>Add</code> змінюють лише копію. Виправте: усі три методи <code>Counter</code> мають бути з вказівником (методи одного типу узгоджуємо).",
+      "Додайте до <code>Point</code> метод <code>Add(q Point) Point</code> з отримувачем-значенням: він не змінює точку, а повертає нову з сумою координат. Функцію <code>main</code> не змінюйте.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+type Counter struct {
+	N int
+}
+
+func (c Counter) Inc() {
+	c.N++
+}
+
+func (c Counter) Add(n int) {
+	c.N += n
+}
+
+func (c Counter) Value() int {
+	return c.N
+}
+
+type Point struct {
+	X, Y int
+}
+
+func main() {
+	var c Counter
+	c.Inc()
+	c.Inc()
+	c.Add(10)
+	fmt.Println(c.Value())
+
+	counters := []Counter{{}, {}}
+	counters[1].Inc()
+	fmt.Println(counters[0].Value(), counters[1].Value())
+
+	p := Point{1, 2}.Add(Point{3, 4})
+	fmt.Println(p)
+}
+`,
+    checks: [
+      { on: "stdout", name: "Лічильник після Inc, Inc, Add(10): 12", has: "12" },
+      { on: "stdout", name: "Змінено лише другий лічильник у слайсі: 0 1", has: "0 1" },
+      { on: "stdout", name: "Сума точок: {4 6}", has: "{4 6}" },
+      { on: "source", name: "Методи Counter мають отримувач-вказівник", matches: "func \\(\\w+ \\*Counter\\) Inc\\(\\)", hint: "Щоб метод змінював оригінал, отримувач записують як *Counter" },
+      { on: "source", name: "Усі методи Counter однакові: жодного з отримувачем-значенням", matches: "func \\(\\w+ Counter\\)", not: true, hint: "Якщо хоч один метод має вказівник, роблять так усі: і Add, і Value" },
+      { on: "source", name: "Point.Add бере й повертає значення", matches: "func \\(\\w+ Point\\) Add\\(\\w+ Point\\) Point", hint: "Метод Add малого типу Point приймає Point і повертає нову Point" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "12\n0 1\n{4 6}" },
+    ],
+  },
+  {
+    ...base, id: "go-embedding-base", lesson: "go/35", xp: 25,
+    title: "Вбудовування: спільна основа для статті й коментаря",
+    context: "Спільні поля сутностей (ID, автор, дата створення) виносять у базову структуру й вбудовують, а не копіюють у кожен тип. Перекриття методу дозволяє додати власну поведінку, зберігши базову.",
+    brief: [
+      "Вбудуйте <code>Base</code> у <code>Article</code> і в <code>Comment</code> (вбудоване поле без імені, а не звичайне поле).",
+      "Додайте до <code>Comment</code> власний метод <code>Info() string</code>, що повертає результат <code>Base.Info()</code>, далі двокрапку, пробіл і текст коментаря. Версія <code>Article</code> лишається просунутою з <code>Base</code>.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+type Base struct {
+	ID     int
+	Author string
+}
+
+func (b Base) Info() string {
+	return fmt.Sprintf("#%d від %s", b.ID, b.Author)
+}
+
+type Article struct {
+	Title string
+}
+
+type Comment struct {
+	Text string
+}
+
+func main() {
+	a := Article{Base: Base{ID: 1, Author: "Ірина"}, Title: "Go"}
+	c := Comment{Base: Base{ID: 2, Author: "Олег"}, Text: "Дякую"}
+	fmt.Println(a.Info())
+	fmt.Println(c.Info())
+	fmt.Println(a.Author, c.Base.ID)
+}
+`,
+    checks: [
+      { on: "stdout", name: "Стаття: просунутий Info()", has: "#1 від Ірина" },
+      { on: "stdout", name: "Коментар: Info() з дописаним текстом", has: "#2 від Олег: Дякую" },
+      { on: "stdout", name: "Просунуте поле Author і явний доступ до Base.ID", has: "Ірина 2" },
+      { on: "source", name: "Base вбудовано без імені поля", matches: "type Article struct \\{[^}]*\\n\\s*Base\\s*\\n", hint: "Вбудоване поле — це лише назва типу в рядку структури, без імені перед ним" },
+      { on: "source", name: "Comment перекриває Info і викликає версію Base", matches: "func \\(\\w+ Comment\\) Info\\(\\) string[\\s\\S]*\\.Base\\.Info\\(\\)", hint: "Усередині власного Info() звертайтеся до вбудованої версії явно: через поле Base" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "#1 від Ірина\n#2 від Олег: Дякую\nІрина 2" },
+    ],
+  },
+  {
+    ...base, id: "go-iota-level", lesson: "go/36", xp: 25,
+    title: "Рівні логування: enum на iota зі String()",
+    context: "Рівні логування, статуси замовлень, ролі користувачів — усе це перелічувані типи. <code>iota</code> дає значення, а <code>String()</code> робить логи читабельними.",
+    brief: [
+      "Константи <code>Level</code> зараз записані числами вручну. Перепишіть блок на <code>iota</code> (значення мають лишитися 0, 1, 2, 3).",
+      "Додайте метод <code>String()</code> з іменами <code>DEBUG</code>, <code>INFO</code>, <code>WARN</code>, <code>ERROR</code>. Для значення поза діапазоном поверніть <code>Level(N)</code> (число друкуйте через <code>%d</code> і <code>int(l)</code>, щоб не викликати <code>String()</code> рекурсивно).",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+type Level int
+
+const (
+	Debug Level = 0
+	Info  Level = 1
+	Warn  Level = 2
+	Error Level = 3
+)
+
+func main() {
+	fmt.Println(Debug, Info, Warn, Error)
+	fmt.Printf("%v %d\n", Warn, Warn)
+	fmt.Println(Level(9))
+	fmt.Println(Warn >= Info)
+}
+`,
+    checks: [
+      { on: "stdout", name: "Імена рівнів: DEBUG INFO WARN ERROR", has: "DEBUG INFO WARN ERROR" },
+      { on: "stdout", name: "%v дає ім'я, %d дає число: WARN 2", has: "WARN 2" },
+      { on: "stdout", name: "Значення поза діапазоном: Level(9)", has: "Level(9)" },
+      { on: "source", name: "Константи на iota", matches: "\\biota\\b", hint: "Перший рядок блоку: Debug Level = iota; решта рядків повторюють вираз" },
+      { on: "source", name: "Є метод String() string на типі Level", matches: "func \\(\\w+ Level\\) String\\(\\) string", hint: "fmt викликає саме метод з таким ім'ям і підписом" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "DEBUG INFO WARN ERROR\nWARN 2\nLevel(9)\ntrue" },
+    ],
+  },
 ];

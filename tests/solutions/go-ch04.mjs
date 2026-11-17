@@ -105,4 +105,111 @@ func main() {
 	fmt.Println(Celsius(-40).Fahrenheit())
 }
 `,
+  "go-receivers-counter": raw`package main
+
+import "fmt"
+
+type Counter struct {
+	N int
+}
+
+func (c *Counter) Inc() {
+	c.N++
+}
+
+func (c *Counter) Add(n int) {
+	c.N += n
+}
+
+func (c *Counter) Value() int {
+	return c.N
+}
+
+type Point struct {
+	X, Y int
+}
+
+func (p Point) Add(q Point) Point {
+	return Point{p.X + q.X, p.Y + q.Y}
+}
+
+func main() {
+	var c Counter
+	c.Inc()
+	c.Inc()
+	c.Add(10)
+	fmt.Println(c.Value())
+
+	counters := []Counter{{}, {}}
+	counters[1].Inc()
+	fmt.Println(counters[0].Value(), counters[1].Value())
+
+	p := Point{1, 2}.Add(Point{3, 4})
+	fmt.Println(p)
+}
+`,
+  "go-embedding-base": raw`package main
+
+import "fmt"
+
+type Base struct {
+	ID     int
+	Author string
+}
+
+func (b Base) Info() string {
+	return fmt.Sprintf("#%d від %s", b.ID, b.Author)
+}
+
+type Article struct {
+	Base
+	Title string
+}
+
+type Comment struct {
+	Base
+	Text string
+}
+
+func (c Comment) Info() string {
+	return c.Base.Info() + ": " + c.Text
+}
+
+func main() {
+	a := Article{Base: Base{ID: 1, Author: "Ірина"}, Title: "Go"}
+	c := Comment{Base: Base{ID: 2, Author: "Олег"}, Text: "Дякую"}
+	fmt.Println(a.Info())
+	fmt.Println(c.Info())
+	fmt.Println(a.Author, c.Base.ID)
+}
+`,
+  "go-iota-level": raw`package main
+
+import "fmt"
+
+type Level int
+
+const (
+	Debug Level = iota
+	Info
+	Warn
+	Error
+)
+
+var levelNames = [...]string{"DEBUG", "INFO", "WARN", "ERROR"}
+
+func (l Level) String() string {
+	if l < 0 || int(l) >= len(levelNames) {
+		return fmt.Sprintf("Level(%d)", int(l))
+	}
+	return levelNames[l]
+}
+
+func main() {
+	fmt.Println(Debug, Info, Warn, Error)
+	fmt.Printf("%v %d\n", Warn, Warn)
+	fmt.Println(Level(9))
+	fmt.Println(Warn >= Info)
+}
+`,
 };
