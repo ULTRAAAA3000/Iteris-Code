@@ -405,5 +405,184 @@ func main() {
       { on: "source", name: "continue з міткою", matches: "continue\\s+\\w+" },
     ],
   },
+  {
+    ...base, id: "go-sum-product", lesson: "go/15", xp: 20,
+    title: "Два результати, цикл і передача за значенням",
+    context: "Функції в Go часто повертають кілька значень (результат і ознаку, пару чисел), а параметри завжди копіюються. Цей урок про те й про інше.",
+    brief: [
+      "Допишіть <code>sumAndProduct(a, b int) (int, int)</code>: сума й добуток двох чисел.",
+      "Допишіть <code>sumAndProductUpTo(n int) (int, int)</code>: у циклі <code>for</code> порахуйте суму й добуток усіх чисел від 1 до n. Для 5 це 15 і 120.",
+      "Допишіть <code>addTen(n int) int</code>: збільште параметр на 10 і поверніть його. Змінна <code>x</code> у <code>main</code> при цьому має лишитися незмінною.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func sumAndProduct(a, b int) (int, int) {
+	// TODO: поверніть суму й добуток
+	return 0, 0
+}
+
+func sumAndProductUpTo(n int) (int, int) {
+	// TODO: цикл for від 1 до n
+	return 0, 0
+}
+
+func addTen(n int) int {
+	// TODO: збільште n на 10 і поверніть
+	return 0
+}
+
+func main() {
+	s, p := sumAndProduct(6, 7)
+	fmt.Println("Сума:", s, "Добуток:", p)
+	s, p = sumAndProductUpTo(5)
+	fmt.Println("До 5:", s, p)
+	x := 5
+	y := addTen(x)
+	fmt.Println("x:", x, "y:", y)
+}
+`,
+    checks: [
+      { on: "stdout", name: "Сума й добуток: 13 і 42", has: "Сума: 13 Добуток: 42", hint: "return a + b, a * b" },
+      { on: "stdout", name: "Сума й добуток до 5: 15 і 120", has: "До 5: 15 120", hint: "Почніть із sum := 0 і product := 1, на кожній ітерації оновлюйте обидві" },
+      { on: "stdout", name: "Параметр не змінює x: x: 5 y: 15", has: "x: 5 y: 15", hint: "Функція змінює свою копію n, а x у main лишається 5" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "Сума: 13 Добуток: 42\nДо 5: 15 120\nx: 5 y: 15" },
+      { on: "source", name: "Використано цикл for", matches: "\\bfor\\b" },
+    ],
+  },
+  {
+    ...base, id: "go-variadic-named", lesson: "go/16", xp: 25,
+    title: "Мінімум і максимум із variadic та іменованими результатами",
+    context: "Функції зі змінною кількістю аргументів і названими результатами пишуть у утилітах і логерах: сигнатура сама пояснює, що повертається.",
+    brief: [
+      "Допишіть <code>minMax(nums ...int) (lo, hi int)</code> з іменованими результатами: найменше й найбільше з аргументів. Пройдіть значення через <code>range</code>, перше значення береться як початкове (<code>i == 0</code>).",
+      "Допишіть <code>joinWith(sep string, parts ...string) string</code>: склейте частини через роздільник; без частин поверніть порожній рядок.",
+      "У <code>main</code> уже є виклики з розгортанням <code>data...</code>: перевірте, що вони працюють.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func minMax(nums ...int) (int, int) {
+	// TODO: названі результати (lo, hi int) і цикл range
+	return 0, 0
+}
+
+func joinWith(sep string, parts ...string) string {
+	// TODO: склейте частини через sep
+	return ""
+}
+
+func main() {
+	lo, hi := minMax(4, -2, 9, 3)
+	fmt.Println(lo, hi)
+	data := []int{7, 1, 8}
+	lo, hi = minMax(data...)
+	fmt.Println(lo, hi)
+	fmt.Println(joinWith(", ", "Go", "Rust", "C"))
+	fmt.Printf("[%s]\n", joinWith("-"))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Мінімум і максимум: -2 9", has: "-2 9", hint: "Якщо i == 0 || n < lo, то lo = n; так само для hi" },
+      { on: "stdout", name: "Розгортання списку: 1 8", has: "1 8", hint: "minMax(data...) передає елементи списку як окремі аргументи" },
+      { on: "stdout", name: "Склейка: Go, Rust, C", has: "Go, Rust, C", hint: "Роздільник додавайте перед кожною частиною, крім першої" },
+      { on: "stdout", name: "Порожній виклик дає порожній рядок", has: "[]" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "-2 9\n1 8\nGo, Rust, C\n[]" },
+      { on: "source", name: "Іменовані результати (lo, hi int)", matches: "\\(\\s*lo\\s*,\\s*hi\\s+int\\s*\\)", hint: "Назвіть результати в сигнатурі minMax" },
+    ],
+  },
+  {
+    ...base, id: "go-closure-counter", lesson: "go/17", xp: 30,
+    title: "Лічильник-замикання і функція як аргумент",
+    context: "Замикання тримають стан без глобальних змінних, а функції-параметри роблять код гнучким: так влаштовані генератори ідентифікаторів, обробники й middleware.",
+    brief: [
+      "Допишіть <code>makeCounter(start, step int) func() int</code>: кожен виклик повернутої функції дає поточне значення й збільшує його на <code>step</code>. Лічильники від різних викликів незалежні.",
+      "Допишіть <code>makeAdder(k int) func(int) int</code>: функція, що додає <code>k</code> до свого аргумента.",
+      "Допишіть <code>apply(n int, f func(int) int) int</code>: застосуйте <code>f</code> до <code>n</code>.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func makeCounter(start, step int) func() int {
+	// TODO: змінна поза замиканням і функція, що її змінює
+	return func() int { return 0 }
+}
+
+func makeAdder(k int) func(int) int {
+	// TODO: поверніть функцію, що додає k
+	return func(n int) int { return n }
+}
+
+func apply(n int, f func(int) int) int {
+	// TODO: викличте f
+	return 0
+}
+
+func main() {
+	c1 := makeCounter(0, 5)
+	c2 := makeCounter(100, -1)
+	fmt.Println(c1(), c1(), c1())
+	fmt.Println(c2(), c2())
+	fmt.Println(apply(7, makeAdder(3)))
+	fmt.Println(apply(7, func(n int) int { return n * n }))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Перший лічильник: 0 5 10", has: "0 5 10", hint: "Значення зберігайте в змінній поза return func(), а всередині спершу запам'ятайте його, потім додайте step" },
+      { on: "stdout", name: "Незалежний лічильник: 100 99", has: "100 99", hint: "Кожен виклик makeCounter має створювати власну змінну" },
+      { on: "stdout", name: "Функція-аргумент: 10 і 49", has: "10\n49", hint: "apply має повертати f(n)" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "0 5 10\n100 99\n10\n49" },
+      { on: "source", name: "Повертається анонімна функція", matches: "return\\s+func\\(" },
+    ],
+  },
+  {
+    ...base, id: "go-recursion", lesson: "go/18", xp: 30,
+    title: "Рекурсія: степінь, сума цифр і Фібоначчі",
+    context: "Рекурсія природна для вкладених даних, а підрахунок викликів показує, чому наївна подвійна рекурсія дорога. Цю інтуїцію потім використовують і для обходу дерев.",
+    brief: [
+      "Допишіть <code>power(base, exp int) int</code> рекурсивно: база <code>exp == 0</code> дає 1, крок множить <code>base</code> на <code>power(base, exp-1)</code>.",
+      "Допишіть <code>sumDigits(n int) int</code> рекурсивно: для <code>n &lt; 10</code> це саме <code>n</code>, інакше остання цифра плюс сума цифр решти.",
+      "Допишіть <code>fib(n int) int</code>: на вході кожного виклику збільшуйте глобальний <code>calls</code>, база <code>n &lt; 2</code>, крок <code>fib(n-1) + fib(n-2)</code>. Для <code>fib(10)</code> буде 177 викликів.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+var calls int
+
+func power(base, exp int) int {
+	// TODO: база exp == 0, крок base * power(base, exp-1)
+	return 0
+}
+
+func sumDigits(n int) int {
+	// TODO: база n < 10, крок n%10 + sumDigits(n/10)
+	return 0
+}
+
+func fib(n int) int {
+	// TODO: calls++, база n < 2, крок fib(n-1) + fib(n-2)
+	return 0
+}
+
+func main() {
+	fmt.Println(power(2, 10), power(3, 4))
+	fmt.Println(sumDigits(98765))
+	r := fib(10)
+	fmt.Println(r, calls)
+}
+`,
+    checks: [
+      { on: "stdout", name: "Степені: 1024 81", has: "1024 81", hint: "power(base, 0) = 1; інакше base * power(base, exp-1)" },
+      { on: "stdout", name: "Сума цифр 98765: 35", has: "\n35\n", hint: "n%10 — остання цифра, n/10 — решта числа" },
+      { on: "stdout", name: "fib(10) = 55 за 177 викликів", has: "55 177", hint: "calls++ має бути першим рядком fib, до перевірки бази" },
+      { on: "stdout", name: "Вивід збігається з очікуваним", equals: "1024 81\n35\n55 177" },
+      { on: "source", name: "power викликає себе у return", matches: "return[^\\n]*\\bpower\\(" },
+      { on: "source", name: "sumDigits викликає себе у return", matches: "return[^\\n]*\\bsumDigits\\(" },
+    ],
+  },
 //__END__
 ];

@@ -307,5 +307,141 @@ func main() {
 	fmt.Println(countPrimes(20))
 }
 `,
+  "go-sum-product": raw`package main
+
+import "fmt"
+
+func sumAndProduct(a, b int) (int, int) {
+	return a + b, a * b
+}
+
+func sumAndProductUpTo(n int) (int, int) {
+	sum, product := 0, 1
+	for i := 1; i <= n; i++ {
+		sum += i
+		product *= i
+	}
+	return sum, product
+}
+
+func addTen(n int) int {
+	n += 10
+	return n
+}
+
+func main() {
+	s, p := sumAndProduct(6, 7)
+	fmt.Println("Сума:", s, "Добуток:", p)
+	s, p = sumAndProductUpTo(5)
+	fmt.Println("До 5:", s, p)
+	x := 5
+	y := addTen(x)
+	fmt.Println("x:", x, "y:", y)
+}
+`,
+  "go-variadic-named": raw`package main
+
+import "fmt"
+
+func minMax(nums ...int) (lo, hi int) {
+	for i, n := range nums {
+		if i == 0 || n < lo {
+			lo = n
+		}
+		if i == 0 || n > hi {
+			hi = n
+		}
+	}
+	return
+}
+
+func joinWith(sep string, parts ...string) string {
+	result := ""
+	for i, p := range parts {
+		if i > 0 {
+			result += sep
+		}
+		result += p
+	}
+	return result
+}
+
+func main() {
+	lo, hi := minMax(4, -2, 9, 3)
+	fmt.Println(lo, hi)
+	data := []int{7, 1, 8}
+	lo, hi = minMax(data...)
+	fmt.Println(lo, hi)
+	fmt.Println(joinWith(", ", "Go", "Rust", "C"))
+	fmt.Printf("[%s]\n", joinWith("-"))
+}
+`,
+  "go-closure-counter": raw`package main
+
+import "fmt"
+
+func makeCounter(start, step int) func() int {
+	cur := start
+	return func() int {
+		v := cur
+		cur += step
+		return v
+	}
+}
+
+func makeAdder(k int) func(int) int {
+	return func(n int) int {
+		return n + k
+	}
+}
+
+func apply(n int, f func(int) int) int {
+	return f(n)
+}
+
+func main() {
+	c1 := makeCounter(0, 5)
+	c2 := makeCounter(100, -1)
+	fmt.Println(c1(), c1(), c1())
+	fmt.Println(c2(), c2())
+	fmt.Println(apply(7, makeAdder(3)))
+	fmt.Println(apply(7, func(n int) int { return n * n }))
+}
+`,
+  "go-recursion": raw`package main
+
+import "fmt"
+
+var calls int
+
+func power(base, exp int) int {
+	if exp == 0 {
+		return 1
+	}
+	return base * power(base, exp-1)
+}
+
+func sumDigits(n int) int {
+	if n < 10 {
+		return n
+	}
+	return n%10 + sumDigits(n/10)
+}
+
+func fib(n int) int {
+	calls++
+	if n < 2 {
+		return n
+	}
+	return fib(n-1) + fib(n-2)
+}
+
+func main() {
+	fmt.Println(power(2, 10), power(3, 4))
+	fmt.Println(sumDigits(98765))
+	r := fib(10)
+	fmt.Println(r, calls)
+}
+`,
 //__END__
 };
