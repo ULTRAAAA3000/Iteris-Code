@@ -228,7 +228,12 @@ pre.code,.ws-term{max-width:100%;overflow-x:auto}
 @media (max-width:640px){
   .ws-editor{height:min(360px,55vh)}
   .btn.small,.icon-btn{min-height:40px}
-  .dash-head .btn{margin-left:auto}
+  .dash-head:not(.dash-hero) .btn{margin-left:auto}
+  /* Картка кабінету на телефоні: бейдж плану окремо, кнопки на всю ширину, «Мій профіль» і «Вийти» рівними половинами */
+  .dash-head.dash-hero .plan-row{flex-direction:column;align-items:stretch;gap:10px}
+  .dash-head.dash-hero .plan-row .plan{align-self:flex-start}
+  .dash-head.dash-hero .plan-row .btn,.dash-head.dash-hero .hero-actions .btn{margin:0;width:100%;justify-content:center;text-align:center}
+  .dash-head.dash-hero .hero-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;width:100%}
   .stats3 strong{font-size:1.5rem}
   .toast{bottom:16px;width:calc(100vw - 32px);text-align:center}
 }
