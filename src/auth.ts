@@ -202,7 +202,7 @@ export async function init(): Promise<void> {
   st.ready = true;
   updateHeader();
   ui.notifyAuth();
-  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson|project|profile)(\/|$)/.test(pathOf())) ui.render();
+  if (/^(dashboard|login|register|forgot|reset|verify|start|path|course|lesson|project|profile|admin)(\/|$)/.test(pathOf())) ui.render();
 }
 
 async function loadDash(): Promise<void> {

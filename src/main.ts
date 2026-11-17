@@ -1,4 +1,5 @@
 import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
+import { adminHtml, mountAdmin } from "./admin.ts";
 import { mountContact } from "./contact-mount.ts";
 import { cachedLesson, cachedProject, fetchLesson, fetchProject, lessonFailed, outlineLoaded, projectFailed, retryLesson, retryProject } from "./content.ts";
 import { C, projectMeta } from "./data.ts";
@@ -67,6 +68,7 @@ function render(): void {
   else if (a === "start") { html = locked() ?? onboardingHtml(); title = "Налаштування шляху — " + BRAND; }
   else if (a === "u" && b && !c) { const r = renderPublic(b); html = r.html; title = r.title + " — " + BRAND; indexable = r.index; }
   else if (a === "profile") { html = !isReady() ? loadingCard() : !getUser() ? gate() : renderSettings(); title = "Мій профіль — " + BRAND; }
+  else if (a === "admin") { html = !isReady() ? loadingCard() : !getUser() ? gate() : adminHtml(); title = "Аналітика — " + BRAND; }
   else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
   else { html = notFound(); title = "Сторінку не знайдено — " + BRAND; }
   app.innerHTML = html;
@@ -81,6 +83,7 @@ function render(): void {
   if (page?.path === "/contact") mountContact(getUser());
   if (isAuthRoute(a)) mountAuthPage(a, b);
   if (a === "profile" && getUser()) mountSettings();
+  if (a === "admin" && getUser()) void mountAdmin();
   mountStage2(a);
 }
 ui.render = render;
