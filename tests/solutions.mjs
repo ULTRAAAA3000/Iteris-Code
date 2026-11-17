@@ -319,6 +319,7 @@ func main() {
 };
 
 // Еталони віддалених завдань лежать окремо по мовах: tests/solutions/<мова>.mjs
+import { BASH } from "./solutions/bash.mjs";
 import { CPP } from "./solutions/cpp.mjs";
 import { CSS } from "./solutions/css.mjs";
 import { HTML } from "./solutions/html.mjs";
@@ -327,9 +328,10 @@ import { JS } from "./solutions/js.mjs";
 import { PASCAL } from "./solutions/pascal.mjs";
 import { PHP } from "./solutions/php.mjs";
 import { PYTHON } from "./solutions/python.mjs";
+import { SQL } from "./solutions/sql.mjs";
 import { TS } from "./solutions/ts.mjs";
 
-export const SOLUTIONS = { ...BASE, ...PYTHON, ...JAVA, ...CPP, ...PHP, ...PASCAL, ...TS, ...JS, ...HTML, ...CSS };
+export const SOLUTIONS = { ...BASE, ...PYTHON, ...JAVA, ...CPP, ...PHP, ...PASCAL, ...TS, ...JS, ...HTML, ...CSS, ...SQL, ...BASH };
 
 // Еталонні рішення проєктів за ТЗ (HTML, CSS і JS в одному файлі)
 export const PROJECT_SOLUTIONS = {

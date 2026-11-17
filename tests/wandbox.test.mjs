@@ -9,6 +9,7 @@ const LIST = [
   { name: "gcc-head", language: "C++" }, { name: "gcc-13.2.0", language: "C++" }, { name: "gcc-9.5.0", language: "C++" }, { name: "clang-18.1.0", language: "C++" },
   { name: "php-8.3.12", language: "PHP" }, { name: "php-8.4.1", language: "PHP" }, { name: "php-head", language: "PHP" },
   { name: "fpc-3.0.2", language: "Pascal" }, { name: "fpc-3.2.2", language: "Pascal" },
+  { name: "sqlite-3.45.1", language: "SQL" }, { name: "sqlite-3.46.0", language: "SQL" }, { name: "sqlite-head", language: "SQL" }, { name: "bash", language: "Bash script" },
   { name: "typescript-5.5.4", language: "TypeScript" }, { name: "typescript-5.6.2", language: "TypeScript" }, { name: "typescript-head", language: "TypeScript" },
 ];
 
@@ -31,6 +32,8 @@ await test("вибір компілятора: найновіший стабіл
   assert.equal(pickCompiler(LIST, "PHP", /^php-\d/), "php-8.4.1");
   assert.equal(pickCompiler(LIST, "Pascal", /^fpc-/), "fpc-3.2.2");
   assert.equal(pickCompiler(LIST, "TypeScript", /^typescript/), "typescript-5.6.2");
+  assert.equal(pickCompiler(LIST, "SQL", /^sqlite/), "sqlite-3.46.0");
+  assert.equal(pickCompiler(LIST, "Bash", /^bash/), "bash", "назва мови порівнюється за початком, без урахування регістру");
   assert.equal(pickCompiler(LIST, "Go", /^go/), undefined);
 });
 
@@ -47,7 +50,7 @@ await test("запит: компілятор з кешованого списк�
 
 await test("кожна мова шле запит своєму компілятору", async () => {
   reply = { status: "0", program_output: "" };
-  const expected = { python: "cpython-3.13.0", java: "openjdk-jdk-22+36", cpp: "gcc-13.2.0", php: "php-8.4.1", pascal: "fpc-3.2.2", ts: "typescript-5.6.2" };
+  const expected = { python: "cpython-3.13.0", java: "openjdk-jdk-22+36", cpp: "gcc-13.2.0", php: "php-8.4.1", pascal: "fpc-3.2.2", ts: "typescript-5.6.2", sql: "sqlite-3.46.0", bash: "bash" };
   for (const [lang, compiler] of Object.entries(expected)) {
     calls = [];
     await RUNNERS[lang].run("x");
