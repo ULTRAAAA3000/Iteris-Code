@@ -1,9 +1,8 @@
+import { pl } from "../lib/plural.ts";
+
 export const pad = (n: number): string => String(n).padStart(2, "0");
 
-export const pl = (n: number, a: string, b: string, c: string): string => {
-  const m10 = n % 10, m100 = n % 100;
-  return m10 === 1 && m100 !== 11 ? a : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? b : c;
-};
+export { pl };   // форми множини живуть у lib/plural.ts: їх використовують і функції Cloudflare, де немає браузерних типів
 
 export type Forms = readonly [string, string, string];
 export const W = {

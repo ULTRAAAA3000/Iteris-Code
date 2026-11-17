@@ -4,7 +4,7 @@ import type { Env } from "../../lib/env.ts";
 import { buildProfile, findByNick } from "../../lib/profile.ts";
 import { ensureSchema } from "../../lib/schema.ts";
 import { defaultIdol, idolOgSrc } from "../../src/data/idols.ts";
-import { pl } from "../../src/util.ts";
+import { pl } from "../../lib/plural.ts";
 
 const esc = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
