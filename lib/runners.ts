@@ -67,7 +67,7 @@ function newer(a: number[], b: number[]): number {
 
 /** Найновіший стабільний компілятор мови: назва збігається з pattern, без head/trunk та прев'ю-збірок */
 export function pickCompiler(list: readonly WandboxCompiler[], language: string, pattern: RegExp): string | undefined {
-  const found = list.filter((c) => c.language === language && pattern.test(c.name) && !/head|trunk|dev|nightly|alpha|beta|rc\d/i.test(c.name));
+  const found = list.filter((c) => c.language.toLowerCase().startsWith(language.toLowerCase()) && pattern.test(c.name) && !/head|trunk|dev|nightly|alpha|beta|rc\d/i.test(c.name));
   found.sort((x, y) => newer(versionOf(y.name), versionOf(x.name)));
   return found[0]?.name;
 }
@@ -125,4 +125,6 @@ export const RUNNERS: Record<RemoteLang, RemoteRunner> = {
   php: wandbox("PHP", /^php-\d/, "main.php"),
   pascal: wandbox("Pascal", /^fpc-/, "main.pas"),
   ts: wandbox("TypeScript", /^typescript/, "main.ts"),
+  sql: wandbox("SQL", /^sqlite/, "main.sql"),
+  bash: wandbox("Bash", /^bash/, "main.sh"),
 };
