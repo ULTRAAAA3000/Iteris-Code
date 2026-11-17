@@ -22,7 +22,7 @@ export interface Check {
 }
 
 /** Мови, які вміє запускати сервер (lib/runners.ts). Нова мова: додати сюди й у реєстр runners */
-export type RemoteLang = "go" | "python" | "java" | "cpp" | "php" | "pascal" | "ts";
+export type RemoteLang = "go" | "python" | "java" | "cpp" | "php" | "pascal" | "ts" | "sql" | "bash";
 
 interface TaskBase {
   id: string;
