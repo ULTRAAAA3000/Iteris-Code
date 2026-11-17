@@ -6,7 +6,7 @@ import { idolById, idolSrc } from "./data/idols.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
-import { calendarCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
+import { calendarCard, factCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
 import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
 import { onboardingHtml, setOnboarding } from "./onboarding.ts";
 import { escA, pl } from "./util.ts";
@@ -290,6 +290,7 @@ function full(d: DashboardData): string {
       <section class="card dash-head dash-hero">${heroFx()}${avatarRing(avatar(u, true), d.xp ?? 0)}
         <div class="grow"><span class="hero-hi">${greeting()}</span><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p>${heroChips(d.xp ?? 0, u.streak, set.size)}</div>
         <div class="hero-actions"><a class="btn small" href="/profile">Мій профіль</a><button class="btn small" data-act="logout">Вийти</button></div></section>
+      ${factCard(d)}
       <div class="dash-grid">
         <section class="card">${focus}</section>
         ${levelCard(d)}

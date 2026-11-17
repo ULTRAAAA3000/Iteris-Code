@@ -1,5 +1,6 @@
 // GET /api/dashboard — агреговані дані особистого кабінету
 import type { Env } from "../../lib/env.ts";
+import { factFor } from "../../lib/facts.ts";
 import { currentUser, json, publicUser } from "../../lib/session.ts";
 import { loadOnboarding, syncXp } from "../../lib/xp.ts";
 
@@ -30,6 +31,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const activity: Record<string, number> = {};
   for (const r of [...actLessons, ...actTasks]) activity[String(r.d)] = (activity[String(r.d)] || 0) + Number(r.c);
 
+  const onboarding = await loadOnboarding(env, u.id);
   return json({
     user: publicUser(u),
     completedLessons: progress.map((r) => String(r.lesson_id)),
@@ -39,7 +41,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     recentSubmissions: subs.map((r) => ({ taskId: String(r.task_id), passed: !!r.is_passed, at: String(r.created_at) })),
     activity,
     xp: xp.total,
-    onboarding: await loadOnboarding(env, u.id),
+    onboarding,
     days,
+    fact: factFor(u.id, onboarding?.courses, Date.now()),   // плашка «Цікавий факт»: новий раз на 5 годин
   });
 };
