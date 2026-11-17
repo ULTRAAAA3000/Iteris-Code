@@ -26,6 +26,8 @@ const ERRORS: Record<string, string> = {
   weak_password: "Пароль має містити від 8 до 128 символів",
   invalid_token: "Посилання недійсне або застаріле",
   email_taken: "Акаунт із такою поштою вже є. Увійдіть",
+  invalid_age: "Вкажіть свій вік числом",
+  too_young: "Вам ще немає 15 років, тому реєстрація поки недоступна. Приходьте, коли підростете",
 };
 const GENERIC = "Не вдалося виконати запит. Спробуйте пізніше";
 // Збій самого сервера (5xx, відповідь без JSON) або відсутність зв'язку: показуємо код, щоб його можна було передати розробнику
@@ -73,11 +75,12 @@ export function strength(p: string): number {
 }
 // Які поля підсвічувати червоним для кожної помилки
 const BAD_FIELDS: Record<string, string[]> = {
-  invalid_credentials: ["email", "password"], email_not_verified: ["email"], invalid_email: ["email"], weak_password: ["password"], email_taken: ["email"],
+  invalid_credentials: ["email", "password"], email_not_verified: ["email"], invalid_email: ["email"], weak_password: ["password"], email_taken: ["email"], invalid_age: ["age"], too_young: ["age"],
 };
 const rule = "Щонайменше 8 символів";
 const form = (fields: string, submit: string): string =>
   `<form id="af">${fields}${getAuthConfig().siteKey ? '<div class="ts-slot" id="af-ts"></div>' : ""}<button class="btn primary" type="submit">${submit}</button></form><p class="form-msg" id="af-msg" role="alert"></p>`;
+const TERMS_NOTE = `<p class="auth-note">Продовжуючи, ви підтверджуєте, що вам є 15 років, і погоджуєтесь з <a href="/terms">Умовами користування</a> та <a href="/privacy">Політикою конфіденційності</a>.</p>`;
 const GH_ICON = `<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
 /** Кнопки входу через зовнішні сервіси: лише ті, що налаштовані на сервері */
 const googleBtn = (): string => {
@@ -98,11 +101,11 @@ export function renderAuthPage(kind: Kind): string {
   const card = (inner: string): string => `<div class="card auth-card">${inner}</div>`;
   switch (kind) {
     case "login":
-      return card(h("Вхід") + form(email + pass("current-password"), "Увійти") + googleBtn() +
+      return card(h("Вхід") + form(email + pass("current-password"), "Увійти") + googleBtn() + TERMS_NOTE +
         `<p class="auth-links">${mail ? '<a href="/forgot">Забули пароль?</a>' : ""}<a href="/register">Створити акаунт</a></p>`);
     case "register":
-      return card(h("Реєстрація") + form(fld("name", "Ім'я (необов'язково)", "text", 'autocomplete="name" maxlength="60"') + email + pass("new-password", "Пароль", rule), "Створити акаунт") +
-        googleBtn() + `<p class="auth-links"><a href="/login">Вже є акаунт? Увійти</a></p>`);
+      return card(h("Реєстрація") + form(fld("name", "Ім'я (необов'язково)", "text", 'autocomplete="name" maxlength="60"') + email + fld("age", "Ваш вік", "number", 'inputmode="numeric" min="1" max="120" required', "Потрібно мати щонайменше 15 років") + pass("new-password", "Пароль", rule), "Створити акаунт") +
+        TERMS_NOTE + googleBtn() + `<p class="auth-links"><a href="/login">Вже є акаунт? Увійти</a></p>`);
     case "forgot":
       return card(h("Відновлення пароля") + `<p class="dash-muted">Вкажіть пошту, і ми надішлемо посилання для нового пароля.</p>` + form(email, "Надіслати посилання") +
         `<p class="auth-links"><a href="/login">Назад до входу</a></p>`);
