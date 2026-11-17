@@ -14,6 +14,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   const email = normEmail(b.email);
   if (!email) return json({ error: "invalid_email" }, 400);
   if (!validPassword(b.password)) return json({ error: "weak_password" }, 400);
+  // Вік не зберігаємо: лише перевіряємо, що користувачу вже є 15 (поріг цифрової згоди в Чехії, див. Documentation/legal.md)
+  const age = Number(b.age);
+  if (!Number.isInteger(age) || age < 1 || age > 120) return json({ error: "invalid_age" }, 400);
+  if (age < 15) return json({ error: "too_young" }, 400);
   const ip = clientIp(request);
   if ((await verifyTurnstile(env, b.turnstile, ip)) !== "ok") return json({ error: "captcha_failed" }, 400);
   if (!(await allow(env, "reg-ip:" + (ip ?? "?"), 10, 3600)) || !(await allow(env, "mail:" + email, 5, 3600))) return json({ error: "too_many_requests" }, 429);

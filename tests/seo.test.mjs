@@ -12,7 +12,7 @@ const template = readFileSync(new URL("../src/index.template.html", import.meta.
 const pages = publicPages();
 const files = buildPages(template, SITE);
 
-t("сторінок 22: головна, каталог, як це працює, про проєкт, 5 напрямів, 13 довідників", () => assert.equal(pages.length, 22));
+t("сторінок 24: головна, каталог, як це працює, про проєкт, політика, умови, 5 напрямів, 13 довідників", () => assert.equal(pages.length, 24));
 t("адреси унікальні, заголовки й описи унікальні та не порожні", () => {
   assert.equal(new Set(pages.map((p) => p.path)).size, pages.length);
   assert.equal(new Set(pages.map((p) => p.title)).size, pages.length);

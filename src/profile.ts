@@ -177,6 +177,12 @@ export function renderSettings(): string {
       <p class="form-msg" id="pf-msg" role="alert"></p>
       <button class="btn primary" type="submit">Зберегти</button>
     </form>
+    <section class="card pf-data">
+      <h2>Мої дані й акаунт</h2>
+      <p class="dash-muted">Ви можете завантажити всі свої дані файлом або видалити акаунт. Докладніше: <a href="/privacy">Політика конфіденційності</a>.</p>
+      <p class="pf-data-btns"><a class="btn" href="/api/account" download>Завантажити мої дані</a> <button class="btn danger" type="button" data-act="delete-account">Видалити акаунт</button></p>
+      <p class="form-msg" id="pf-del-msg" role="alert"></p>
+    </section>
   </div>`;
 }
 
@@ -226,6 +232,18 @@ document.addEventListener("click", (e) => {
   if (!b) return;
   if (b.dataset.act === "retry-profile") { pub = null; ui.render(); }
   else if (b.dataset.act === "retry-settings") { mine = undefined; ui.render(); }
+  else if (b.dataset.act === "delete-account") {
+    // Подвійне підтвердження: видалення незворотне (прогрес, XP, профіль)
+    if (!confirm("Видалити акаунт назавжди? Прогрес, XP і профіль буде стерто, відновити їх не можна.")) return;
+    if (prompt("Щоб підтвердити, введіть слово ВИДАЛИТИ") !== "ВИДАЛИТИ") return;
+    b.setAttribute("disabled", "");
+    void post<{ error?: string }>("/api/account", { confirm: "delete" }).then((r) => {
+      if (r.ok) { location.assign("/"); return; }
+      b.removeAttribute("disabled");
+      const m = document.getElementById("pf-del-msg");
+      if (m) m.textContent = "Не вдалося видалити акаунт. Спробуйте ще раз або напишіть нам.";
+    });
+  }
   else if (b.dataset.act === "copy-profile") {
     const url = b.dataset.url ?? "";
     void navigator.clipboard?.writeText(url).then(() => toast("Посилання скопійовано"), () => toast(url));

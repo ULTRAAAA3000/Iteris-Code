@@ -116,7 +116,7 @@ await test("реєстрація й вхід працюють на старій 
   const ORIGIN = "https://iteris-code.pages.dev";
   const post = (path, body) => new Request(ORIGIN + path, { method: "POST", headers: { Origin: ORIGIN, "Content-Type": "application/json" }, body: JSON.stringify(body) });
   const via = async (fn, path, body) => (await middleware({ env, request: post(path, body), next: () => fn({ env, request: post(path, body) }) }));
-  const reg = await via(register, "/api/auth/register", { email: "new@x.ua", password: "correct-horse", name: "Нова" });
+  const reg = await via(register, "/api/auth/register", { age: 20, email: "new@x.ua", password: "correct-horse", name: "Нова" });
   assert.equal(reg.status, 200); assert.equal((await reg.json()).signedIn, true);
   const lg = await via(login, "/api/auth/login", { email: "NEW@x.ua", password: "correct-horse" });
   assert.equal(lg.status, 200);
