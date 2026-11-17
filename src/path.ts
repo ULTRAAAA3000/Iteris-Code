@@ -2,6 +2,7 @@
 // Між уроками показуємо вузли практики там, де вже є завдання (етап 3 додасть нові).
 import { C, CATS, taskOf } from "./data.ts";
 import { isDone, isTaskPassed, progress } from "./progress.ts";
+import { projectForLesson } from "./projects/index.ts";
 import { escA, pad, store } from "./util.ts";
 import { LEVEL_TEXT, startPoint, type OnboardingState } from "./onboarding.ts";
 import { chaptersOf, currentLesson, startLesson, type Level } from "./xp.ts";
@@ -26,7 +27,7 @@ export function renderPath(k: string | undefined, ctx: PathCtx): string {
   const p = progress(key), pct = Math.round((p / total) * 100);
   const mine = ctx.onboarding?.courses ?? [];
   const tabs = [...mine, ...Object.keys(C).filter((x) => !mine.includes(x))]
-    .map((x) => `<a class="path-tab" href="#/path/${x}"${x === key ? ' aria-current="page"' : ""}>${mine.includes(x) ? "★ " : ""}${escA(C[x].name)}</a>`).join("");
+    .map((x) => `<a class="path-tab" href="/path/${x}"${x === key ? ' aria-current="page"' : ""}>${mine.includes(x) ? "★ " : ""}${escA(C[x].name)}</a>`).join("");
 
   const nodes = chaptersOf(c.L).map((ch) => {
     const isStart = level !== null && ch.from === start, size = ch.to - ch.from + 1;
@@ -37,27 +38,27 @@ export function renderPath(k: string | undefined, ctx: PathCtx): string {
       const l = c.L[n - 1], d = isDone(key, n), isCur = n === cur;
       const state = d ? "done" : isCur ? "current" : n < start ? "before" : "todo";
       const label = `Урок ${n}: ${l.t}. ${d ? "Пройдено" : isCur ? "Поточний урок" : "Доступний"}`;
-      const task = taskOf(key, n);
+      const task = taskOf(key, n), proj = projectForLesson(`${key}/${n}`);
       html += `<li class="path-node ${state} side-${sideOf(n)}" style="--x:${ZIGZAG[(n - 1) % ZIGZAG.length]}px">
-        <a class="pn-dot" href="#/lesson/${key}/${n}" aria-label="${escA(label)}"${isCur ? ' aria-current="step"' : ""}>${d ? "✓" : pad(n)}</a>
+        <a class="pn-dot" href="/lesson/${key}/${n}" aria-label="${escA(label)}"${isCur ? ' aria-current="step"' : ""}>${d ? "✓" : pad(n)}</a>
         <div class="pn-side">${isCur ? `<span class="path-here">${p ? "Продовжити" : "Почати"}</span>` : ""}<span class="pn-title">${escA(l.t)}</span>
-        ${task ? `<a class="path-prac${isTaskPassed(task.id) ? " done" : ""}" href="#/lesson/${key}/${n}">${isTaskPassed(task.id) ? "Завдання розв'язано" : "Практика: " + escA(task.title)}</a>` : ""}</div>
+        ${task ? `<a class="path-prac${isTaskPassed(task.id) ? " done" : ""}" href="/lesson/${key}/${n}">${isTaskPassed(task.id) ? "Завдання розв'язано" : "Практика: " + escA(task.title)}</a>` : ""}${proj ? `<a class="path-prac${isTaskPassed(proj.id) ? " done" : ""}" href="/project/${escA(proj.id)}">${isTaskPassed(proj.id) ? "Проєкт виконано" : "Проєкт: " + escA(proj.title.replace(/^Проєкт:\s*/, ""))}</a>` : ""}</div>
       </li>`;
     }
     return html;
   }).join("");
 
   const intro = level
-    ? `Ваш рівень: <b>${LEVEL_TEXT[level][0]}</b>. Старт: глава «${escA(startPoint(key, level)[1])}». Попередні глави відкриті, їх можна пройти будь-коли. <a href="#/start">Змінити</a>`
-    : ctx.loggedIn ? `<a href="#/start">Оберіть рівень</a>, і ми покажемо, з якого місця почати.` : `Усі уроки відкриті. <button class="btn small" data-act="login">Увійти</button>, щоб зберігати шлях на всіх пристроях і отримувати XP.`;
-  return `<div class="crumbs"><a href="#/">Головна</a> / Шлях</div>
+    ? `Ваш рівень: <b>${LEVEL_TEXT[level][0]}</b>. Старт: глава «${escA(startPoint(key, level)[1])}». Попередні глави відкриті, їх можна пройти будь-коли. <a href="/start">Змінити</a>`
+    : ctx.loggedIn ? `<a href="/start">Оберіть рівень</a>, і ми покажемо, з якого місця почати.` : `Усі уроки відкриті. <button class="btn small" data-act="login">Увійти</button>, щоб зберігати шлях на всіх пристроях і отримувати XP.`;
+  return `<div class="crumbs"><a href="/">Головна</a> / Шлях</div>
     <div class="path-head"><h1>Мій шлях</h1><p class="dash-muted">${intro}</p></div>
     <nav class="path-tabs" aria-label="Курси">${tabs}</nav>
     <div class="card path-sum">
       <div class="path-sum-t"><b>${escA(C[key].name)}</b><span class="dash-muted">${CATS[c.cat].title}</span></div>
       <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${p}" aria-label="Прогрес курсу"><i style="width:${pct}%"></i></div>
       <span><b>${p}</b> з ${total}</span>
-      ${cur ? `<a class="btn primary small" href="#/lesson/${key}/${cur}">${p ? "Продовжити" : "Почати курс"}</a>` : `<span class="s-ok">Курс пройдено 🎉</span>`}
+      ${cur ? `<a class="btn primary small" href="/lesson/${key}/${cur}">${p ? "Продовжити" : "Почати курс"}</a>` : `<span class="s-ok">Курс пройдено 🎉</span>`}
     </div>
     <ol class="path" aria-label="Шлях курсу ${escA(c.name)}">${nodes}</ol>`;
 }
