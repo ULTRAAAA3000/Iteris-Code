@@ -830,4 +830,606 @@ func main() {
       "Коли компілятор виводить параметр типу сам, а коли його треба вказати явно?",
     ],
   },
+  {
+    t: "Generics: типи й обмеження",
+    ch: "Інтерфейси та generics",
+    easy: "Generic-функція — це рецепт, а generic-тип — форма для випічки: форма одна, а тісто (int, string, власна структура) кожен кладе своє. Обмеження — напис на формі: «лише для борошняного тіста».",
+    p: [
+      "Попередній урок узагальнював функції. Але однаково влаштовані й <b>структури даних</b>: стек, черга, кеш, реєстр. Без generics лишалось два погані шляхи: зберігати <code>[]any</code> (кожне читання потребує твердження типу, а компілятор не завадить покласти в «стек чисел» рядок) або копіювати код для <code>IntStack</code>, <code>StringStack</code> тощо. Generic-тип виглядає так: <code>type Stack[T any] struct { items []T }</code>. Після імені в квадратних дужках іде список параметрів типу з обмеженнями, так само, як у функції.",
+      "Модель у голові: <code>Stack</code> без підстановки — не тип, а «рецепт типу». Тип з'являється, коли підставлено аргумент: <code>Stack[int]</code> і <code>Stack[string]</code> — це два <b>різні</b> типи, між собою несумісні. Для типів компілятор не виводить аргумент сам (виведення працює лише для викликів функцій), тому в оголошенні змінної пишуть явно: <code>var s Stack[int]</code>. Нульове значення такого стека одразу придатне до роботи, бо nil-слайс усередині годиться для <code>append</code>. Зручний конструктор: <code>func NewStack[T any]() *Stack[T]</code>, його викликають як <code>NewStack[string]()</code>.",
+      "<b>Методи.</b> У приймачі параметр типу <b>повторюють</b>: <code>func (s *Stack[T]) Push(v T)</code>. Тут <code>T</code> не оголошується заново, а називає параметр самого типу, тому в методах його можна вживати як звичайний тип, зокрема <code>var zero T</code> для нульового значення. Приймач, як і раніше, вказівник, якщо метод змінює стан: <code>Push</code> і <code>Pop</code> міняють слайс усередині, отже, потрібен <code>*Stack[T]</code>. Важлива межа: <b>метод не може мати власних параметрів типу</b>. Запис <code>func (s *Stack[T]) Map[U any](...)</code> не скомпілюється; такий випадок розв'язують звичайною generic-функцією <code>Map[T, U any](s *Stack[T], ...)</code>. Причина проста: набір методів типу має бути відомий наперед, щоб тип міг реалізовувати інтерфейси.",
+      "<b>Власні обмеження.</b> Обмеження — це інтерфейс, але такий, що може перелічувати типи: <code>type Number interface { ~int | ~int64 | ~float64 }</code>. Вертикальна риска означає «або» (union). Тильда <code>~int</code> читається так: «будь-який тип, чий <i>базовий</i> тип int», тобто й <code>int</code>, і <code>type Score int</code>. Без тильди підійшов би лише точно <code>int</code>, а <code>Score</code> компілятор відхилив би повідомленням на кшталт <code>Score does not satisfy Number (possible missing ~ for int in Number)</code>. Тому в переліках майже завжди ставлять тильду. У тілі функції з <code>T Number</code> доступні лише операції, спільні для всіх членів переліку: <code>+</code>, <code>&lt;</code>, конвертація <code>float64(x)</code>.",
+      "Обмеження комбінують. Можна додати методи й вбудувати <code>comparable</code>: <code>type Entity interface { comparable; ID() string }</code> вимагає і <code>==</code>, і метод <code>ID</code>. Тоді <code>Registry[T Entity]</code> зможе порівнювати елементи й викликати <code>ID()</code>. Інтерфейс з переліком типів (з <code>|</code> або <code>~</code>) можна вживати <b>лише як обмеження</b>: <code>var n Number</code> дасть помилку <code>cannot use type Number outside a type constraint</code>. Для звичайних змінних інтерфейси з методів лишаються такими, як у попередніх уроках.",
+      "Ідіоми й пастки. Обирайте найслабше обмеження: контейнеру, який лише зберігає елементи, достатньо <code>any</code>; <code>comparable</code> потрібен, коли є <code>==</code> або ключі мапи; перелік з тильдами, коли потрібна арифметика. Нульове значення завжди через <code>var zero T</code>. Не вигадуйте параметрів типу «про запас»: якщо стек потрібен лише для int, пишіть звичайний тип. Пам'ятайте й про вартість: повідомлення компілятора про generics довші, а код складніший для читання, ніж конкретний. У наступному уроці на цих блоках зберемо Map, Filter, Set.",
+    ],
+    code: [
+      String.raw`package main
+
+import "fmt"
+
+type Stack[T any] struct {
+	items []T
+}
+
+func NewStack[T any]() *Stack[T] {
+	return &Stack[T]{}
+}
+
+func (s *Stack[T]) Push(v T) {
+	s.items = append(s.items, v)
+}
+
+func (s *Stack[T]) Pop() (T, bool) {
+	var zero T
+	if len(s.items) == 0 {
+		return zero, false
+	}
+	last := len(s.items) - 1
+	v := s.items[last]
+	s.items = s.items[:last]
+	return v, true
+}
+
+func (s *Stack[T]) Len() int { return len(s.items) }
+
+func main() {
+	var ints Stack[int]
+	ints.Push(1)
+	ints.Push(2)
+	fmt.Println(ints.Len())
+	fmt.Println(ints.Pop())
+
+	names := NewStack[string]()
+	names.Push("Оля")
+	fmt.Println(names.Pop())
+	fmt.Println(names.Pop())
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+type Number interface {
+	~int | ~int64 | ~float64
+}
+
+type Celsius float64
+
+func Sum[T Number](s []T) T {
+	var total T
+	for _, x := range s {
+		total += x
+	}
+	return total
+}
+
+func Average[T Number](s []T) float64 {
+	if len(s) == 0 {
+		return 0
+	}
+	return float64(Sum(s)) / float64(len(s))
+}
+
+func main() {
+	fmt.Println(Sum([]int{1, 2, 3}))
+	fmt.Println(Sum([]Celsius{20.5, 1.5}))
+	fmt.Println(Average([]int{1, 2}))
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+type Entity interface {
+	comparable
+	ID() string
+}
+
+type User struct{ Name string }
+
+func (u User) ID() string { return "user:" + u.Name }
+
+type Registry[T Entity] struct {
+	items []T
+}
+
+func (r *Registry[T]) Add(e T) bool {
+	for _, x := range r.items {
+		if x == e {
+			return false
+		}
+	}
+	r.items = append(r.items, e)
+	return true
+}
+
+func (r *Registry[T]) IDs() []string {
+	out := make([]string, 0, len(r.items))
+	for _, x := range r.items {
+		out = append(out, x.ID())
+	}
+	return out
+}
+
+func main() {
+	r := &Registry[User]{}
+	fmt.Println(r.Add(User{"ada"}), r.Add(User{"bob"}), r.Add(User{"ada"}))
+	fmt.Println(r.IDs())
+}
+`,
+      String.raw`// не компілюється: метод не може мати власних параметрів типу
+package main
+
+import "fmt"
+
+type Stack[T any] struct{ items []T }
+
+func (s *Stack[T]) Map[U any](f func(T) U) []U {
+	out := make([]U, 0, len(s.items))
+	for _, x := range s.items {
+		out = append(out, f(x))
+	}
+	return out
+}
+
+func main() {
+	s := Stack[int]{items: []int{1, 2}}
+	fmt.Println(s.Map(func(n int) string { return "x" }))
+}
+`,
+    ],
+    note: "type Stack[T any] struct{...}: тип з параметром, у методах приймач (s *Stack[T]). Метод не має власних параметрів типу. Обмеження-перелік: ~int | ~float64 (тильда пускає і власні типи на основі int). Такий інтерфейс лише для обмежень, не для змінних.",
+    work: "Generic-типи пишуть для контейнерів і обгорток: кеш з обмеженням ключа comparable, черга задач, пул, результат Optional/Result, реєстр сутностей. Числові обмеження з тильдою зустрічаються в допоміжних бібліотеках для сум, середніх, мін/макс.",
+    tasks: [
+      "Чому Stack[int] і Stack[string] — різні типи й чому метод не може мати власний параметр типу?",
+      "Яка різниця між обмеженнями int | float64 і ~int | ~float64 для типу type Score int?",
+    ],
+  },
+  {
+    t: "Generics на практиці: Map, Filter, Set",
+    ch: "Інтерфейси та generics",
+    adv: true,
+    easy: "Map, Filter і Reduce — три операції конвеєра над списком: «перетвори кожен», «залиш потрібні», «зведи до одного». Set — мішок без повторів: питання лише «є чи нема».",
+    p: [
+      "Цикли над слайсами повторюються постійно: «зробити з кожного елемента щось», «залишити лише ті, що підходять», «звести до однієї суми». Тіла відрізняються, а скелет однаковий. Generics дозволяють написати скелет один раз і передавати відмінну частину функцією. Одразу застереження: у Go простий цикл <code>for</code> часто читається краще за ланцюжок викликів, тому узагальнюють лише тоді, коли шаблон справді повторюється або типи громіздкі.",
+      "<b>Map</b>: <code>func Map[T, U any](s []T, f func(T) U) []U</code>. Два параметри типу: <code>T</code> (елемент входу) і <code>U</code> (елемент виходу). Обидва компілятор виводить сам: з <code>s</code> бере <code>T</code>, а з типу повернення функції-літерала <code>func(n int) string</code> бере <code>U = string</code>. <b>Filter</b>: <code>func Filter[T any](s []T, keep func(T) bool) []T</code>, один параметр типу. <b>Reduce</b>: <code>func Reduce[T, A any](s []T, init A, f func(A, T) A) A</code>, де акумулятор <code>A</code> може бути іншого типу, ніж елемент: наприклад, сума довжин рядків (<code>T = string</code>, <code>A = int</code>).",
+      "Деталі реалізації, які відрізняють акуратний код. У <code>Map</code> довжина результату відома наперед, тож виділяйте пам'ять одразу: <code>out := make([]U, 0, len(s))</code>, це одна алокація замість кількох. Обидві функції повертають <b>новий</b> слайс і не чіпають вхідний: інакше виклик <code>Filter</code> несподівано зіпсував би чужі дані. У стандартній бібліотеці Go 1.24 готових <code>Map</code> і <code>Filter</code> для слайсів немає, але є <code>slices.IndexFunc</code>, <code>slices.ContainsFunc</code>, <code>slices.DeleteFunc</code>, <code>slices.SortFunc</code> та <code>slices.Collect</code> для ітераторів (Go 1.23).",
+      "<b>Set.</b> Окремого типу множини в Go немає. Ідіома: мапа, де значення нічого не важить: <code>type Set[T comparable] map[T]struct{}</code>. Порожня структура <code>struct{}</code> займає нуль байтів. Параметр <code>comparable</code> обов'язковий, бо ключі мапи мають порівнюватися. Методи: <code>Add</code> (<code>s[v] = struct{}{}</code>), <code>Has</code> (<code>_, ok := s[v]</code>), <code>Len</code> (<code>len(s)</code>). Приймач — значення, не вказівник, бо мапа вже посилання. Але <code>Set[string]{}</code> треба ініціалізувати: запис у nil-мапу — аварія. Порядок обходу мапи випадковий, тож для стабільного виводу сортуйте ключі: <code>slices.Sorted(maps.Keys(s))</code> (Go 1.23, потрібен <code>cmp.Ordered</code>).",
+      "<b>Pair</b>: <code>type Pair[K comparable, V any] struct { Key K; Val V }</code> — generic-тип із двома параметрами. Корисний, коли треба повернути або зберегти два значення разом: <code>Zip</code> двох слайсів, мапа, розгорнута в слайс пар для сортування. Різниця у виведенні: у функції (<code>Zip(keys, vals)</code>) типи виводяться, а в літералі структури їх пишуть явно: <code>Pair[string, int]{\"a\", 1}</code>.",
+      "Пастки. <code>Set[[]int]</code> не скомпілюється: слайс не <code>comparable</code>, а повідомлення <code>[]int does not satisfy comparable</code> показує це прямо. Якщо у <code>Reduce</code> літерал початкового значення <code>0</code> не збігається з бажаним типом акумулятора, вкажіть його явно: <code>Reduce[string, float64](...)</code>. І головне питання: <b>коли узагальнювати</b>. Практичне правило: спершу напишіть для конкретного типу, а узагальнюйте, коли з'явиться другий випадок із тим самим тілом. Не варто, коли вистачає інтерфейсу (<code>io.Reader</code>), коли тип один, коли це бізнес-логіка. Далі: як проєктувати власні інтерфейси.",
+    ],
+    code: [
+      String.raw`package main
+
+import "fmt"
+
+func Map[T, U any](s []T, f func(T) U) []U {
+	out := make([]U, 0, len(s))
+	for _, x := range s {
+		out = append(out, f(x))
+	}
+	return out
+}
+
+func Filter[T any](s []T, keep func(T) bool) []T {
+	var out []T
+	for _, x := range s {
+		if keep(x) {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+func Reduce[T, A any](s []T, init A, f func(A, T) A) A {
+	acc := init
+	for _, x := range s {
+		acc = f(acc, x)
+	}
+	return acc
+}
+
+func main() {
+	nums := []int{1, 2, 3, 4, 5, 6}
+	fmt.Println(Map(nums, func(n int) int { return n * n }))
+	fmt.Println(Map(nums, func(n int) string { return fmt.Sprintf("#%d", n) }))
+	fmt.Println(Filter(nums, func(n int) bool { return n%2 == 0 }))
+	fmt.Println(Reduce(nums, 0, func(acc, n int) int { return acc + n }))
+	words := []string{"go", "rust", "c"}
+	fmt.Println(Reduce(words, 0, func(acc int, w string) int { return acc + len(w) }))
+}
+`,
+      String.raw`package main
+
+import (
+	"cmp"
+	"fmt"
+	"maps"
+	"slices"
+)
+
+type Set[T comparable] map[T]struct{}
+
+func (s Set[T]) Add(v T)      { s[v] = struct{}{} }
+func (s Set[T]) Has(v T) bool { _, ok := s[v]; return ok }
+
+func Sorted[T cmp.Ordered](s Set[T]) []T {
+	return slices.Sorted(maps.Keys(s))
+}
+
+func Unique[T comparable](s []T) []T {
+	seen := Set[T]{}
+	var out []T
+	for _, v := range s {
+		if !seen.Has(v) {
+			seen.Add(v)
+			out = append(out, v)
+		}
+	}
+	return out
+}
+
+func main() {
+	s := Set[string]{}
+	s.Add("go")
+	s.Add("go")
+	s.Add("rust")
+	s.Add("c")
+	fmt.Println(len(s), s.Has("go"), s.Has("java"))
+	fmt.Println(Sorted(s))
+	fmt.Println(Unique([]int{3, 1, 3, 2, 1}))
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+type Pair[K comparable, V any] struct {
+	Key K
+	Val V
+}
+
+func Zip[K comparable, V any](keys []K, vals []V) []Pair[K, V] {
+	n := min(len(keys), len(vals))
+	out := make([]Pair[K, V], 0, n)
+	for i := range n {
+		out = append(out, Pair[K, V]{keys[i], vals[i]})
+	}
+	return out
+}
+
+func main() {
+	ps := Zip([]string{"a", "b", "c"}, []int{1, 2})
+	fmt.Println(ps)
+	fmt.Printf("%+v\n", ps[0])
+	p := Pair[string, bool]{"ok", true}
+	fmt.Println(p.Key, p.Val)
+}
+`,
+      String.raw`// не компілюється: слайс не comparable, ключем мапи (отже, елементом Set) бути не може
+package main
+
+import "fmt"
+
+type Set[T comparable] map[T]struct{}
+
+func main() {
+	s := Set[[]int]{}
+	fmt.Println(len(s))
+}
+`,
+    ],
+    note: "Map[T, U any], Filter[T any], Reduce[T, A any] пишуть один раз; Set[T comparable] = map[T]struct{}. Результат нового слайса, вхідний не чіпаємо. Узагальнюйте, коли тіло справді повторюється; один тип або інтерфейс простіші.",
+    work: "У проєктах такі допоміжні функції лежать у пакеті utils: перетворення списку записів на список id, фільтрація за умовою, унікальні значення, групування. Set зручний для перевірки «вже бачили» під час обробки даних і для прав доступу.",
+    tasks: [
+      "Чому в Set[T] параметр має обмеження comparable, а в Map[T, U] достатньо any?",
+      "Чим Reduce відрізняється від Map за типами параметрів і навіщо йому окремий параметр A?",
+    ],
+  },
+  {
+    t: "Проєктування інтерфейсів",
+    ch: "Інтерфейси та generics",
+    adv: true,
+    easy: "Розетка не знає, що до неї вмикають: чайник, зарядку чи лампу. Їй потрібен лише штекер. Добрий інтерфейс у Go схожий на штекер: описує мінімум, потрібний споживачеві, і нічого зайвого.",
+    p: [
+      "Інтерфейси в Go реалізуються <b>неявно</b> (уроки 40–41): тип не оголошує, що він «implements», досить мати потрібні методи. Через це їх проєктують інакше, ніж у мовах із явною реалізацією. Інтерфейс не обов'язково створювати заздалегідь разом із типом: його можна описати пізніше й деінде, там, де він справді потрібен. Без цього розуміння з'являються «інтерфейси-слони» на десяток методів, які неможливо підмінити в тесті, бо кожен фейк змушений реалізовувати всі десять.",
+      "<b>Малі інтерфейси.</b> У стандартній бібліотеці взірці крихітні: <code>io.Reader</code> і <code>io.Writer</code> мають по одному методу, <code>fmt.Stringer</code> один, <code>sort.Interface</code> три. Прислів'я Роба Пайка: чим більший інтерфейс, тим слабша абстракція. Чим менше методів, тим більше типів його задовольняє і тим легше його підмінити. Складніші вимоги збирають вбудовуванням: <code>type ReadWriter interface { Reader; Writer }</code>. Імена одно- й двометодних інтерфейсів зазвичай закінчуються на «-er»: <code>Reader</code>, <code>Closer</code>, <code>NameGetter</code>.",
+      "<b>Інтерфейс на стороні споживача.</b> Інтерфейс описує той код, який <i>використовує</i> значення, а не той, що його створює. Пакет зі сховищем віддає конкретну структуру з усіма методами (<code>Get</code>, <code>Put</code>, <code>Delete</code>, <code>List</code>). А пакет із бізнес-логікою оголошує в себе інтерфейс лише з тих методів, які реально викликає, наприклад із єдиного <code>Get</code>. Структура сховища реалізує його, не знаючи про його існування, тож жодної залежності від постачальника. Ми працюємо в одному файлі, але принцип той самий: інтерфейс стоїть там, де його викликають.",
+      "<b>«Приймай інтерфейс, повертай структуру».</b> Параметри функцій і конструкторів роблять інтерфейсами: викликач передасть файл, буфер чи фейк. Повертають зазвичай <b>конкретний тип</b>: викликач бачить усі його поля й методи і сам вирішує, до якого інтерфейсу його звузити. Якщо конструктор повертає інтерфейс, усе, чого в ньому немає, для викликача зникає (приклад 4: <code>s.Put undefined</code>), а повернути структуру з інтерфейсом, який вона реалізує, завжди можна пізніше. Винятки: фабрика, що повертає різні реалізації залежно від умови, і стандартний <code>error</code>.",
+      "<b>Готовність до моків.</b> Якщо залежність описана малим інтерфейсом, у тесті її замінюють фейком на кілька рядків, без жодних фреймворків: <code>type fakeNames map[int]string</code> із методом <code>Get</code>. Це й критерій якості дизайну: якщо фейк довелося б писати на двадцять методів, інтерфейс завеликий або описаний не на тій стороні. У прикладі 3 тест такого фейка написано вручну циклом із виводом <code>ok</code>/<code>FAIL</code>, як і прийнято в цьому курсі, де немає окремих <code>_test.go</code>.",
+      "Ідіоми й пастки. Не створюйте інтерфейс «про запас» для єдиної реалізації, поки його ніхто не підміняє: це зайва індирекція, а не гнучкість (стиль <code>IUserService</code> із Java в Go не прижився). Перевірку реалізації під час компіляції пишуть так: <code>var _ NameGetter = (*MemStore)(nil)</code>. Якщо метод зникне, помилка вкаже саме на це місце, а не на виклик за тисячу рядків. Не додавайте до інтерфейсу метод лише тому, що він «є в типі». Далі: пакет <code>reflect</code>, який дивиться на значення під час виконання.",
+    ],
+    code: [
+      String.raw`package main
+
+import "fmt"
+
+type NameGetter interface {
+	Get(id int) (string, bool)
+}
+
+type MemStore struct{ names map[int]string }
+
+func NewMemStore() *MemStore {
+	return &MemStore{names: map[int]string{1: "Оля", 2: "Тарас"}}
+}
+
+func (m *MemStore) Get(id int) (string, bool) {
+	n, ok := m.names[id]
+	return n, ok
+}
+
+func (m *MemStore) Put(id int, name string) { m.names[id] = name }
+
+var _ NameGetter = (*MemStore)(nil)
+
+type Greeter struct{ names NameGetter }
+
+func NewGreeter(n NameGetter) *Greeter { return &Greeter{names: n} }
+
+func (g *Greeter) Greet(id int) string {
+	if name, ok := g.names.Get(id); ok {
+		return "Привіт, " + name + "!"
+	}
+	return "Привіт, незнайомцю!"
+}
+
+func main() {
+	store := NewMemStore()
+	store.Put(3, "Іра")
+	g := NewGreeter(store)
+	fmt.Println(g.Greet(1))
+	fmt.Println(g.Greet(3))
+	fmt.Println(g.Greet(9))
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+type Reader interface{ Read() (string, bool) }
+type Writer interface{ Write(s string) }
+type ReadWriter interface {
+	Reader
+	Writer
+}
+
+type Queue struct{ items []string }
+
+func (q *Queue) Write(s string) { q.items = append(q.items, s) }
+
+func (q *Queue) Read() (string, bool) {
+	if len(q.items) == 0 {
+		return "", false
+	}
+	s := q.items[0]
+	q.items = q.items[1:]
+	return s, true
+}
+
+var _ ReadWriter = (*Queue)(nil)
+
+type printer struct{}
+
+func (printer) Write(s string) { fmt.Println("->", s) }
+
+func Relay(from Reader, to Writer) int {
+	n := 0
+	for {
+		s, ok := from.Read()
+		if !ok {
+			return n
+		}
+		to.Write(s)
+		n++
+	}
+}
+
+func main() {
+	in := &Queue{}
+	in.Write("a")
+	in.Write("b")
+	out := &Queue{}
+	fmt.Println(Relay(in, out), out.items)
+
+	in.Write("x")
+	Relay(in, printer{})
+}
+`,
+      String.raw`package main
+
+import "fmt"
+
+type NameGetter interface {
+	Get(id int) (string, bool)
+}
+
+type Greeter struct{ names NameGetter }
+
+func NewGreeter(n NameGetter) *Greeter { return &Greeter{names: n} }
+
+func (g *Greeter) Greet(id int) string {
+	if name, ok := g.names.Get(id); ok {
+		return "Привіт, " + name + "!"
+	}
+	return "Привіт, незнайомцю!"
+}
+
+type fakeNames map[int]string
+
+func (f fakeNames) Get(id int) (string, bool) {
+	n, ok := f[id]
+	return n, ok
+}
+
+func main() {
+	g := NewGreeter(fakeNames{7: "Тест"})
+	cases := []struct {
+		id   int
+		want string
+	}{
+		{7, "Привіт, Тест!"},
+		{8, "Привіт, незнайомцю!"},
+	}
+	for _, c := range cases {
+		if got := g.Greet(c.id); got == c.want {
+			fmt.Println("ok", c.id)
+		} else {
+			fmt.Println("FAIL", c.id, got)
+		}
+	}
+}
+`,
+      String.raw`// не компілюється: конструктор повернув інтерфейс, і метод Put структури став недоступним
+package main
+
+import "fmt"
+
+type Getter interface {
+	Get(id int) (string, bool)
+}
+
+type MemStore struct{ names map[int]string }
+
+func (m *MemStore) Get(id int) (string, bool) {
+	n, ok := m.names[id]
+	return n, ok
+}
+
+func (m *MemStore) Put(id int, name string) { m.names[id] = name }
+
+func NewMemStore() Getter {
+	return &MemStore{names: map[int]string{}}
+}
+
+func main() {
+	s := NewMemStore()
+	s.Put(1, "Оля")
+	fmt.Println(s.Get(1))
+}
+`,
+    ],
+    note: "Інтерфейс малий (1–3 методи), описується там, де його використовують, а не там, де реалізують. Функції приймають інтерфейс, конструктори повертають структуру. Якщо фейк для тесту довгий, інтерфейс завеликий.",
+    work: "У сервісах бізнес-логіка залежить від малих інтерфейсів (сховище, відправник листів, годинник), а в тестах їх підміняють фейками на кілька рядків. Конкретні клієнти бази й HTTP повертають структури, щоб викликач бачив усі їхні можливості.",
+    tasks: [
+      "Чому інтерфейс у Go зручніше оголошувати на стороні споживача, а не поруч із типом, що його реалізує?",
+      "Чому конструктор зазвичай повертає структуру, а не інтерфейс, і коли виняток виправданий?",
+    ],
+  },
+  {
+    t: "reflect: основи",
+    ch: "Інтерфейси та generics",
+    adv: true,
+    easy: "Звичайний код працює з типами, відомими під час написання. reflect схожий на рентген: показує, з чого складається значення, коли програма вже працює. Корисно, але повільно й вимагає обережності.",
+    p: [
+      "Є функції, які мають працювати зі значеннями, чий тип автор не знає: <code>encoding/json</code>, <code>fmt.Printf(\"%v\")</code>, ORM, валідатори, шаблонізатори. Їм потрібно під час виконання з'ясувати, що це структура, які в неї поля, які теги. Без цього лишається лише type switch над заздалегідь відомим набором типів. Для таких задач існує пакет <code>reflect</code>. Прикладний код його майже не потребує: це інструмент авторів бібліотек, і знати його варто, щоб розуміти, як працює <code>json</code>.",
+      "Модель у голові. Значення в <code>any</code> — це пара «тип + дані» (уроки про <code>any</code>). <code>reflect</code> дозволяє розкрити цю пару. <code>reflect.TypeOf(x)</code> повертає <code>reflect.Type</code>, опис типу: <code>Name()</code>, <code>Kind()</code>, <code>NumField()</code>, <code>Field(i)</code>, <code>Elem()</code>. <code>reflect.ValueOf(x)</code> повертає <code>reflect.Value</code>, обгортку над даними: <code>Kind()</code>, <code>Int()</code>, <code>String()</code>, <code>Field(i)</code>, <code>IsZero()</code>, <code>Interface()</code> (повернення до <code>any</code>).",
+      "<b>Type і Kind.</b> Тип конкретний, наприклад <code>main.Celsius</code>. Kind — це «порода»: <code>float64</code>, <code>struct</code>, <code>slice</code>, <code>map</code>, <code>ptr</code>, <code>string</code>. Для <code>type Celsius float64</code> тип — <code>main.Celsius</code>, а Kind — <code>float64</code>. <code>Name()</code> порожній для безіменних типів на кшталт <code>[]int</code> чи <code>*User</code>. Код майже завжди розгалужується саме за <code>Kind</code>. Типова пастка: <code>ValueOf(&amp;u)</code> має Kind <code>ptr</code>, а не <code>struct</code>; щоб дістатися до структури, викликають <code>.Elem()</code> (або <code>reflect.Indirect</code>).",
+      "<b>Обхід полів і теги.</b> Тег — рядок у зворотних апострофах після типу поля: <code>json:\"name\" validate:\"required\"</code>. Читається він через <code>f.Tag.Get(\"json\")</code>; <code>f.Tag.Lookup</code> додатково каже, чи ключ узагалі є. Обхід: <code>t := reflect.TypeOf(u)</code>, далі <code>for i := range t.NumField()</code> (цикл за числом, Go 1.22) і <code>t.Field(i)</code> дає <code>Name</code>, <code>Type</code>, <code>Tag</code>, а <code>v.Field(i)</code> дає значення. Неекспортовані поля (з малої літери) видно за ім'ям і типом, але <code>Interface()</code> на їхньому значенні спричиняє аварію. Перевіряйте <code>f.IsExported()</code> (або <code>v.Field(i).CanInterface()</code>) перед читанням.",
+      "<b>Зміна значень.</b> <code>reflect.ValueOf(u)</code> працює з <i>копією</i>, тому <code>SetInt</code> на ній завершується аварією <code>using unaddressable value</code> (приклад 4). Щоб змінювати, передайте вказівник і розгорніть його: <code>reflect.ValueOf(&amp;u).Elem()</code>. Тоді <code>CanSet()</code> стане <code>true</code> для експортованих полів, і працюють <code>SetInt</code>, <code>SetString</code>, <code>FieldByName(\"Age\")</code>. Саме так бібліотеки заповнюють вашу структуру даними з JSON.",
+      "<b>Ціна й застереження.</b> Рефлексія в рази повільніша за прямий код і ховає помилки від компілятора: виклик <code>Int()</code> на рядку чи <code>Field(5)</code> на структурі з трьох полів дає аварію вже під час роботи, а не під час збирання. Код із ним важче читати. Правило: <code>reflect</code> — крайній засіб. Спершу спробуйте звичайний інтерфейс, type switch або generics. Якщо без нього не обійтися, тримайте його в одному місці, завжди перевіряйте <code>Kind</code> перед викликом методів, що очікують певний вид, і не використовуйте в гарячих циклах. Далі: глава про помилки.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type Celsius float64
+
+type User struct{ Name string }
+
+func describe(x any) {
+	t := reflect.TypeOf(x)
+	fmt.Printf("%v | name=%q | kind=%v\n", t, t.Name(), t.Kind())
+}
+
+func main() {
+	describe(42)
+	describe("hi")
+	describe(Celsius(36.6))
+	describe([]int{1})
+	describe(User{"Ada"})
+	describe(&User{"Ada"})
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type User struct {
+	Name  string ${BT}json:"name" validate:"required"${BT}
+	Age   int    ${BT}json:"age"${BT}
+	token string
+}
+
+func main() {
+	u := User{"Ada", 36, "secret"}
+	t := reflect.TypeOf(u)
+	v := reflect.ValueOf(u)
+	for i := range t.NumField() {
+		f := t.Field(i)
+		if !f.IsExported() {
+			fmt.Println(f.Name, "- неекспортоване, пропускаємо")
+			continue
+		}
+		fmt.Println(f.Name, f.Type, f.Tag.Get("json"), f.Tag.Get("validate"), v.Field(i).Interface())
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	u := User{"Ada", 36}
+	e := reflect.ValueOf(&u).Elem()
+	fmt.Println(e.Kind(), e.CanSet())
+	e.FieldByName("Age").SetInt(37)
+	e.FieldByName("Name").SetString("Ada L.")
+	fmt.Println(u)
+}
+`,
+      String.raw`// аварія: reflect.ValueOf(u) працює з копією, і SetInt на ній заборонений
+package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type User struct {
+	Name string
+	Age  int
+}
+
+func main() {
+	u := User{"Ada", 36}
+	v := reflect.ValueOf(u)
+	fmt.Println(v.Field(1).CanSet())
+	v.Field(1).SetInt(37)
+	fmt.Println(u)
+}
+`,
+    ],
+    note: "reflect.TypeOf дає тип (Name, Kind, Field), reflect.ValueOf дає значення (Field, Interface, Set…). Теги: f.Tag.Get(\"json\"). Змінювати можна лише через вказівник: ValueOf(&amp;x).Elem(). Це крайній засіб: повільно, без перевірок компілятора.",
+    work: "Рефлексією користуються бібліотеки: encoding/json, ORM, валідатори полів за тегами, генератори форм і документації. У прикладному коді її пишуть рідко, зате розуміння допомагає читати чужі бібліотеки й розбирати, чому json пропускає поля з малої літери.",
+    tasks: [
+      "Чим відрізняються Type і Kind для типу type Celsius float64, і навіщо розгалужувати код саме за Kind?",
+      "Чому SetInt на reflect.ValueOf(u) завершується аварією і що потрібно змінити, щоб поле можна було змінити?",
+    ],
+  },
 ];

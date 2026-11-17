@@ -2,6 +2,7 @@ import type { RemoteTask } from "../../../src/tasks/types.ts";
 import { base } from "./base.ts";
 
 const raw = String.raw;
+const BT = "`";
 
 export const TASKS_05: readonly RemoteTask[] = [
   {
@@ -342,6 +343,270 @@ func main() {
       { on: "stdout", name: "Reverse не чіпає оригінал", has: "[3 2 1] [1 2 3]\n[b a]", hint: "Створіть out := make([]T, len(s)) і заповніть його з кінця" },
       { on: "source", name: "Max обмежено cmp.Ordered", matches: "\\[\\s*\\w+\\s+cmp\\.Ordered\\s*\\]" },
       { on: "source", name: "IndexOf обмежено comparable", matches: "\\[\\s*\\w+\\s+comparable\\s*\\]" },
+    ],
+  },
+  {
+    ...base, id: "go-generic-stack", lesson: "go/48", xp: 30,
+    title: "Узагальнений стек і числове обмеження",
+    context: "Стек, черга й кеш потрібні в кожному проєкті, і їхній код не залежить від типу елементів. Generic-тип пишеться один раз, а обмеження з тильдою дозволяє рахувати суми навіть для власних типів на кшталт Score.",
+    brief: [
+      "Допишіть методи <code>Stack[T]</code>: <code>Push</code> додає елемент, <code>Pop</code> повертає останній і <code>true</code> (для порожнього стека нульове значення й <code>false</code>), <code>Len</code> повертає розмір.",
+      "Змініть обмеження <code>Number</code> на перелік <code>~int | ~float64</code> і допишіть <code>SumStack</code>: сума всіх елементів стека. Вона має працювати й для <code>Stack[Score]</code>, де <code>type Score int</code>.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+type Stack[T any] struct {
+	items []T
+}
+
+func (s *Stack[T]) Push(v T) {
+}
+
+func (s *Stack[T]) Pop() (T, bool) {
+	var zero T
+	return zero, false
+}
+
+func (s *Stack[T]) Len() int {
+	return 0
+}
+
+type Number interface{}
+
+func SumStack[T Number](s *Stack[T]) T {
+	var total T
+	return total
+}
+
+type Score int
+
+func main() {
+	var s Stack[int]
+	s.Push(1)
+	s.Push(2)
+	s.Push(3)
+	fmt.Println(s.Len())
+	v, ok := s.Pop()
+	fmt.Println(v, ok)
+	fmt.Println(s.Len(), SumStack(&s))
+
+	var scores Stack[Score]
+	scores.Push(10)
+	scores.Push(5)
+	fmt.Println(SumStack(&scores))
+
+	var f Stack[float64]
+	f.Push(1.5)
+	f.Push(2.25)
+	fmt.Println(SumStack(&f))
+
+	var words Stack[string]
+	w, ok := words.Pop()
+	fmt.Printf("%q %v\n", w, ok)
+}
+`,
+    checks: [
+      { on: "stdout", name: "Push і Len рахують елементи", has: "3\n3 true", hint: "Push додає через append до s.items, а Len повертає len(s.items)" },
+      { on: "stdout", name: "Pop забирає останній елемент", has: "2 3", hint: "Після Pop стек має зменшитись: s.items = s.items[:last]" },
+      { on: "stdout", name: "Сума працює для int, Score і float64", has: "15\n3.75", hint: "Для Score потрібна тильда в обмеженні: ~int" },
+      { on: "stdout", name: "Pop порожнього стека", has: "\"\" false" },
+      { on: "source", name: "Number — перелік з тильдою", matches: "~int\\s*\\|\\s*~float64", hint: "type Number interface { ~int | ~float64 }" },
+      { on: "source", name: "Методи стека мають вказівниковий приймач", matches: "\\(\\s*\\w+\\s+\\*Stack\\[T\\]\\s*\\)\\s*Push" },
+    ],
+  },
+  {
+    ...base, id: "go-generic-collections", lesson: "go/49", xp: 35,
+    title: "Map, Filter, Reduce і Set",
+    context: "Перетворення списків і перевірка «вже бачили цей елемент» трапляються в кожному сервісі: від списку id із записів до унікальних тегів. Generic-версії пишуться один раз для будь-яких типів.",
+    brief: [
+      "Допишіть <code>Map[T, U any]</code> (результат <code>f</code> для кожного елемента), <code>Filter[T any]</code> (лише елементи, для яких <code>keep</code> повертає <code>true</code>) і <code>Reduce[T, A any]</code> (згортка з початковим значенням). Вхідний слайс змінювати не можна.",
+      "Реалізуйте <code>Set[T comparable]</code> як <code>map[T]struct{}</code> з методами <code>Add</code>, <code>Has</code>, <code>Len</code> і за його допомогою <code>Unique</code>: слайс без повторів із збереженням порядку першої появи.",
+    ],
+    starter: raw`package main
+
+import "fmt"
+
+func Map[T, U any](s []T, f func(T) U) []U {
+	return nil
+}
+
+func Filter[T any](s []T, keep func(T) bool) []T {
+	return nil
+}
+
+func Reduce[T, A any](s []T, init A, f func(A, T) A) A {
+	return init
+}
+
+type Set[T comparable] map[T]struct{}
+
+func (s Set[T]) Add(v T) {
+}
+
+func (s Set[T]) Has(v T) bool {
+	return false
+}
+
+func (s Set[T]) Len() int {
+	return 0
+}
+
+func Unique[T comparable](s []T) []T {
+	return s
+}
+
+func main() {
+	nums := []int{1, 2, 3, 4, 5, 6}
+	fmt.Println(Map(nums, func(n int) int { return n * n }))
+	fmt.Println(Map(nums, func(n int) string { return fmt.Sprintf("#%d", n) }))
+	fmt.Println(Filter(nums, func(n int) bool { return n%2 == 0 }))
+	fmt.Println(Reduce(nums, 0, func(acc, n int) int { return acc + n }))
+	words := []string{"go", "rust", "c"}
+	fmt.Println(Reduce(words, 0, func(acc int, w string) int { return acc + len(w) }))
+	fmt.Println(nums)
+
+	s := Set[string]{}
+	s.Add("go")
+	s.Add("go")
+	s.Add("rust")
+	fmt.Println(s.Len(), s.Has("go"), s.Has("c"))
+	fmt.Println(Unique([]int{3, 1, 3, 2, 1}))
+	fmt.Println(Unique([]string{"a", "a", "b"}))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Map перетворює елементи", has: "[1 4 9 16 25 36]\n[#1 #2 #3 #4 #5 #6]", hint: "Створіть out := make([]U, 0, len(s)) і додавайте f(x) для кожного x" },
+      { on: "stdout", name: "Filter залишає потрібні", has: "[2 4 6]" },
+      { on: "stdout", name: "Reduce зводить до одного значення", has: "21\n7\n[1 2 3 4 5 6]", hint: "acc = f(acc, x) для кожного елемента, повернути acc" },
+      { on: "stdout", name: "Set рахує без повторів", has: "2 true false", hint: "Add: s[v] = struct{}{}; Has: _, ok := s[v]" },
+      { on: "stdout", name: "Unique зберігає порядок", has: "[3 1 2]\n[a b]" },
+      { on: "source", name: "Set — мапа з порожньою структурою", matches: "type\\s+Set\\[\\s*T\\s+comparable\\s*\\]\\s+map\\[T\\]struct\\{\\}" },
+      { on: "source", name: "Unique користується Set", matches: "func\\s+Unique\\[[^\\]]*\\][^{]*\\{[^}]*Set\\[T\\]" },
+    ],
+  },
+  {
+    ...base, id: "go-interface-design", lesson: "go/50", xp: 35,
+    title: "Малий інтерфейс на стороні споживача",
+    context: "Сервіс, залежний від широкого інтерфейсу сховища, важко тестувати: кожен фейк мусить реалізувати всі методи. Малий інтерфейс із потрібним методом робить підміну тривіальною.",
+    brief: [
+      "<code>Greeter</code> використовує від сховища лише <code>Get</code>. Замініть широкий інтерфейс <code>Store</code> на малий, на стороні споживача, з єдиним методом <code>Get(id int) (string, bool)</code> (наприклад, <code>NameGetter</code>), і нехай <code>NewGreeter</code> приймає його, повертаючи <code>*Greeter</code>.",
+      "Допишіть <code>Greet(id)</code>: <code>Привіт, ІМ'Я!</code> або <code>Привіт, незнайомцю!</code>, якщо запису немає. Спростіть <code>stub</code>: йому потрібен лише метод <code>Get</code>, зайві <code>Put</code>, <code>Delete</code>, <code>List</code> видаліть.",
+    ],
+    starter: raw`package main
+
+import (
+	"fmt"
+	"maps"
+	"slices"
+)
+
+type Store interface {
+	Get(id int) (string, bool)
+	Put(id int, name string)
+	Delete(id int)
+	List() []string
+}
+
+type MemStore struct{ names map[int]string }
+
+func NewMemStore() *MemStore {
+	return &MemStore{names: map[int]string{1: "Оля", 2: "Тарас"}}
+}
+
+func (m *MemStore) Get(id int) (string, bool) {
+	n, ok := m.names[id]
+	return n, ok
+}
+
+func (m *MemStore) Put(id int, name string) { m.names[id] = name }
+func (m *MemStore) Delete(id int)           { delete(m.names, id) }
+func (m *MemStore) List() []string          { return slices.Sorted(maps.Values(m.names)) }
+
+type Greeter struct{ store Store }
+
+func NewGreeter(s Store) *Greeter { return &Greeter{store: s} }
+
+func (g *Greeter) Greet(id int) string {
+	return ""
+}
+
+type stub struct{}
+
+func (stub) Get(id int) (string, bool) { return "Тест", id == 7 }
+func (stub) Put(id int, name string)   {}
+func (stub) Delete(id int)             {}
+func (stub) List() []string            { return nil }
+
+func main() {
+	g := NewGreeter(NewMemStore())
+	fmt.Println(g.Greet(1))
+	fmt.Println(g.Greet(9))
+	t := NewGreeter(stub{})
+	fmt.Println(t.Greet(7))
+	fmt.Println(t.Greet(1))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Greet вітає знайденого", has: "Привіт, Оля!\nПривіт, незнайомцю!", hint: "Спробуйте name, ok := g.store.Get(id) і гілку на ok" },
+      { on: "stdout", name: "Greeter працює і зі stub", has: "Привіт, Тест!\nПривіт, незнайомцю!" },
+      { on: "source", name: "Інтерфейс споживача має єдиний метод Get", matches: "interface\\s*\\{\\s*Get\\(id int\\)\\s*\\(string,\\s*bool\\)\\s*\\}", hint: "type NameGetter interface { Get(id int) (string, bool) }" },
+      { on: "source", name: "Greeter не залежить від широкого інтерфейсу", not: true, matches: "interface\\s*\\{[^}]*(Put|Delete|List)\\(", hint: "Видаліть Put, Delete, List з інтерфейсу: Greeter їх не викликає" },
+      { on: "source", name: "stub без зайвих методів", not: true, matches: "func\\s*\\(stub\\)\\s*(Put|Delete|List)\\b", hint: "Фейк реалізує лише те, що вимагає малий інтерфейс" },
+      { on: "source", name: "Конструктор повертає структуру", matches: "func\\s+NewGreeter\\([^)]*\\)\\s*\\*Greeter" },
+    ],
+  },
+  {
+    ...base, id: "go-reflect-fields", lesson: "go/51", xp: 35,
+    title: "Обхід полів і тегів через reflect",
+    context: "Саме так працюють валідатори й серіалізатори: за тегами полів вони дізнаються, що перевіряти чи як називати. Тут напишемо мініатюрні версії таких інструментів.",
+    brief: [
+      "<code>Describe(v any) []string</code>: для кожного <b>експортованого</b> поля структури рядок <code>Ім'я (тип) json=тег значення</code>, де значення виведене через <code>%#v</code>. Для не-структури поверніть один рядок <code>не структура: KIND</code> (Kind значення).",
+      "<code>MissingRequired(v any) []string</code>: імена полів із тегом <code>validate:\"required\"</code>, значення яких нульове (<code>IsZero()</code>). Має працювати і зі структурою, і з вказівником на неї.",
+    ],
+    starter: raw`package main
+
+import (
+	"fmt"
+	"reflect"
+)
+
+type User struct {
+	Name  string ${BT}json:"name" validate:"required"${BT}
+	Email string ${BT}json:"email" validate:"required"${BT}
+	Age   int    ${BT}json:"age"${BT}
+	token string
+}
+
+func Describe(v any) []string {
+	_ = reflect.TypeOf(v)
+	return nil
+}
+
+func MissingRequired(v any) []string {
+	_ = reflect.ValueOf(v)
+	return nil
+}
+
+func main() {
+	u := User{Name: "Ada", Age: 36, token: "x"}
+	for _, line := range Describe(u) {
+		fmt.Println(line)
+	}
+	fmt.Println(MissingRequired(u))
+	fmt.Println(MissingRequired(&User{Name: "Bob", Email: "b@x.ua"}))
+	fmt.Println(Describe(42))
+}
+`,
+    checks: [
+      { on: "stdout", name: "Describe показує експортовані поля з тегами", has: "Name (string) json=name \"Ada\"\nEmail (string) json=email \"\"\nAge (int) json=age 36", hint: "t.Field(i) дає Name, Type і Tag.Get(\"json\"); значення: v.Field(i).Interface()" },
+      { on: "stdout", name: "Неекспортоване поле пропущено", not: true, has: "token", hint: "Перевіряйте f.IsExported()" },
+      { on: "stdout", name: "MissingRequired знаходить порожні обов'язкові поля", has: "[Email]\n[]", hint: "Tag.Get(\"validate\") == \"required\" і v.Field(i).IsZero()" },
+      { on: "stdout", name: "Не-структура описується через Kind", has: "[не структура: int]" },
+      { on: "source", name: "Теги читаються через Tag.Get", matches: "\\.Tag\\.Get\\(" },
+      { on: "source", name: "Є перевірка експортованості", matches: "IsExported\\(\\)|CanInterface\\(\\)" },
+      { on: "source", name: "Нульове значення через IsZero", matches: "\\.IsZero\\(\\)" },
     ],
   },
 ];
