@@ -1,5 +1,6 @@
 // Этап 2, интерфейс: онбординг, путь, уровень/XP, серия, календарь, эффекты. Запуск: npm run build && npm i --no-save jsdom && node tests/stage2-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
+import { PROJECTS } from "../content/projects/index.ts";
 import { TASKS } from "../content/tasks/index.ts";
 import { LESSONS } from "../content/lessons.js";
 import { chaptersOf, LESSON_XP, startLesson } from "../src/xp.ts";
@@ -69,7 +70,7 @@ t("майстер: рівень «Впевнений» зсуває старт �
 change(ob, ob.$("#onb input[value=python]"), true);
 await submit(ob, "#onb-form");
 const sp = posted(ob, "/api/onboarding");
-t("майстер: на сервер іде рівень і вибрані курси, далі відкривається шлях першого курсу", sp.length === 1 && sp[0].body.level === "advanced" && JSON.stringify(sp[0].body.courses.sort()) === JSON.stringify(["js", "python"]) && ob.w.location.hash.startsWith("#/path/"));
+t("майстер: на сервер іде рівень і вибрані курси, далі відкривається шлях першого курсу", sp.length === 1 && sp[0].body.level === "advanced" && JSON.stringify(sp[0].body.courses.sort()) === JSON.stringify(["js", "python"]) && ob.w.location.pathname.startsWith("/path/"));
 
 const lim = await page({ me: user, dash: { ...base, onboarding: null } });
 for (const k of ["html", "css", "js", "ts", "python"]) change(lim, lim.$(`#onb input[value=${k}]`), true);
@@ -79,7 +80,7 @@ t("майстер: не більше 5 курсів, решта блокуєть
 const bad = await page({ me: user, dash: { ...base, onboarding: null }, saveOk: false });
 change(bad, bad.$("#onb input[value=js]"), true);
 await submit(bad, "#onb-form");
-t("майстер: помилка збереження пояснена, кнопка знову активна, шлях не відкривається", bad.$("#onb-msg").textContent.includes("Не вдалося") && !bad.$("#onb button[type=submit]").disabled && bad.w.location.hash === "#/dashboard");
+t("майстер: помилка збереження пояснена, кнопка знову активна, шлях не відкривається", bad.$("#onb-msg").textContent.includes("Не вдалося") && !bad.$("#onb button[type=submit]").disabled && bad.w.location.pathname === "/dashboard");
 
 const re = await page({ me: user, dash: base, hash: "#/start", onboarding: { level: "intermediate", courses: ["js", "sql"] } });
 await sleep(120);
@@ -97,13 +98,28 @@ await sleep(700);
 t("серія: анімований лічильник закінчує на справжньому числі", cab.$(".streak-n").textContent === "3");
 const quiet = await page({ me: user, dash: { ...base, activity: {} } });
 t("серія: без активності сьогодні вогонь згаслий і підказка про збереження серії", quiet.$(".flame").className.includes("dim") && quiet.$(".streak-card").textContent.includes("не втратити серію") && quiet.$(".streak-card").textContent.includes("UTC"));
-t("шлях у кабінеті: курс, рівень, наступний урок і посилання на шлях", cab.$(".path-card").textContent.includes("JavaScript") && cab.$(".path-card").textContent.includes("Середній") && !!cab.$('.path-card a[href="#/path/js"]') && !!cab.$('.path-card a[href="#/start"]'));
+/* «Продовжити навчання»: курс, який користувач обрав на старті, важливіший за стандартний порядок і за випадковий урок з іншого курсу */
+const focusOf = async (extra) => (await page({ me: user, dash: { ...base, ...extra } }));
+const fGo = await focusOf({ completedLessons: [], lastLesson: null, onboarding: { level: "beginner", courses: ["go"] } });
+t("продовжити: обрано Go, нічого не пройдено: показано Go (а не Python за стандартним порядком) і посилання на перший урок Go", fGo.$(".dash-focus") && fGo.html().includes("Go ·") && !!fGo.$('a.btn[href="/lesson/go/1"]') && !fGo.html().includes("Встановлення Python"));
+const fOther = await focusOf({ completedLessons: ["python/1"], lastLesson: "python/1", onboarding: { level: "beginner", courses: ["go"] } });
+t("продовжити: останній пройдений урок із чужого курсу не перебиває обраний Go", !!fOther.$('a.btn[href="/lesson/go/1"]') && !fOther.$('a.btn[href^="/lesson/python/"]'));
+const fSame = await focusOf({ completedLessons: ["go/1", "go/2"], lastLesson: "go/2", onboarding: { level: "beginner", courses: ["js", "go"] } });
+t("продовжити: останній урок в обраному курсі, тож продовжуємо одразу після нього (Go, урок 3)", !!fSame.$('a.btn[href="/lesson/go/3"]'));
+const fNone = await focusOf({ completedLessons: ["js/1", "js/2"], lastLesson: "js/2", onboarding: { level: "beginner", courses: [] } });
+t("продовжити: курси не обирали: поведінка як раніше (після останнього уроку)", !!fNone.$('a.btn[href="/lesson/js/3"]'));
+const fDone = await focusOf({ completedLessons: [], lastLesson: null, onboarding: { level: "beginner", courses: ["go", "js"] } });
+t("продовжити: два обраних курси, нічого не пройдено в них: береться перший за порядком вибору (Go)", !!fDone.$('a.btn[href="/lesson/go/1"]'));
+t("кнопка «Продовжити» в окремому абзаці з відступом від смуги прогресу", !!fGo.$(".dash-focus ~ p.dash-cta a.btn") || !!fGo.$(".bar + p.dash-cta a.btn"));
+const tmpl = readFileSync(new URL("../src/index.template.html", import.meta.url), "utf8");
+t("стилі: у абзацу кнопки є верхній відступ", /\.card p\.dash-cta\{margin:\d+px 0 0\}/.test(tmpl));
+t("шлях у кабінеті: курс, рівень, наступний урок і посилання на шлях", cab.$(".path-card").textContent.includes("JavaScript") && cab.$(".path-card").textContent.includes("Середній") && !!cab.$('.path-card a[href="/path/js"]') && !!cab.$('.path-card a[href="/start"]'));
 
 const cell = (p, k) => p.$(`.heat i[data-day="${k}"]`);
 t("календар: кожен день у вигляді клітинки, дні з активністю фокусуються з клавіатури, порожні ні", cab.$$(".heat i[data-day]").length >= 182 && cell(cab, dayX).getAttribute("tabindex") === "0" && cell(cab, daysAgo(10)).getAttribute("tabindex") === null && cell(cab, dayX).getAttribute("aria-label").includes("2 уроки, 1 завдання"));
 cell(cab, dayX).click();
 const det = cab.$("#day-detail");
-t("календар: клік по дню показує кількість і список уроків та завдань із посиланнями", det.textContent.includes("2 уроки") && det.textContent.includes("1 завдання") && !!det.querySelector('a[href="#/lesson/python/1"]') && !!det.querySelector(`a[href="#/lesson/${t0.lesson}"]`) && det.textContent.includes(t0.title) && cell(cab, dayX).className.includes("sel"));
+t("календар: клік по дню показує кількість і список уроків та завдань із посиланнями", det.textContent.includes("2 уроки") && det.textContent.includes("1 завдання") && !!det.querySelector('a[href="/lesson/python/1"]') && !!det.querySelector(`a[href="/lesson/${t0.lesson}"]`) && det.textContent.includes(t0.title) && cell(cab, dayX).className.includes("sel"));
 cell(cab, daysAgo(10)).click();
 t("календар: порожній день повідомляє про відсутність активності, виділення переходить", cab.$("#day-detail").textContent.includes("активності не було") && !cell(cab, dayX).className.includes("sel"));
 cell(cab, today).dispatchEvent(new cab.w.KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
@@ -131,12 +147,12 @@ t("шлях: гостю закритий, замість нього запрош
 const g = await page({ me: user, hash: "#/path/js", done: { js: [1, 2, 3] } });
 const nodes = g.$$(".path-node");
 t("шлях: по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.js).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
-t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `#/lesson/js/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
-t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="#/lesson/js/4"]'));
+t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `/lesson/js/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
+t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="/lesson/js/4"]'));
 t("шлях: вкладки курсів, активний позначено", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript"));
 const withTask = TASKS.find((x) => x.course === "js");
 t("шлях: у підписах практики немає емодзі блискавки", !g.$(".path").textContent.includes("⚡"));
-t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="#/lesson/${withTask.lesson}"]`));
+t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="/lesson/${withTask.lesson}"]`));
 t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: user, hash: "#/path/nope" })).$$(".path-node").length > 0);
 const lineEdges = g.$$(".path-line .e");
 t("шлях: лінія з'єднує сусідні вузли, пройдені ділянки суцільні", g.$$(".path-line").length === 1 && lineEdges.length === jsN - 1 && g.$$(".path-line .e.done").length === 3);
@@ -149,7 +165,7 @@ const lv = await page({ me: user, dash: base, hash: "#/path/js", onboarding: { l
 await sleep(120);
 const startN = startLesson(LESSONS.js, "intermediate");
 t("шлях (вхід): рівень завантажується один раз і перемальовує сторінку, позначено «Ваш старт»", lv.calls.filter((c) => c.url === "/api/onboarding" && c.method === "GET").length === 1 && lv.$$(".path-chap.start").length === 1 && lv.$(".path-chap.start .flag").textContent === "Ваш старт" && lv.html().includes("Середній"));
-t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `#/lesson/js/${startN}` && startN > 1 && lv.$$(".path-node.before").length === startN - 1 && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
+t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `/lesson/js/${startN}` && startN > 1 && lv.$$(".path-node.before").length === startN - 1 && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
 t("шлях: курси онбордингу йдуть першими зі зірочкою", lv.$$(".path-tab")[0].textContent.includes("★ JavaScript") && lv.$$(".path-tab")[1].textContent.includes("★ Python"));
 
 /* ---- XP-ефекти ---- */
@@ -165,7 +181,7 @@ lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Tab", canc
 t("підвищення рівня: Tab не виводить фокус із діалогу", lu.w.document.activeElement === lu.$(".lvl-up button"));
 lu.w.document.dispatchEvent(new lu.w.KeyboardEvent("keydown", { key: "Escape" }));
 t("підвищення рівня: Esc закриває діалог", lu.$(".lvl-up") === null);
-const gu = await page({ me: null, hash: "#/path/js" });
+const gu = await page({ me: null, hash: "#/course/js" });
 gu.w.document.dispatchEvent(new gu.w.Event("ic:progress"));
 await sleep(500);
 t("XP: гість не викликає синхронізацію", posted(gu, "/api/xp/sync").length === 0);
@@ -174,11 +190,22 @@ tog.$("[data-toggle='js:1']").click();
 await sleep(700);
 t("XP: відмітка уроку пройденим на сервері тягне синхронізацію XP й показує «+10 XP»", posted(tog, "/api/progress").length >= 1 && posted(tog, "/api/xp/sync").length === 1 && tog.$(".xp-pop")?.textContent === "+10 XP");
 
-const maxXp = Math.max(...TASKS.map((x) => x.xp));
+const maxXp = Math.max(...TASKS.map((x) => x.xp), ...PROJECTS.map((x) => x.xp));
 const hint = (await page({ me: user, dash: { ...base, onboarding: { level: "beginner", courses: ["js"] }, xp: 0 } })).$(".lvl-hint").textContent;
 t("рівень: підказка про XP береться з констант і завдань, а не з тексту", hint.includes(`+${LESSON_XP} XP`) && hint.includes(`до +${maxXp} XP`));
 const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");
 t("шлях на телефоні (до 600 px): вузли колонкою, без зигзага й без позиціювання підписів збоку", /max-width:600px\)\{[^]*\.path \.path-node\{display:grid;grid-template-columns:58px[^}]*transform:none/.test(css) && /\.path \.pn-side[^{]*\{position:static/.test(css));
 t("мобільна версія: є правила для 480 і 390 px, довгі назви переносяться", css.includes("max-width:480px") && css.includes("max-width:390px") && /\.path-prac\{[^}]*overflow-wrap:anywhere/.test(css));
+
+/* ---- гості: без «Шляху» в шапці й на сторінці ---- */
+const navPath = (p) => p.$$("#nav a").find((a) => a.textContent === "Шлях");
+const gh = await page({ me: null, hash: "#/" });
+t("гість: пункт «Шлях» у шапці прихований", !!navPath(gh) && navPath(gh).hidden === true);
+const uh = await page({ me: user, hash: "#/" });
+t("зареєстрований: пункт «Шлях» у шапці видно", !!navPath(uh) && navPath(uh).hidden === false);
+for (const h of ["#/path", "#/path/js", "#/start"]) {
+  const gp = await page({ me: null, hash: h });
+  t(`гість: ${h} не показує шлях, а запрошує увійти (уроки та шлях лише в кабінеті)`, gp.html().includes("Уроки та завдання в кабінеті") && gp.$$(".path-node").length === 0 && !gp.html().includes("path-head"));
+}
 
 console.log(`\nПройдено перевірок Етапу 2 (інтерфейс): ${ok}`);

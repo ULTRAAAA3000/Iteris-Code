@@ -33,14 +33,36 @@ export async function readSession(request: Request, env: Pick<Env, "SESSION_SECR
   }
 }
 
-export const sessionCookie = (value: string, maxAge: number): string =>
-  `session=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+const COOKIE_ROOT = "iteris-code.org";
 
-export const json = (data: unknown, status = 200, headers: Record<string, string> = {}): Response =>
-  new Response(JSON.stringify(data), {
-    status,
-    headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...headers },
-  });
+/** Домен для cookie, якщо запит прийшов на основний домен або його піддомен (там вхід має діяти і на кабінеті). Інакше (pages.dev, localhost) cookie лишається прив'язаною до хоста */
+export function cookieDomain(request?: Request, env?: { COOKIE_DOMAIN?: string }): string | null {
+  if (!request) return null;
+  const root = (env?.COOKIE_DOMAIN || COOKIE_ROOT).toLowerCase().replace(/^\./, "");
+  const host = new URL(request.url).hostname.toLowerCase();
+  return host === root || host.endsWith("." + root) ? root : null;
+}
+
+const cookieBase = (value: string, maxAge: number): string => `session=${value}; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=${maxAge}`;
+
+/** Одна cookie сесії; із request на основному домені додається Domain=.<домен> */
+export const sessionCookie = (value: string, maxAge: number, request?: Request, env?: { COOKIE_DOMAIN?: string }): string => {
+  const d = cookieDomain(request, env);
+  return cookieBase(value, maxAge) + (d ? `; Domain=.${d}` : "");
+};
+
+/** Усі Set-Cookie для входу/виходу. На основному домені разом із спільною cookie стираємо стару, прив'язану лише до хоста:
+ *  інакше у браузера було б дві cookie «session» і сервер міг би прочитати застарілу */
+export const sessionCookies = (value: string, maxAge: number, request?: Request, env?: { COOKIE_DOMAIN?: string }): string[] => {
+  const shared = sessionCookie(value, maxAge, request, env);
+  return cookieDomain(request, env) ? [shared, cookieBase("", 0)] : [shared];
+};
+
+export const json = (data: unknown, status = 200, headers: Record<string, string | string[]> = {}): Response => {
+  const h = new Headers({ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store" });
+  for (const [k, v] of Object.entries(headers)) for (const x of Array.isArray(v) ? v : [v]) h.append(k, x);
+  return new Response(JSON.stringify(data), { status, headers: h });
+};
 
 // Захист від CSRF для POST-запитів: Origin має збігатися з адресою сайту
 export const sameOrigin = (request: Request): boolean => request.headers.get("Origin") === new URL(request.url).origin;
@@ -75,12 +97,14 @@ export const publicUser = (u: UserRow): PublicUser => ({
   isPro: isProActive(u),
   proUntil: u.pro_until || null,
   streak: effectiveStreak(u),
+  nick: u.nick ?? null,
+  avatarId: u.avatar_id ?? null,
 });
 
 export async function currentUser(request: Request, env: Env): Promise<UserRow | null> {
   const uid = await readSession(request, env);
   if (!uid) return null;
   return env.DB.prepare(
-    "SELECT id, email, name, avatar_url, is_pro, pro_until, streak_count, last_active_at FROM users WHERE id = ?1"
+    "SELECT id, email, name, avatar_url, is_pro, pro_until, streak_count, last_active_at, nick, avatar_id FROM users WHERE id = ?1"
   ).bind(uid).first<UserRow>();
 }

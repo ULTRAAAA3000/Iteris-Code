@@ -1,7 +1,8 @@
-// Вхід, реєстрація й відновлення пароля за поштою: #/login, #/register, #/forgot, #/reset/<токен>, #/verify/<токен>.
+// Вхід, реєстрація й відновлення пароля за поштою: /login, /register, /forgot, /reset/<токен>, /verify/<токен>.
 // Кожна форма захищена Cloudflare Turnstile; пароль на сервері хешується (PBKDF2), тут він лише передається по HTTPS.
-import { completeSignIn, getAuthConfig, getUser, isReady, loginGoogle, post } from "./auth.ts";
+import { completeSignIn, getAuthConfig, getUser, isReady, post } from "./auth.ts";
 import { toast } from "./ui.ts";
+import { navigate } from "./router.ts";
 import { notFound } from "./views.ts";
 
 interface TurnstileApi {
@@ -77,26 +78,34 @@ const BAD_FIELDS: Record<string, string[]> = {
 const rule = "Щонайменше 8 символів";
 const form = (fields: string, submit: string): string =>
   `<form id="af">${fields}${getAuthConfig().siteKey ? '<div class="ts-slot" id="af-ts"></div>' : ""}<button class="btn primary" type="submit">${submit}</button></form><p class="form-msg" id="af-msg" role="alert"></p>`;
-const googleBtn = (): string =>
-  getAuthConfig().clientId ? `<div class="auth-or"><span>або</span></div><button class="btn" type="button" data-act="google">Увійти через Google</button>` : "";
+const GH_ICON = `<svg width="18" height="18" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>`;
+/** Кнопки входу через зовнішні сервіси: лише ті, що налаштовані на сервері */
+const googleBtn = (): string => {
+  const { clientId, githubId } = getAuthConfig();
+  if (!clientId && !githubId) return "";
+  return `<div class="auth-or"><span>або</span></div><div class="auth-oauth">`
+    + (clientId ? `<button class="btn" type="button" data-act="google">Увійти через Google</button>` : "")
+    + (githubId ? `<button class="btn" type="button" data-act="github">${GH_ICON}Увійти через GitHub</button>` : "")
+    + `</div>`;
+};
 
 export function renderAuthPage(kind: Kind): string {
   const { mail } = getAuthConfig();
   if (!isReady()) return `<div class="card auth-card" aria-busy="true" aria-label="Завантаження"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
-  if (getUser()) return `<div class="card auth-card"><h1>Ви вже увійшли</h1><a class="btn primary" href="#/dashboard">Особистий кабінет</a></div>`;
+  if (getUser()) return `<div class="card auth-card"><h1>Ви вже увійшли</h1><a class="btn primary" href="/dashboard">Особистий кабінет</a></div>`;
   if (!mail && kind !== "login" && kind !== "register") return notFound();   // відновлення пароля й підтвердження пошти потребують листів
   const h = (t: string): string => `<h1>${t}</h1>`;
   const card = (inner: string): string => `<div class="card auth-card">${inner}</div>`;
   switch (kind) {
     case "login":
       return card(h("Вхід") + form(email + pass("current-password"), "Увійти") + googleBtn() +
-        `<p class="auth-links">${mail ? '<a href="#/forgot">Забули пароль?</a>' : ""}<a href="#/register">Створити акаунт</a></p>`);
+        `<p class="auth-links">${mail ? '<a href="/forgot">Забули пароль?</a>' : ""}<a href="/register">Створити акаунт</a></p>`);
     case "register":
       return card(h("Реєстрація") + form(fld("name", "Ім'я (необов'язково)", "text", 'autocomplete="name" maxlength="60"') + email + pass("new-password", "Пароль", rule), "Створити акаунт") +
-        googleBtn() + `<p class="auth-links"><a href="#/login">Вже є акаунт? Увійти</a></p>`);
+        googleBtn() + `<p class="auth-links"><a href="/login">Вже є акаунт? Увійти</a></p>`);
     case "forgot":
       return card(h("Відновлення пароля") + `<p class="dash-muted">Вкажіть пошту, і ми надішлемо посилання для нового пароля.</p>` + form(email, "Надіслати посилання") +
-        `<p class="auth-links"><a href="#/login">Назад до входу</a></p>`);
+        `<p class="auth-links"><a href="/login">Назад до входу</a></p>`);
     case "reset":
       return card(h("Новий пароль") + form(pass("new-password", "Новий пароль", rule), "Зберегти пароль"));
     case "verify":
@@ -178,7 +187,7 @@ export function mountAuthPage(kind: Kind, token = ""): void {
       return say(code === "invalid_token" && kind === "reset" ? ERRORS.invalid_token + ". Запросіть нове на сторінці відновлення пароля" : ERRORS[code] ?? GENERIC);
     }
     if (kind === "login" || r.data?.signedIn) return void (await completeSignIn());   // signedIn: реєстрація без листів одразу відкриває сесію
-    if (kind === "reset") { toast("Пароль змінено. Тепер увійдіть"); location.hash = "#/login"; return; }
+    if (kind === "reset") { toast("Пароль змінено. Тепер увійдіть"); navigate("/login"); return; }
     f.hidden = true;
     say(kind === "register"
       ? `Ми надіслали лист на ${body.email}. Перейдіть за посиланням у ньому, щоб підтвердити пошту. Якщо листа немає, перевірте «Спам».`

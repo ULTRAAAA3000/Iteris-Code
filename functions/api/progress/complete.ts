@@ -3,9 +3,12 @@ import type { Env } from "../../../lib/env.ts";
 import { verifyProof } from "../../../lib/proof.ts";
 import { bumpStreak, currentUser, effectiveStreak, isProActive, json, sameOrigin } from "../../../lib/session.ts";
 import { taskById } from "../../../content/tasks/index.ts";
+import { practiceById } from "../../../lib/practice.ts";
+import { projectById } from "../../../content/projects/index.ts";
 import { isRemote } from "../../../src/tasks/types.ts";
 
 const MAX_CODE = 20000;
+const MAX_PROJECT_CODE = 60000;   // проєкт — це цілий файл HTML, CSS і JS
 const MAX_PER_MINUTE = 20;
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -19,8 +22,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   } catch {
     return json({ error: "bad_request" }, 400);
   }
-  const task = typeof body.taskId === "string" ? taskById(body.taskId) : undefined;
-  if (!task || typeof body.code !== "string" || body.code.length > MAX_CODE || typeof body.passed !== "boolean") {
+  const task = typeof body.taskId === "string" ? practiceById(body.taskId) : undefined;
+  if (!task || typeof body.code !== "string" || body.code.length > (projectById(task.id) ? MAX_PROJECT_CODE : MAX_CODE) || typeof body.passed !== "boolean") {
     return json({ error: "bad_request" }, 400);
   }
   // Преміум-завдання доступні лише з активною підпискою Pro (перевірка на сервері)
@@ -28,7 +31,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   // Віддалені завдання (Go тощо) запускає сам сервер: «пройдено» приймається лише з його підписом, прапорцю від браузера не вірити
   let passed = body.passed;
-  if (isRemote(task)) passed = await verifyProof(env, body.proof, u.id, task.id, body.code);
+  const full = taskById(task.id);
+  if (full && isRemote(full)) passed = await verifyProof(env, body.proof, u.id, task.id, body.code);
 
   const recent = await env.DB.prepare(
     "SELECT COUNT(*) AS c FROM task_submissions WHERE user_id = ?1 AND created_at > datetime('now', '-1 minute')"

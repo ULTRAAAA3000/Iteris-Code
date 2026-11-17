@@ -1,18 +1,25 @@
 import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
-import { cachedLesson, fetchLesson, lessonFailed, outlineLoaded, retryLesson } from "./content.ts";
-import { C, CATS } from "./data.ts";
+import { cachedLesson, cachedProject, fetchLesson, fetchProject, lessonFailed, outlineLoaded, projectFailed, retryLesson, retryProject } from "./content.ts";
+import { C, projectMeta } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
+import { setMeta } from "./meta.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
+import { BRAND, findPage } from "./pages.ts";
 import { renderPath } from "./path.ts";
+import { mountSettings, renderPublic, renderSettings } from "./profile.ts";
+import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
+import type { Project } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
+import { onDashHost } from "./domains.ts";
+import { initRouter, segments } from "./router.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
 import type { Task } from "./tasks/types.ts";
 import { ui } from "./ui.ts";
 import { store } from "./util.ts";
-import { course, dir, gate, home, lesson, loadError, loadingCard, notFound, reference } from "./views.ts";
+import { course, gate, lesson, loadError, loadingCard, notFound } from "./views.ts";
 import { disposeWorkspace, mountWorkspace } from "./workspace.ts";
 
-const BRAND = "Iteris Code";
+const DEFAULT_DESC = "Безкоштовні уроки програмування українською. Читай урок, пиши код у терміналі, отримуй перевірку й XP.";
 const app = document.getElementById("app") as HTMLElement;
 
 /** Уроки, шлях і кабінет лише після входу: чекаємо відповіді сервера, гостю показуємо запрошення, а за помилки пропонуємо повторити */
@@ -23,17 +30,16 @@ function locked(): string | null {
 }
 
 function render(): void {
-  const [a, b, c] = location.hash.replace(/^#\/?/, "").split("/");
-  let html: string, active = "", title = BRAND + " — довідник програміста";
-  let task: Task | undefined;
+  const [a, b, c] = segments();
+  const page = onDashHost() ? undefined : findPage(location.pathname.replace(/\.html$/, ""));   // на кабінетному піддомені «/» не головна, а кабінет
+  let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | undefined, indexable = false;
   disposeWorkspace();
-  if (!a) html = home(!!getUser());
-  else if (CATS[a]) { html = dir(a); active = a; title = CATS[a].title + " — " + BRAND; }
-  else if (a === "ref" && C[b]) { html = reference(b, !!getUser()); active = C[b].cat; title = C[b].name + ": довідник — " + BRAND; }
-  else if (a === "course" && C[b]) { html = locked() ?? course(b); active = C[b].cat; title = C[b].name + " — " + BRAND; }
+  disposeProject();
+  if (page) { html = page.html(!!getUser()); active = page.active; title = page.title; }
+  else if (a === "course" && C[b]) { html = locked() ?? course(b); active = "courses"; title = C[b].name + " — " + BRAND; }
   else if (a === "lesson" && C[b]) {
     const n = Number(c), lk = locked();
-    active = C[b].cat;
+    active = "courses";
     if (lk) html = lk;
     else if (!C[b].L[n - 1]) html = notFound();
     else {
@@ -43,23 +49,40 @@ function render(): void {
       else { html = loadingCard(); fetchLesson(b, n); }
     }
   }
+  else if (a === "project" && b) {
+    // Проєкт, як і уроки, лише для користувача, що увійшов: гостя ведемо на запрошення, умови приходять з сервера
+    const lk = locked();
+    if (lk) html = lk;
+    else if (!projectMeta(b)) html = notFound();
+    else {
+      const p = cachedProject(b);
+      if (p) { project = p; html = projectHTML(p); active = "courses"; title = p.title + " — " + BRAND; }
+      else if (projectFailed(b)) html = loadError("retry-project");
+      else { html = loadingCard(); fetchProject(b); }
+    }
+  }
   else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
   else if (a === "path") { html = locked() ?? renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
   else if (a === "start") { html = locked() ?? onboardingHtml(); title = "Налаштування шляху — " + BRAND; }
+  else if (a === "u" && b && !c) { const r = renderPublic(b); html = r.html; title = r.title + " — " + BRAND; indexable = r.index; }
+  else if (a === "profile") { html = !isReady() ? loadingCard() : !getUser() ? gate() : renderSettings(); title = "Мій профіль — " + BRAND; }
   else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
-  else html = notFound();
+  else { html = notFound(); title = "Сторінку не знайдено — " + BRAND; }
   app.innerHTML = html;
-  document.title = title;
+  // Індексуються лише публічні сторінки: кабінет, уроки й форми входу пошуковикам не потрібні
+  setMeta({ title, desc: page?.desc ?? DEFAULT_DESC, path: page?.path ?? location.pathname, noindex: !page && !indexable });   // індексуються публічні сторінки й відкриті профілі
+  document.documentElement.classList.remove("spa");
   document.querySelectorAll<HTMLElement>("#nav a").forEach((l) => (l.dataset.k === active ? l.setAttribute("aria-current", "page") : l.removeAttribute("aria-current")));
   window.scrollTo(0, 0);
-  if (!a) initHome();
+  if (page?.kind === "home") initHome();
   if (task) void mountWorkspace(task);
+  if (project) void mountProject(project);
   if (isAuthRoute(a)) mountAuthPage(a, b);
+  if (a === "profile" && getUser()) mountSettings();
   mountStage2(a);
 }
 ui.render = render;
 hooks.onToggle = syncLesson;
-window.addEventListener("hashchange", render);
 initStage2();
 
 document.addEventListener("click", (e) => {
@@ -74,8 +97,13 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (target.closest("[data-act=retry-lesson]")) {
-    const [, k, n] = location.hash.replace(/^#\/?/, "").split("/");
+    const [, k, n] = segments();
     retryLesson(k, Number(n));
+    render();
+    return;
+  }
+  if (target.closest("[data-act=retry-project]")) {
+    retryProject(segments()[1] ?? "");
     render();
     return;
   }
@@ -121,5 +149,6 @@ document.getElementById("theme")?.addEventListener("click", () => {
   store.set("ic-theme", next);
 });
 
+initRouter();
 render();
 void initAuth();

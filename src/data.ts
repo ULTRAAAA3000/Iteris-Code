@@ -1,8 +1,9 @@
 // Каталог курсів. Публічно відомі лише категорії й мови; список уроків і завдань приходить після входу (setOutline)
-import type { Outline, OutlineLesson, TaskMeta } from "./types.ts";
+import type { Outline, OutlineLesson, ProjectMeta, TaskMeta } from "./types.ts";
 
 export interface Category { title: string; desc: string; courses: string[] }
-export interface CourseMeta { name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
+/** lessons: кількість уроків (число публічне, тексти закриті); тест content.test.mjs звіряє його з content/lessons.js */
+export interface CourseMeta { lessons: number; name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
 export interface Course extends CourseMeta { L: OutlineLesson[] }
 
 export const CATS: Record<string, Category> = {
@@ -13,19 +14,19 @@ export const CATS: Record<string, Category> = {
   tools: { title: "Інструменти розробника", desc: "Те, без чого не обходиться жодна команда: контроль версій і командний рядок.", courses: ["git","bash"] }
 };
 const META: Record<string, CourseMeta> = {
-  python: { name: "Python", badge: "Py", color: "#C99700", cat: "program", desc: "Проста мова для старту: змінні, розгалуження та цикли." },
-  cpp: { name: "C++", badge: "C+", color: "#00599C", cat: "program", desc: "Швидка компільована мова: типи, ввід-вивід, умови та цикли." },
-  pascal: { name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
-  html: { name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: структура, текст, списки, таблиці та форми." },
-  css: { name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
-  js: { name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви, DOM і запити до сервера.", next: "ts" },
-  go: { name: "Go", badge: "Go", color: "#00ADD8", cat: "program", desc: "Проста й швидка мова від Google: типи, функції та горутини для паралельності." },
-  java: { name: "Java", badge: "Jv", color: "#E76F00", cat: "program", desc: "Мова великих застосунків і Android: класи, змінні, умови та цикли." },
-  ts: { name: "TypeScript", badge: "TS", color: "#3178C6", cat: "web", req: "js", desc: "JavaScript із типами: менше помилок, зрозуміліший код. Продовження курсу JavaScript." },
-  php: { name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
-  git: { name: "Git", badge: "Gt", color: "#F05032", cat: "tools", desc: "Контроль версій: коміти, гілки, GitHub і робота в команді." },
-  bash: { name: "Командний рядок", badge: "Sh", color: "#3E4A59", cat: "tools", desc: "Термінал і Bash: файли, пошук, конвеєри та перші скрипти." },
-  sql: { name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: вибірка, фільтрація, групування та об'єднання таблиць." }
+  python: { lessons: 20, name: "Python", badge: "Py", color: "#C99700", cat: "program", desc: "Проста мова для старту: змінні, розгалуження та цикли." },
+  cpp: { lessons: 10, name: "C++", badge: "C+", color: "#00599C", cat: "program", desc: "Швидка компільована мова: типи, ввід-вивід, умови та цикли." },
+  pascal: { lessons: 8, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
+  html: { lessons: 12, name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: структура, текст, списки, таблиці та форми." },
+  css: { lessons: 13, name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
+  js: { lessons: 22, name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви, DOM і запити до сервера.", next: "ts" },
+  go: { lessons: 11, name: "Go", badge: "Go", color: "#00ADD8", cat: "program", desc: "Проста й швидка мова від Google: типи, функції та горутини для паралельності." },
+  java: { lessons: 11, name: "Java", badge: "Jv", color: "#E76F00", cat: "program", desc: "Мова великих застосунків і Android: класи, змінні, умови та цикли." },
+  ts: { lessons: 12, name: "TypeScript", badge: "TS", color: "#3178C6", cat: "web", req: "js", desc: "JavaScript із типами: менше помилок, зрозуміліший код. Продовження курсу JavaScript." },
+  php: { lessons: 10, name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
+  git: { lessons: 10, name: "Git", badge: "Gt", color: "#F05032", cat: "tools", desc: "Контроль версій: коміти, гілки, GitHub і робота в команді." },
+  bash: { lessons: 8, name: "Командний рядок", badge: "Sh", color: "#3E4A59", cat: "tools", desc: "Термінал і Bash: файли, пошук, конвеєри та перші скрипти." },
+  sql: { lessons: 15, name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: вибірка, фільтрація, групування та об'єднання таблиць." }
 };
 
 // До входу в кожного курсу L порожній: уроки з'являються лише після setOutline
@@ -33,15 +34,23 @@ export const C: Record<string, Course> = {};
 for (const [k, m] of Object.entries(META)) C[k] = { ...m, L: [] };
 
 let tasks: readonly TaskMeta[] = [];
+let projects: readonly ProjectMeta[] = [];
 /** Підставляє структуру курсів із /api/courses; null прибирає її (вихід із акаунта або помилка) */
 export function setOutline(o: Outline | null): void {
   for (const k of Object.keys(C)) C[k].L = o?.courses[k] ?? [];
   tasks = o?.tasks ?? [];
+  projects = o?.projects ?? [];
 }
 export const allTasks = (): readonly TaskMeta[] => tasks;
 export const taskMeta = (id: string): TaskMeta | undefined => tasks.find((t) => t.id === id);
+export const allProjects = (): readonly ProjectMeta[] => projects;
+export const projectMeta = (id: string): ProjectMeta | undefined => projects.find((p) => p.id === id);
+/** Проєкт за ТЗ, прив'язаний до уроку n курсу k */
+export const projectOf = (k: string, n: number): ProjectMeta | undefined => { const id = C[k]?.L[n - 1]?.project; return id ? projectMeta(id) : undefined; };
 /** Завдання, прив'язане до уроку n курсу k (за структурою курсу) */
 export const taskOf = (k: string, n: number): TaskMeta | undefined => { const id = C[k]?.L[n - 1]?.task; return id ? taskMeta(id) : undefined; };
 export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.L.length, 0);
+/** Кількість уроків усіх курсів без входу (для публічних сторінок) */
+export const publicLessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.lessons, 0);
 
 export const darkText = (k: string): string => (k === "python" || k === "js" ? "color:#14213D" : "");

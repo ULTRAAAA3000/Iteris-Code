@@ -1,6 +1,7 @@
 // Тексти уроків і завдання лежать у content/ і потрапляють лише в серверний код. Браузер отримує їх після входу
 // через /api/courses (структура) та /api/lesson (один урок із завданням). У публічну збірку (dist) вони не входять.
 import { LESSONS } from "../content/lessons.js";
+import { PROJECTS, projectForLesson } from "../content/projects/index.ts";
 import { TASKS, taskForLesson } from "../content/tasks/index.ts";
 import type { LessonPayload, Outline } from "../src/types.ts";
 import { isRemote } from "../src/tasks/types.ts";
@@ -11,10 +12,11 @@ let outline: Outline | undefined;
 export function courseOutline(): Outline {
   outline ??= {
     courses: Object.fromEntries(Object.entries(LESSONS).map(([k, list]) => [k, list.map((l, i) => {
-      const task = taskForLesson(`${k}/${i + 1}`);
-      return { t: l.t, ...(l.ch ? { ch: l.ch } : {}), ...(task ? { task: task.id } : {}) };
+      const task = taskForLesson(`${k}/${i + 1}`), project = projectForLesson(`${k}/${i + 1}`);
+      return { t: l.t, ...(l.ch ? { ch: l.ch } : {}), ...(task ? { task: task.id } : {}), ...(project ? { project: project.id } : {}) };
     })])),
     tasks: TASKS.map((t) => ({ id: t.id, title: t.title, xp: t.xp, course: t.course, lesson: t.lesson })),
+    projects: PROJECTS.map((p) => ({ id: p.id, title: p.title, xp: p.xp, course: p.course, lesson: p.lesson })),
   };
   return outline;
 }
