@@ -34,5 +34,7 @@ export function defaultIdol(seed: string): Idol {
   return IDOLS[h % IDOLS.length];
 }
 
-export const idolSrc = (id: string): string => `/idols/${id}.webp`;
+/** Версія картинок аватарок: сервер віддає /idols/* із кешем на добу, тому після заміни файлів збільшіть число, щоб усі одразу побачили нові */
+export const IDOL_IMG_V = 2;
+export const idolSrc = (id: string): string => `/idols/${id}.webp?v=${IDOL_IMG_V}`;
 export const idolOgSrc = (id: string): string => `/idols/${id}-og.jpg`;
