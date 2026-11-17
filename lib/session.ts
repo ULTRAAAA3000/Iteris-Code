@@ -11,13 +11,27 @@ export const fromB64u = (s: string): Uint8Array<ArrayBuffer> =>
 const hmacKey = (secret: string): Promise<CryptoKey> =>
   crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign", "verify"]);
 
-export async function createSession(env: Pick<Env, "SESSION_SECRET">, uid: string, days = 30): Promise<string> {
-  const payload = toB64u(enc.encode(JSON.stringify({ uid, exp: Math.floor(Date.now() / 1000) + days * 86400 })));
+/** Поточна «версія сесій» користувача: зміна пароля й «вийти всюди» збільшують її, і всі видані раніше cookie перестають діяти */
+async function sessionVersion(env: Partial<Pick<Env, "DB">>, uid: string): Promise<number> {
+  try {
+    const r = await env.DB?.prepare("SELECT session_ver FROM users WHERE id = ?1").bind(uid).first<{ session_ver: number | null }>();
+    return r?.session_ver ?? 0;
+  } catch {
+    return 0;   // колонки ще немає (стара база): версія 0, ensureSchema її додасть
+  }
+}
+
+export async function createSession(env: Pick<Env, "SESSION_SECRET"> & Partial<Pick<Env, "DB">>, uid: string, days = 30): Promise<string> {
+  const payload = toB64u(enc.encode(JSON.stringify({ uid, v: await sessionVersion(env, uid), exp: Math.floor(Date.now() / 1000) + days * 86400 })));
   const sig = await crypto.subtle.sign("HMAC", await hmacKey(env.SESSION_SECRET ?? ""), enc.encode(payload));
   return payload + "." + toB64u(sig);
 }
 
 export async function readSession(request: Request, env: Pick<Env, "SESSION_SECRET">): Promise<string | null> {
+  return (await readSessionData(request, env))?.uid ?? null;
+}
+
+export async function readSessionData(request: Request, env: Pick<Env, "SESSION_SECRET">): Promise<{ uid: string; v: number } | null> {
   if (!env.SESSION_SECRET) return null;
   const m = (request.headers.get("Cookie") || "").match(/(?:^|;\s*)session=([^;]+)/);
   if (!m) return null;
@@ -26,8 +40,8 @@ export async function readSession(request: Request, env: Pick<Env, "SESSION_SECR
   try {
     const ok = await crypto.subtle.verify("HMAC", await hmacKey(env.SESSION_SECRET), fromB64u(sig), enc.encode(payload));
     if (!ok) return null;
-    const data = JSON.parse(dec.decode(fromB64u(payload))) as { uid?: unknown; exp?: unknown };
-    return typeof data.exp === "number" && data.exp > Date.now() / 1000 && typeof data.uid === "string" ? data.uid : null;
+    const data = JSON.parse(dec.decode(fromB64u(payload))) as { uid?: unknown; exp?: unknown; v?: unknown };
+    return typeof data.exp === "number" && data.exp > Date.now() / 1000 && typeof data.uid === "string" ? { uid: data.uid, v: typeof data.v === "number" ? data.v : 0 } : null;
   } catch {
     return null;
   }
@@ -102,9 +116,11 @@ export const publicUser = (u: UserRow): PublicUser => ({
 });
 
 export async function currentUser(request: Request, env: Env): Promise<UserRow | null> {
-  const uid = await readSession(request, env);
-  if (!uid) return null;
-  return env.DB.prepare(
-    "SELECT id, email, name, avatar_url, is_pro, pro_until, streak_count, last_active_at, nick, avatar_id FROM users WHERE id = ?1"
-  ).bind(uid).first<UserRow>();
+  const s = await readSessionData(request, env);
+  if (!s) return null;
+  const row = await env.DB.prepare(
+    "SELECT id, email, name, avatar_url, is_pro, pro_until, streak_count, last_active_at, nick, avatar_id, session_ver FROM users WHERE id = ?1"
+  ).bind(s.uid).first<UserRow & { session_ver?: number | null }>();
+  if (!row || (row.session_ver ?? 0) !== s.v) return null;   // сесію відкликано (змінено пароль або «вийти всюди»)
+  return row;
 }

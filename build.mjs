@@ -66,7 +66,16 @@ writeFileSync("dist/app.js", `(function () {
 
 // Головна сторінка завжди перевіряється заново, файли з хешем кешуються назавжди.
 // Правила без перетину шаблонів: інакше Cloudflare склеює заголовки з кількох правил.
-writeFileSync("dist/_headers", `/
+// Заголовки безпеки для всіх сторінок (кеш-правила нижче їх лише доповнюють). Детальніше: Documentation/security.md
+const SECURITY_HEADERS = `/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+  Content-Security-Policy: base-uri 'self'; object-src 'none'; frame-ancestors 'self'
+`;
+writeFileSync("dist/_headers", `${SECURITY_HEADERS}/
   Cache-Control: no-cache
 /index.html
   Cache-Control: no-cache

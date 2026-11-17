@@ -16,8 +16,9 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const uid = await consumeToken(env, b.token, "reset");
   if (!uid) return json({ error: "invalid_token" }, 400);
+  // Нова версія сесій: усі раніше видані cookie (можливо, вкрадені) перестають діяти.
   // Лист дійшов до власника пошти, тож пошту вважаємо підтвердженою; решту токенів користувача скасовуємо
-  await env.DB.prepare("UPDATE users SET password_hash = ?1, email_verified = 1 WHERE id = ?2").bind(await hashPassword(b.password), uid).run();
+  await env.DB.prepare("UPDATE users SET password_hash = ?1, email_verified = 1, session_ver = COALESCE(session_ver, 0) + 1 WHERE id = ?2").bind(await hashPassword(b.password), uid).run();
   await env.DB.prepare("DELETE FROM email_tokens WHERE user_id = ?1").bind(uid).run();
   return json({ ok: true });
 };

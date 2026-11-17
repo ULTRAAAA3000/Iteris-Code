@@ -114,6 +114,12 @@ npx wrangler d1 execute iteris-code --remote --file=migrations/0010_stage2_xp_on
 ```
 Новых переменных окружения нет. XP начисляется по данным в базе (пройденные уроки, решённые задания, серия); уже накопленный прогресс превратится в XP при первом открытии кабинета.
 
+## 7. Защита: миграция и ручные настройки
+```bash
+npx wrangler d1 execute iteris-code --remote --file=migrations/0012_security.sql
+```
+Сайт сам добавляет колонку `session_ver` и таблицу `reports`, команда нужна для порядка. Обязательные настройки Cloudflare и GitHub (Turnstile, rate limiting, защита ветки `main`) перечислены в [Documentation/security.md](Documentation/security.md).
+
 ## Локальная разработка
 Создайте файл `.dev.vars` (он в `.gitignore`):
 ```
