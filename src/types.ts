@@ -48,6 +48,7 @@ export interface PublicProfile {
   tasks: number;
   courses: { key: string; done: number; total: number }[];
   activity: Record<string, number>;
+  badges: string[];
 }
 
 /** GET /api/profile: свої налаштування профілю */

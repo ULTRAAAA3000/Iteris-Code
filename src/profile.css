@@ -87,6 +87,10 @@
   .pf-nick-row{flex-wrap:wrap}.pf-nick-row input{flex-basis:60%}
 }
 @media (prefers-reduced-motion:reduce){.pf-ava,.pf-skel .sk-line{transition:none;animation:none}}
+.pf-badges{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+.pf-badge{display:grid;justify-items:center;gap:6px;padding:12px 8px;text-align:center;border:2px dashed var(--line);border-radius:12px;color:var(--muted);opacity:.55;filter:grayscale(1)}
+.pf-badge b{font-size:.8rem;line-height:1.2}
+.pf-badge.got{border:2px solid var(--ink);border-style:solid;color:var(--ink);opacity:1;filter:none;background:var(--panel)}
 
 /* Закрита аналітика /admin */
 .adm{display:grid;gap:16px}.adm-h{margin:0 0 12px}

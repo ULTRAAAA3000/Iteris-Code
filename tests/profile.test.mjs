@@ -155,6 +155,7 @@ await test("відкриваємо профіль: дані без імені й
   const js = p.courses.find((c) => c.key === "js"); assert.equal(js.done, 3); assert.ok(js.total >= 3);
   const today = new Date().toISOString().slice(0, 10);
   assert.equal(p.activity[today], 6 + 2);   // як і в кабінеті: усі записи за день, уроків 6 рядків і 2 спроби
+  assert.ok(Array.isArray(p.badges) && p.badges.includes("lesson1"), "badges у профілі");
   const raw = r.text;
   for (const secret of ["secret.example", "Олена", "Коваль", "photo-u1", "u1@", '"id"', "email"]) assert.ok(!raw.includes(secret), "витік: " + secret);
 });
