@@ -45,14 +45,14 @@ const T0 = Date.UTC(2026, 10, 17, 12, 0, 0);   // довільний момен�
 await test("дані: факти є для кожного курсу й для «загальних»; у кожного не менше 20 фактів і 7 підказок", () => {
   assert.deepEqual(Object.keys(FACTS).sort(), [...Object.keys(LESSONS), "general"].sort());
   for (const [k, v] of Object.entries(FACTS)) {
-    assert.ok(v.f.length >= 20, k + ": фактів " + v.f.length);
-    assert.ok(v.t.length >= 7, k + ": підказок " + v.t.length);
+    assert.ok(v.f.length >= 60, k + ": фактів " + v.f.length);
+    assert.ok(v.t.length >= 20, k + ": підказок " + v.t.length);
   }
 });
 
 await test("дані: тексти 20–300 символів, парні зворотні лапки, без дублікатів між усіма записами, без HTML-тегів поза кодом", () => {
   const all = Object.values(FACTS).flatMap((v) => [...v.f, ...v.t]);
-  assert.ok(all.length >= 380, "усього записів " + all.length);
+  assert.ok(all.length >= 1100, "усього записів " + all.length);
   assert.equal(new Set(all).size, all.length, "є повторювані тексти");
   for (const x of all) {
     assert.ok(x.length >= 20 && x.length <= 300, x.length + ": " + x);
