@@ -764,4 +764,1297 @@ func main() {
       "Що трапиться, якщо скопіювати структуру, у якій лежить зайнятий sync.Mutex, і чому методи таких структур пишуть з отримувачем-вказівником?",
     ],
   },
+  {
+    t: "sync.Once і пакет atomic",
+    ch: "Конкурентність",
+    adv: true,
+    easy: "Atomic — це лічильник на вході, який рахує людей без черги й ключа: «+1» виконується цілком, нерозривно. А sync.Once — це табличка «Прибрано», яку вішає перший, хто зайшов: решта не прибирають удруге.",
+    p: [
+      "Мʼютекс із попереднього уроку надійний, але для однієї цифри він важкуватий: треба взяти замок, змінити число, повернути замок, а ще не забути про <code>defer</code>. Лічильник запитів, прапорець «закрито», номер версії — такі прості дані зручніше змінювати <b>атомарними операціями</b>. Атомарна операція виконується <i>нерозривно</i>: ніяка інша горутина не побачить її половину. Вона спирається на спеціальні інструкції процесора, тому замка й черги немає, і це зазвичай швидше. Другий інструмент уроку, <code>sync.Once</code>, відповідає на інше питання: як зробити щось <b>рівно один раз</b>, навіть якщо його одночасно просять сто горутин.",
+      "Нагадаю, чому звичайне <code>n++</code> ламається: це три кроки (прочитати, додати, записати), і дві горутини можуть прочитати те саме старе значення. Пакет <code>sync/atomic</code> дає типи, у яких цей «стрибок» — один крок: <code>atomic.Int64</code> (є також <code>Int32</code>, <code>Uint64</code>, <code>Bool</code>, <code>Pointer[T]</code>). Методи: <code>Add(delta)</code> повертає нове значення, <code>Load()</code> читає, <code>Store(v)</code> записує, <code>Swap(v)</code> записує й повертає старе. Нульове значення типу готове до роботи, а копіювати його не можна (як і мʼютекс; <code>go vet</code> нагадає). Старі функції <code>atomic.AddInt64(&amp;n, 1)</code> теж існують, але типи з Go 1.19 зручніші й не дозволяють «випадково» звернутися до змінної без атомарності. Перший приклад: 50 горутин по 100 разів збільшують один <code>atomic.Int64</code>, і сума завжди 5000.",
+      "Ключова операція — <b>CompareAndSwap</b> (CAS): «якщо зараз у змінній саме <code>old</code>, запиши <code>new</code> і поверни <code>true</code>; інакше нічого не змінюй і поверни <code>false</code>». Вона розв'язує задачі «хто перший», наприклад вибір одного переможця серед багатьох: лише один CAS <code>0 → id</code> вдасться. А ще CAS — основа <b>циклу повторних спроб</b>: прочитати поточне значення, обчислити нове, спробувати CAS, а якщо хтось устиг раніше, почати спочатку. Так пишуть «оновити максимум» (другий приклад): <code>if v &lt;= cur || m.CompareAndSwap(cur, v) { return }</code>. Ціна: потік не блокується ніколи, але цикл може виконатися кілька разів.",
+      "Межі атомарності. Атомарна <i>кожна</i> операція окремо, але <b>послідовність</b> із двох операцій — ні. Код <code>if n.Load() &lt; 10 { n.Add(1) }</code> можна обійти: між перевіркою й додаванням інша горутина встигне свій <code>Add</code>, і ліміт буде перевищено. Якщо інваріант охоплює кілька змінних або кілька кроків, потрібен мʼютекс. Також не змішуйте: якщо змінну десь читають чи пишуть атомарно, то <i>всюди</i> лише атомарно; один звичайний доступ перетворює це на гонку даних. Правило вибору просте: одне число чи прапорець — <code>atomic</code>; кілька полів, що змінюються разом, — <code>Mutex</code>.",
+      "<b><code>sync.Once</code></b> гарантує: функція, передана в <code>once.Do(f)</code>, виконається один раз за життя змінної <code>once</code>, скільки б горутин не викликали <code>Do</code>. Решта <b>чекають, поки перший виклик завершиться</b>, і лише потім продовжують, тож усі бачать уже готовий результат. Це класична <i>ліниво виконувана ініціалізація</i>: прочитати конфіг, відкрити зʼєднання, скомпілювати регулярний вираз за першим запитом, а не під час запуску. Go 1.21 додав зручні обгортки: <code>sync.OnceFunc(f)</code> повертає функцію, що запускає <code>f</code> один раз, <code>sync.OnceValue(f)</code> робить те саме й <b>запамʼятовує результат</b>, а <code>OnceValues</code> повертає два значення (зазвичай значення й помилку). У третьому прикладі п'ять горутин просять конфіг, а ініціалізація відбувається двічі загалом: раз для <code>once.Do</code>, раз для <code>OnceValue</code>.",
+      "Дві дрібниці про <code>Once</code>. По-перше, якщо <code>f</code> панікує, <code>Do</code> усе одно вважає її виконаною, і повторного запуску не буде (<code>OnceFunc</code> у такому разі повторює ту саму паніку при кожному виклику). По-друге, якщо ініціалізація може <i>не вдатися</i> і її треба повторити, <code>Once</code> не підходить: він запам'ятовує лише «вже було», а не «вдалося». Тоді використовують <code>Mutex</code> із власним прапорцем. Ще одна пастка показана в четвертому прикладі: викликати <code>Do</code> того ж <code>Once</code> всередині функції, яку виконує <code>Do</code>. Внутрішній виклик чекає завершення зовнішнього, а зовнішній чекає внутрішнього: <b>deadlock</b>, і Go зупинить програму з <code>fatal error: all goroutines are asleep</code>.",
+      "Нарешті, <code>sync.Map</code> коротко. Це потокобезпечна мапа з методами <code>Store</code>, <code>Load</code>, <code>LoadOrStore</code>, <code>Delete</code> і <code>Range</code>; ключі й значення в ній типу <code>any</code>, порядок <code>Range</code> не визначений. Документація рекомендує її лише для двох випадків: ключ записується один раз і далі лише читається, або різні горутини працюють з різними наборами ключів. У решті програм звичайна мапа з <code>Mutex</code> (або <code>RWMutex</code>) зрозуміліша й типізована. Підсумок: <code>atomic</code> для окремого числа чи прапорця, CAS для «хто перший» і циклів повторних спроб, <code>Once</code> для єдиної ініціалізації. Далі: <code>context</code>, спосіб сказати горутинам «зупиніться».",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
+
+func main() {
+	var hits atomic.Int64
+	var closed atomic.Bool
+	var wg sync.WaitGroup
+	for range 50 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for range 100 {
+				hits.Add(1)
+			}
+		}()
+	}
+	wg.Wait()
+	closed.Store(true)
+	fmt.Println("hits:", hits.Load())
+	fmt.Println("closed:", closed.Load())
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
+
+func updateMax(m *atomic.Int64, v int64) {
+	for {
+		cur := m.Load()
+		if v <= cur || m.CompareAndSwap(cur, v) {
+			return
+		}
+	}
+}
+
+func main() {
+	var winner, wins, peak atomic.Int64
+	var wg sync.WaitGroup
+	for id := int64(1); id <= 8; id++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if winner.CompareAndSwap(0, id) {
+				wins.Add(1)
+			}
+			updateMax(&peak, id*10)
+		}()
+	}
+	wg.Wait()
+	fmt.Println("переможців:", wins.Load())
+	fmt.Println("переможець серед 1..8:", winner.Load() >= 1 && winner.Load() <= 8)
+	fmt.Println("максимум:", peak.Load())
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
+
+type Config struct{ Name string }
+
+var (
+	loads atomic.Int64
+	once  sync.Once
+	cfg   *Config
+	greet = sync.OnceValue(func() string {
+		loads.Add(1)
+		return "привіт"
+	})
+)
+
+func Get() *Config {
+	once.Do(func() {
+		loads.Add(1)
+		cfg = &Config{Name: "prod"}
+	})
+	return cfg
+}
+
+func main() {
+	var wg sync.WaitGroup
+	lines := make([]string, 5)
+	for i := range 5 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			lines[i] = Get().Name + "/" + greet()
+		}()
+	}
+	wg.Wait()
+	fmt.Println(lines)
+	fmt.Println("ініціалізацій:", loads.Load())
+
+	var m sync.Map
+	m.Store("a", 1)
+	v, loaded := m.LoadOrStore("a", 2)
+	fmt.Println(v, loaded)
+	v, loaded = m.LoadOrStore("b", 3)
+	fmt.Println(v, loaded)
+}
+`,
+      String.raw`// аварія: Do всередині Do того ж Once чекає сам на себе (deadlock)
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var once sync.Once
+	once.Do(func() {
+		fmt.Println("зовнішній Do")
+		once.Do(func() {
+			fmt.Println("сюди не дійде")
+		})
+	})
+}
+`,
+    ],
+    note: "atomic: одне число чи прапорець без замка (Add, Load, Store, CompareAndSwap); кілька змінних разом охороняє Mutex. Змінну чіпають або лише атомарно, або лише під замком. Once.Do виконує функцію один раз, решта чекають її завершення; Do усередині Do того ж Once це deadlock.",
+    work: "Лічильники запитів і метрики, прапорець «сервіс зупиняється», версія конфігурації, що читається з усіх горутин, ліниве створення пулу зʼєднань чи кешу, одноразове закриття каналу через sync.OnceFunc. У коді сервісів майже кожен «глобальний синглтон» ініціалізується через sync.Once або sync.OnceValue.",
+    tasks: [
+      "Чому if n.Load() < 10 { n.Add(1) } не гарантує, що n не перевищить 10, і чим це виправити?",
+      "Що відбувається з іншими горутинами, поки перший виклик once.Do ще виконується, і чому Once не підходить для ініціалізації, яку треба повторити після помилки?",
+    ],
+  },
+  {
+    t: "context",
+    ch: "Конкурентність",
+    easy: "Context — це пульт «стоп» і таймер, які передають усім виконавцям ланцюжка. Натиснув стоп чи закінчився час: кожен, хто слухає пульт, кидає роботу й іде додому.",
+    p: [
+      "Уявіть веб-сервер: користувач закрив вкладку, поки сервер ще ходить у базу даних і два зовнішні сервіси. Продовжувати роботу марно: результат нікому не потрібен, а ресурси зайняті. Інший випадок: зовнішній сервіс завис, а клієнт чекає лише секунду. Потрібен спосіб сказати всім горутинам ланцюжка: «досить». Можна кожен раз вигадувати свій канал <code>done</code>, але всі бібліотеки домовилися про стандарт: <code>context.Context</code>. Він несе сигнал скасування, дедлайн і трохи даних, а передається вниз по всіх викликах.",
+      "Модель у голові. <code>Context</code> — інтерфейс. Головний його метод <code>Done()</code> повертає канал, який <b>закривається</b>, коли контекст скасовано або минув час. Пригадайте урок про <code>close</code>: закритий канал бачать усі отримувачі одночасно, тому один сигнал розсилається всім. Метод <code>Err()</code> повертає <code>nil</code>, поки контекст живий, а після скасування: <code>context.Canceled</code> (скасовано вручну) або <code>context.DeadlineExceeded</code> (вийшов час). Контексти утворюють <b>дерево</b>: дочірній створюють із батьківського, скасування батька скасовує всіх нащадків, а скасування нащадка батька не зачіпає.",
+      "Корінь дерева: <code>context.Background()</code> — порожній контекст, який ніколи не скасовується; його беруть у <code>main</code>, при ініціалізації й у тестах. <code>context.TODO()</code> робить те саме, але означає: «тут має бути справжній контекст, я ще не зʼясував який»; це мітка для майбутнього рефакторингу. Далі від кореня ростуть гілки: <code>ctx, cancel := context.WithCancel(parent)</code> дає контекст і функцію <code>cancel</code>. Виклик <code>cancel()</code> закриває <code>Done()</code>; його можна викликати кілька разів. Завжди пишіть <code>defer cancel()</code> одразу після створення: так звільняються внутрішні ресурси, а <code>go vet</code> лає за забутий <code>cancel</code>. Перший приклад: генератор чисел припиняється за сигналом, а <code>ctx.Err()</code> змінюється з <code>nil</code> на <code>context canceled</code>.",
+      "<code>context.WithTimeout(parent, d)</code> скасовується сам, коли мине тривалість <code>d</code>; <code>WithDeadline(parent, t)</code> робить те саме до конкретного моменту часу. Тривалості записують як <code>20 * time.Millisecond</code> (докладно про <code>time</code> буде пізніше). Після спрацювання <code>Err()</code> дорівнює <code>context.DeadlineExceeded</code>, і його перевіряють через <code>errors.Is(err, context.DeadlineExceeded)</code>. Типова функція, що вміє зупинятися, виглядає так: <code>select</code> із двома гілками, яка чекає на справжню роботу й на <code>ctx.Done()</code>, і при скасуванні повертає <code>ctx.Err()</code> (другий приклад). Скасування не зупиняє горутину силоміць: це лише <b>сигнал</b>, і код сам мусить його слухати. Хто не дивиться на <code>Done()</code>, ніколи не зупиниться.",
+      "Угоди, яких дотримуються всі. По-перше, контекст передають <b>першим параметром</b> і називають <code>ctx</code>: <code>func Fetch(ctx context.Context, url string) (string, error)</code>. По-друге, його <b>не зберігають у структурі</b>: він належить конкретному виклику, а не об'єкту. По-третє, не передають <code>nil</code>: коли контексту немає, беруть <code>context.TODO()</code>. По-четверте, кожна функція, що довго працює або блокується, слухає <code>ctx.Done()</code> і, побачивши сигнал, швидко повертає <code>ctx.Err()</code>. Так скасування проходить по всьому ланцюжку від обробника запиту до запиту в базу.",
+      "<code>context.WithValue(parent, key, value)</code> додає до контексту пару «ключ-значення», яку бачать усі нащадки. Це зручно для даних <i>про запит</i>: ідентифікатор запиту для логів, користувач після автентифікації. Але це й <b>найобережніша</b> частина API: значення не видно в сигнатурі, воно не типізоване (<code>any</code>), і функція стає непомітно залежною від того, що хтось поклав у контекст. Тому: не передавайте через нього звичайні параметри функції (для цього є аргументи); ключ робіть власним <b>невидимим типом</b> (<code>type ctxKey struct{}</code>), а не рядком, щоб різні пакети не зіткнулися; читайте з перевіркою <code>v, ok := ctx.Value(k).(string)</code>. Третій приклад показує й те, що значення успадковується дочірніми контекстами, а скасування падає вниз по дереву.",
+      "Пастки. Забутий <code>cancel</code>: якщо присвоїти його змінній і не викликати, компілятор зупиниться (четвертий приклад: <code>declared and not used: cancel</code>), а якщо відкинути через <code>_</code>, то <code>go vet</code> видасть <code>lostcancel</code>, бо ресурс контексту висітиме до дедлайну. Горутина, що не слухає <code>ctx.Done()</code>, витікає. З Go 1.20 є й <code>context.WithCancelCause</code> разом із <code>context.Cause(ctx)</code>: вони дозволяють передати конкретну причину скасування, а не лише <code>Canceled</code>. Підсумок: <code>ctx</code> першим параметром, <code>defer cancel()</code> після створення, слухайте <code>Done()</code>, значення в контексті лише для даних про запит. Далі: worker pool, де контекст зупиняє цілий пул.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"context"
+	"fmt"
+)
+
+func numbers(ctx context.Context) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for n := 1; ; n++ {
+			select {
+			case out <- n:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return out
+}
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	ch := numbers(ctx)
+	for n := range ch {
+		fmt.Println("отримано", n)
+		if n == 3 {
+			break
+		}
+	}
+	fmt.Println("до cancel:", ctx.Err())
+	cancel()
+	fmt.Println("після cancel:", ctx.Err())
+	for range ch {
+	}
+	fmt.Println("генератор завершився")
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+)
+
+func slow(ctx context.Context, d time.Duration) error {
+	select {
+	case <-time.After(d):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	err := slow(ctx, time.Hour)
+	fmt.Println(err)
+	fmt.Println(errors.Is(err, context.DeadlineExceeded))
+	fmt.Println(slow(context.Background(), time.Millisecond))
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"fmt"
+)
+
+type ctxKey struct{}
+
+func withRequestID(ctx context.Context, id string) context.Context {
+	return context.WithValue(ctx, ctxKey{}, id)
+}
+
+func requestID(ctx context.Context) string {
+	id, ok := ctx.Value(ctxKey{}).(string)
+	if !ok {
+		return "-"
+	}
+	return id
+}
+
+func handle(ctx context.Context) {
+	fmt.Println("запит", requestID(ctx))
+}
+
+func main() {
+	root := context.Background()
+	handle(root)
+	ctx := withRequestID(root, "req-42")
+	handle(ctx)
+
+	parent, cancel := context.WithCancel(ctx)
+	child, cancelChild := context.WithCancel(parent)
+	defer cancelChild()
+	cancel()
+	<-child.Done()
+	fmt.Println("дочірній:", child.Err())
+	fmt.Println("значення збереглося:", requestID(child))
+}
+`,
+      String.raw`// не компілюється: cancel оголошено, але не використано
+package main
+
+import (
+	"context"
+	"fmt"
+)
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	fmt.Println(ctx.Err())
+}
+`,
+    ],
+    note: "ctx першим параметром, ім'я ctx; після створення одразу defer cancel(). Скасування це сигнал: код має слухати ctx.Done() і повертати ctx.Err(). Контекст не зберігають у структурах і не передають nil. WithValue лише для даних про запит, ключ власного типу.",
+    work: "Кожен HTTP-обробник, виклик бази даних і gRPC у реальних сервісах приймає ctx: клієнт закрив зʼєднання або вийшов тайм-аут, і весь ланцюжок припиняє роботу. Контекст також несе request ID для логів, а в тестах WithTimeout не дає завислому тесту блокувати весь прогін.",
+    tasks: [
+      "Що закривається при скасуванні контексту і чому це дозволяє зупинити одним cancel() хоч сто горутин одразу? Чим Canceled відрізняється від DeadlineExceeded?",
+      "Чому ключ для context.WithValue роблять власним типом, а не рядком, і чому передавати через контекст звичайні параметри функції погана ідея?",
+    ],
+  },
+  {
+    t: "Worker pool",
+    ch: "Конкурентність",
+    easy: "Worker pool — це кухня з трьома кухарями й одним лотком замовлень. Замовлення складають у лоток, кожен вільний кухар бере наступне. Кухарів завжди троє, хоч би замовлень було й тисяча.",
+    p: [
+      "Горутина дешева, і природне бажання — запускати по одній на кожне завдання. Для десяти завдань це чудово. Але якщо їх сто тисяч і кожне відкриває файл, зʼєднання чи робить запит, одночасно виникне сто тисяч відкритих файлів і зʼєднань: операційна система вичерпає ліміти, а база даних впаде від навантаження. Потрібна <b>обмежена паралельність</b>: фіксоване число виконавців і черга завдань. Така схема називається <b>worker pool</b> («пул працівників»).",
+      "Модель у голові: два канали й кілька однакових горутин. Канал <code>jobs</code> — лоток із завданнями, канал <code>results</code> — лоток із готовими результатами. Кожен працівник живе в циклі <code>for j := range jobs { results &lt;- process(j) }</code>: бере завдання, виконує, кладе результат і береться за наступне. Цикл <code>range</code> по каналу закінчується, коли канал закрито й спорожніло (урок про <code>close</code>), тому працівник сам завершується, коли завдань більше немає. Постачальник кладе завдання в <code>jobs</code> і потім його <b>закриває</b>: це і є сигнал «більше нічого не буде». Канал сам розподіляє роботу: кожне завдання дістається рівно одному вільному працівникові.",
+      "Хто закриває <code>results</code>? Не постачальник і не працівник: закрити його можна лише тоді, коли <i>всі</i> працівники закінчили, а це знає лише <code>sync.WaitGroup</code>. Ідіома — окрема горутина: <code>go func() { wg.Wait(); close(results) }()</code>. Основна горутина тоді спокійно читає <code>for r := range results</code>, і цикл завершиться сам. Запамʼятайте розподіл ролей: <code>jobs</code> закриває той, хто його наповнює; <code>results</code> закриває той, хто дочекався всіх працівників. Перший приклад складає все разом: три працівники рахують квадрати семи чисел.",
+      "Тепер про <b>детермінованість</b>. Який працівник отримає яке завдання і в якому порядку прийдуть результати, залежить від планувальника, тому він може відрізнятися при кожному запуску. Вивід, який залежить від цього, ненадійний, а тест на нього «блимає». Є дві перевірені стратегії. Перша: <b>результат несе індекс завдання</b> (<code>result{idx, val}</code>), а збирач кладе його в <code>out[r.idx]</code>: кожна комірка належить одному завданню, гонки немає, порядок збігається з вхідним. Друга: зібрати все й <b>відсортувати</b> (<code>slices.Sort</code>), якщо порядок вхідних даних неважливий. Не друкуйте «працівник 2 обробив завдання 5»: це інформація про планувальник, а не про дані.",
+      "<b>Помилки й розмір каналів.</b> Реальне завдання може завершитися помилкою, тому результат зазвичай несе й значення, й <code>err</code>: <code>type result struct { idx, val int; err error }</code> (другий приклад). Окрема помилка не повинна ламати весь пул, вирішує його власник: зібрати всі помилки чи зупинитися на першій (для зупинки використовують <code>context</code>, як в уроці про нього). Розмір каналів теж вирішує, чи програма завершиться. Якщо <code>jobs</code> і <code>results</code> небуферизовані, а постачальник у тій самій горутині спершу кладе <i>всі</i> завдання, а лише потім читає результати, то працівники застрягнуть на відправці результату, а постачальник на відправці завдання: <b>deadlock</b> (четвертий приклад). Два виходи: наповнювати <code>jobs</code> в окремій горутині (перший приклад) або зробити буфер <code>len(inputs)</code> (другий).",
+      "Скільки працівників брати? Для обчислень, що вантажать процесор, розумно близько <code>runtime.NumCPU()</code>: більше не прискорить. Для очікування мережі чи диска можна більше, бо працівники здебільшого сплять. Точне число підбирають вимірюванням. Третій приклад показує ще одну ідіому: працівник може <i>нічого не надсилати</i> для завдання (число не просте), а збирач просто сортує те, що надійшло. Працівників запускають у циклі <code>for range n { wg.Add(1); go worker(...) }</code>, <code>wg.Add</code> завжди до <code>go</code>.",
+      "Пастки: закрити <code>results</code> із постачальника (працівники ще пишуть, і буде <code>panic: send on closed channel</code>); забути закрити <code>jobs</code> (працівники чекають вічно); виконувати <code>wg.Add</code> усередині горутини; передавати <code>WaitGroup</code> за значенням, а не за вказівником. Підсумок: пул = <code>jobs</code> + N працівників із <code>range</code> + <code>WaitGroup</code> + закриття <code>results</code> у спеціальній горутині + збір за індексом або сортуванням. Далі: pipeline, де кілька стадій з'єднано каналами послідовно.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+type job struct{ idx, n int }
+type result struct{ idx, sq int }
+
+func worker(jobs <-chan job, results chan<- result, wg *sync.WaitGroup) {
+	defer wg.Done()
+	for j := range jobs {
+		results <- result{j.idx, j.n * j.n}
+	}
+}
+
+func main() {
+	nums := []int{2, 3, 5, 7, 11, 13, 17}
+	jobs := make(chan job)
+	results := make(chan result)
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Add(1)
+		go worker(jobs, results, &wg)
+	}
+	go func() {
+		for i, n := range nums {
+			jobs <- job{i, n}
+		}
+		close(jobs)
+	}()
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+	squares := make([]int, len(nums))
+	for r := range results {
+		squares[r.idx] = r.sq
+	}
+	fmt.Println(squares)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"strconv"
+	"sync"
+)
+
+type job struct {
+	idx int
+	s   string
+}
+
+type result struct {
+	idx int
+	val int
+	err error
+}
+
+func parseAll(inputs []string, workers int) []result {
+	jobs := make(chan job, len(inputs))
+	results := make(chan result, len(inputs))
+	for i, s := range inputs {
+		jobs <- job{i, s}
+	}
+	close(jobs)
+	var wg sync.WaitGroup
+	for range workers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for j := range jobs {
+				n, err := strconv.Atoi(j.s)
+				results <- result{j.idx, n, err}
+			}
+		}()
+	}
+	wg.Wait()
+	close(results)
+	out := make([]result, len(inputs))
+	for r := range results {
+		out[r.idx] = r
+	}
+	return out
+}
+
+func main() {
+	total := 0
+	for _, r := range parseAll([]string{"10", "x", "30", "", "50"}, 2) {
+		if r.err != nil {
+			fmt.Println(r.idx, "помилка:", r.err)
+			continue
+		}
+		total += r.val
+		fmt.Println(r.idx, "ok:", r.val)
+	}
+	fmt.Println("сума коректних:", total)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"slices"
+	"sync"
+)
+
+func isPrime(n int) bool {
+	if n < 2 {
+		return false
+	}
+	for d := 2; d*d <= n; d++ {
+		if n%d == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func main() {
+	jobs := make(chan int)
+	primes := make(chan int)
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for n := range jobs {
+				if isPrime(n) {
+					primes <- n
+				}
+			}
+		}()
+	}
+	go func() {
+		for n := 1; n <= 30; n++ {
+			jobs <- n
+		}
+		close(jobs)
+	}()
+	go func() {
+		wg.Wait()
+		close(primes)
+	}()
+	var found []int
+	for p := range primes {
+		found = append(found, p)
+	}
+	slices.Sort(found)
+	fmt.Println(found)
+}
+`,
+      String.raw`// аварія: канали без буфера й усі завдання відправлено до читання результатів (deadlock)
+package main
+
+import "fmt"
+
+func main() {
+	jobs := make(chan int)
+	results := make(chan int)
+	go func() {
+		for j := range jobs {
+			results <- j * 2
+		}
+		close(results)
+	}()
+	for i := 1; i <= 3; i++ {
+		jobs <- i
+	}
+	close(jobs)
+	for r := range results {
+		fmt.Println(r)
+	}
+}
+`,
+    ],
+    note: "Пул: канал jobs, N працівників з for range jobs, WaitGroup, а results закриває окрема горутина після wg.Wait(). jobs закриває постачальник. Для стабільного виводу результат несе індекс (out[idx]) або його сортують. Небуферизовані jobs і results, коли все надсилається до читання, дають deadlock.",
+    work: "Обробка пачки файлів чи зображень, відправка тисяч листів і сповіщень, паралельні запити до API з лімітом, імпорт рядків у базу даних порціями. Пул захищає зовнішні системи від перевантаження: працівників рівно стільки, скільки система витримує.",
+    tasks: [
+      "Хто закриває канал results у worker pool і чому саме так? Що буде, якщо закрити його з постачальника завдань?",
+      "Як зробити, щоб результати пулу з кількох працівників виводилися в одному й тому самому порядку при кожному запуску?",
+    ],
+  },
+  {
+    t: "Pipeline, fan-out і fan-in",
+    ch: "Конкурентність",
+    adv: true,
+    easy: "Pipeline — це складальний конвеєр: на кожній ділянці свій робітник, і деталь їде далі стрічкою. Fan-out ставить кількох робітників на повільну ділянку, а fan-in збирає деталі з кількох стрічок в одну.",
+    p: [
+      "Багато задач природно розбиваються на етапи: прочитати рядки, розібрати, відфільтрувати, перетворити, записати. Можна написати один великий цикл, а можна зробити кожен етап <b>окремою горутиною</b> і зʼєднати їх каналами: це <b>pipeline</b> (конвеєр). Поки друга стадія обробляє перший елемент, перша вже готує другий, тож етапи працюють одночасно. А ще код розпадається на маленькі функції з одним призначенням, які легко комбінувати й тестувати.",
+      "Форма стадії однакова скрізь: <code>func stage(in &lt;-chan int) &lt;-chan int</code>. Стадія створює вихідний канал <code>out</code>, запускає горутину, яка читає <code>in</code> до закриття й пише результати в <code>out</code>, а на виході робить <code>defer close(out)</code>; сам <code>out</code> повертається <i>одразу</i>, не чекаючи роботи. Стадія без входу називається <b>генератором</b>: вона лише створює значення (<code>gen(1, 2, 3)</code>). Стадії складаються як звичайні функції: <code>for v := range addOne(square(gen(1, 2, 3, 4)))</code>. Правило ланцюжка: кожна стадія закриває <i>свій</i> вихід, тому закриття проходить від генератора до кінця, і цикл <code>range</code> завершується сам. У першому прикладі порядок значень зберігається, бо шлях лише один.",
+      "Якщо одна стадія повільна, її копіюють: <b>fan-out</b> — кілька горутин читають <i>один</i> вхідний канал. Канал сам розподіляє значення: кожне діставатиметься рівно одному читачеві. Результати з кількох каналів потрібно зібрати в один: <b>fan-in</b>, функція <code>merge</code>. Вона для кожного вхідного каналу запускає горутину, що копіює значення в спільний <code>out</code>, а окрема горутина після <code>wg.Wait()</code> закриває <code>out</code>. Порядок злиття не визначений, тому у виводі результат або сортують, або позначають індексом (другий приклад сортує). Не плутайте з worker pool: там передають завдання працівникам, а тут дані проходять через послідовність стадій.",
+      "Найважливіша тема: <b>скасування</b>. Якщо споживач зупинився раніше (взяв перші п'ять елементів, трапилась помилка, клієнт пішов), генератор і стадії лишаються блокованими на <code>out &lt;- v</code>, бо ніхто не читає. Це <b>витік горутин</b>, і вони висітимуть до кінця програми. Ліки: кожна стадія приймає <code>ctx context.Context</code> і замість простої відправки робить <code>select { case out &lt;- v: case &lt;-ctx.Done(): return }</code>. Тоді <code>cancel()</code> зупиняє всіх: горутина виходить, <code>defer close(out)</code> закриває канал, і наступна стадія бачить закриття й теж виходить. Третій приклад бере п'ять елементів нескінченного генератора, скасовує контекст і доводить, що конвеєр справді закрився.",
+      "Хто за що відповідає? Той, хто створив контекст, викликає <code>cancel</code> (зазвичай <code>defer cancel()</code>), а стадії слухають лише <code>Done()</code> і ніколи не скасовують чужий контекст. Після <code>cancel</code> корисно <i>вичерпати</i> вихід (<code>for range out {}</code>): це не обовʼязково для коректності, але гарантує, що всі стадії завершились до того, як програма піде далі, і робить вивід передбачуваним. Стадії також корисно писати узагальненими (generics): <code>func Map[T, U any](ctx context.Context, in &lt;-chan T, f func(T) U) &lt;-chan U</code> дає одну реалізацію для всіх типів.",
+      "Пастки. По-перше, <b>забули закрити <code>out</code></b> в <code>merge</code>: споживач у <code>range</code> чекає вічно, і коли всі горутини завершились, Go зупиняє програму (четвертий приклад, <code>all goroutines are asleep</code>). По-друге, закрити <code>out</code> раніше, ніж усі копіювальні горутини закінчили: <code>panic: send on closed channel</code>; закриття має бути після <code>wg.Wait()</code>. По-третє, стадія без <code>ctx</code> у конвеєрі з ранньою зупинкою: витік. По-четверте, очікування збереженого порядку після fan-out, якого немає. Підсумок: стадія = канал на вході, канал на виході, <code>defer close(out)</code>; fan-out копіює стадію, fan-in зливає через <code>merge</code>; скасування через <code>ctx</code> у кожній стадії. Далі: що саме йде не так у конкурентних програмах (deadlock, витоки, гонки).",
+    ],
+    code: [
+      String.raw`package main
+
+import "fmt"
+
+func gen(nums ...int) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for _, n := range nums {
+			out <- n
+		}
+	}()
+	return out
+}
+
+func square(in <-chan int) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for n := range in {
+			out <- n * n
+		}
+	}()
+	return out
+}
+
+func addOne(in <-chan int) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for n := range in {
+			out <- n + 1
+		}
+	}()
+	return out
+}
+
+func main() {
+	for v := range addOne(square(gen(1, 2, 3, 4))) {
+		fmt.Println(v)
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"slices"
+	"sync"
+)
+
+func gen(nums ...int) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for _, n := range nums {
+			out <- n
+		}
+	}()
+	return out
+}
+
+func square(in <-chan int) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for n := range in {
+			out <- n * n
+		}
+	}()
+	return out
+}
+
+func merge(chans ...<-chan int) <-chan int {
+	out := make(chan int)
+	var wg sync.WaitGroup
+	for _, c := range chans {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for v := range c {
+				out <- v
+			}
+		}()
+	}
+	go func() {
+		wg.Wait()
+		close(out)
+	}()
+	return out
+}
+
+func main() {
+	in := gen(1, 2, 3, 4, 5, 6, 7, 8)
+	workers := []<-chan int{square(in), square(in), square(in)}
+	var got []int
+	for v := range merge(workers...) {
+		got = append(got, v)
+	}
+	slices.Sort(got)
+	fmt.Println(got)
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"fmt"
+)
+
+func gen(ctx context.Context) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for n := 1; ; n++ {
+			select {
+			case out <- n:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return out
+}
+
+func square(ctx context.Context, in <-chan int) <-chan int {
+	out := make(chan int)
+	go func() {
+		defer close(out)
+		for n := range in {
+			select {
+			case out <- n * n:
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	return out
+}
+
+func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	out := square(ctx, gen(ctx))
+	var first []int
+	for v := range out {
+		first = append(first, v)
+		if len(first) == 5 {
+			break
+		}
+	}
+	cancel()
+	for range out {
+	}
+	fmt.Println(first)
+	fmt.Println("конвеєр зупинено:", ctx.Err())
+}
+`,
+      String.raw`// аварія: merge не закриває out, тож range у main чекає вічно (deadlock)
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func merge(chans ...<-chan int) <-chan int {
+	out := make(chan int)
+	var wg sync.WaitGroup
+	for _, c := range chans {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for v := range c {
+				out <- v
+			}
+		}()
+	}
+	return out
+}
+
+func one(v int) <-chan int {
+	ch := make(chan int, 1)
+	ch <- v
+	close(ch)
+	return ch
+}
+
+func main() {
+	for v := range merge(one(1), one(2)) {
+		fmt.Println(v)
+	}
+}
+`,
+    ],
+    note: "Стадія: func(in <-chan T) <-chan U, горутина з defer close(out), повертає out одразу. Fan-out: кілька читачів одного каналу; fan-in: merge із WaitGroup і закриттям out після wg.Wait(). Для ранньої зупинки кожна стадія слухає ctx.Done() у select при відправці, інакше витік горутин.",
+    work: "Обробка потоків даних: читання логів, розбір, фільтрація, запис у сховище; ETL-завдання; завантаження й зміна розміру зображень у кілька етапів. Той самий шаблон лежить в основі бібліотек обробки подій і потокових запитів: етапи незалежні й масштабуються копіюванням повільної стадії.",
+    tasks: [
+      "Чому стадії конвеєра закривають свій вихідний канал через defer close(out) і як закриття поширюється від генератора до кінця?",
+      "Що трапиться з горутинами конвеєра, якщо споживач перестав читати, а стадії не слухають ctx.Done()? Як це виправляється?",
+    ],
+  },
+  {
+    t: "Deadlock, витоки горутин і data race",
+    ch: "Конкурентність",
+    easy: "Deadlock — двоє у вузькому коридорі, кожен чекає, поки інший відступить. Витік — гість, що заснув у гардеробі й не вийшов, а місце зайняте. Гонка — двоє одночасно пишуть у спільний зошит, і розібрати текст неможливо.",
+    p: [
+      "Конкурентний код ламається інакше, ніж звичайний. Звичайна помилка видає той самий результат щоразу, а конкурентна може бути непомітною тисячу запусків і вистрілити в найгірший момент. Є три типові біди: <b>deadlock</b> (взаємне блокування), <b>витік горутин</b> і <b>гонка даних</b>. Для кожної треба знати, як вона виглядає, як її знайти й, головне, як писати код, у якому вона неможлива. Перші дві можна показати детерміновано, тому вони в прикладах; гонку я поясню текстом, бо її наслідки за визначенням непередбачувані.",
+      "<b>Deadlock.</b> Це стан, коли горутини чекають подій, які ніколи не настануть: читання з каналу, у який ніхто не пише, <code>wg.Wait()</code> без відповідних <code>Done</code>, повторний <code>Lock</code>, цикл очікування. Класика: горутина A взяла замок 1 і чекає замок 2, а горутина B тримає замок 2 і чекає замок 1 (перший приклад). У Go вбудований детектор ловить випадок, коли <i>усі</i> горутини заснули: <code>fatal error: all goroutines are asleep - deadlock!</code> зі стеками всіх горутин, де кожна горутина має стан у дужках: <code>[chan receive]</code>, <code>[chan send]</code>, <code>[semacquire]</code> (чекає мʼютекс чи WaitGroup), <code>[select (no cases)]</code>. Стан і рядок коду підказують, де застряг кожен. Обмеження: якщо принаймні одна горутина жива (слухає порт, працює таймер), детектор мовчить, а програма просто зависає. Профілактика: однаковий порядок взяття замків скрізь, прості схеми володіння каналами, <code>ctx</code> із тайм-аутом на очікування.",
+      "<b>Витік горутин</b> — горутина, що ніколи не завершиться. Типова причина: вона заблокована на каналі, який ніхто не читає чи не закриє. Пам'ять її стека не звільняється, горутина вічно в списку планувальника, і в довго працюючому сервері такі горутини накопичуються тихо, поки не закінчиться памʼять. Runtime про них не попередить. Зразок (другий приклад): функція запускає три репліки, бере першу відповідь, а дві інші застрягають на <code>results &lt;- 42</code>, бо читач пішов. Тут це проявляється як deadlock, бо <code>main</code> чекає їх через <code>wg.Wait()</code>; у сервері такого чекача немає, і витік мовчить. Виявляють його по зростанню <code>runtime.NumGoroutine()</code> у метриках або профілем <code>goroutine</code> (<code>pprof</code>).",
+      "<b>Як уникати витоків.</b> Правило одне: у кожної горутини має бути <i>гарантований шлях завершення</i>, і той, хто її запускає, відповідає за нього. Практично це три засоби. Перший: канал закривається, і горутина виходить із <code>range</code>. Другий: горутина слухає <code>ctx.Done()</code> (у <code>select</code> при кожному блокуючому надсиланні чи читанні). Третій: відправнику <b>залишають місце</b> в буфері: якщо відправників n, а читач може забрати лише одне значення, канал з буфером <code>n</code> дозволяє всім відправити й вийти. У третьому прикладі обидва виправлення подано поруч, і <code>wg.Wait()</code> тепер доводить, що жодна горутина не лишилась. Допомагає й звичка: <code>wg</code> чи <code>errgroup</code> навколо кожної групи горутин.",
+      "<b>Гонка даних</b> (data race) виникає, коли дві горутини звертаються до однієї змінної <i>без синхронізації</i>, і хоча б одна з них пише. Приклад: <code>n++</code> зі ста горутин без замка. Наслідки: втрачені оновлення (замість 1000 виходить 987), побита мапа (<code>concurrent map writes</code>), а для рядків, слайсів і інтерфейсів, що складаються з кількох слів памʼяті, навіть половинчасте значення, яке не зустрінеш у жодному з відомих варіантів. Результат залежить від планувальника й процесора, тому не детермінований, і я не запускаю такий приклад. Четвертий блок наведено лише для читання: він ілюструє код, що містить гонку. Не існує «нешкідливої» гонки: за моделлю памʼяті Go програма з гонкою не має визначеної поведінки.",
+      "<b>Детектор гонок.</b> Go має вбудований інструмент: <code>go run -race main.go</code>, <code>go test -race</code>, <code>go build -race</code>. Він інструментує програму, стежить за кожним доступом до памʼяті й, зловивши два доступи без порядку між ними, друкує <code>WARNING: DATA RACE</code> зі стеками обох: хто читав, хто писав і де створено ці горутини. Ціна: програма працює в кілька разів повільніше й їсть більше памʼяті, тому детектор вмикають у тестах і на CI, а не в продакшені. Важливо розуміти межу: детектор знаходить лише гонки, що <b>реально сталися</b> під час цього запуску. Чистий звіт не доказ їх відсутності, тому тестуйте код, який виконується паралельно, і запускайте ці тести з <code>-race</code> постійно. Виправляють гонку замком (<code>Mutex</code>), атомарними операціями (<code>atomic</code>) або передачею даних каналом.",
+      "Дрібні пастки. «Лише читаю для логу без замка» — теж гонка. <code>time.Sleep</code> «для надійності» не синхронізація, а лише ховає проблему. Захоплення змінної циклу в горутині було джерелом помилок, але з Go 1.22 кожна ітерація має свою змінну. Підсумок: deadlock знаходить runtime (читайте стеки), витік не знаходить ніхто (проєктуйте завершення), гонку знаходить <code>-race</code> лише коли вона сталася. Далі: семафори та обмеження паралелізму.",
+    ],
+    code: [
+      String.raw`// аварія: дві горутини беруть замки в різному порядку й чекають одна одну (deadlock)
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var a, b sync.Mutex
+	var locked sync.WaitGroup
+	locked.Add(2)
+	done := make(chan struct{}, 2)
+	go func() {
+		a.Lock()
+		locked.Done()
+		locked.Wait()
+		b.Lock()
+		done <- struct{}{}
+	}()
+	go func() {
+		b.Lock()
+		locked.Done()
+		locked.Wait()
+		a.Lock()
+		done <- struct{}{}
+	}()
+	fmt.Println("чекаю обидві горутини")
+	<-done
+	<-done
+}
+`,
+      String.raw`// аварія: репліки застрягли на надсиланні (витік), тому wg.Wait ніколи не завершиться (deadlock)
+package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	results := make(chan int)
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- 42
+		}()
+	}
+	fmt.Println("перша відповідь:", <-results)
+	wg.Wait()
+	fmt.Println("сюди не дійде")
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+)
+
+func firstBuffered() int {
+	results := make(chan int, 3)
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results <- 42
+		}()
+	}
+	v := <-results
+	wg.Wait()
+	return v
+}
+
+func firstWithContext() int {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	results := make(chan int)
+	var wg sync.WaitGroup
+	for range 3 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			select {
+			case results <- 42:
+			case <-ctx.Done():
+			}
+		}()
+	}
+	v := <-results
+	cancel()
+	wg.Wait()
+	return v
+}
+
+func main() {
+	fmt.Println("з буфером:", firstBuffered())
+	fmt.Println("з контекстом:", firstWithContext())
+	fmt.Println("усі горутини завершилися")
+}
+`,
+      String.raw`// гонка даних, лише для читання (не запускайте: результат різний щоразу)
+// перевірка: go run -race main.go  показує WARNING: DATA RACE
+var n int
+var wg sync.WaitGroup
+for range 1000 {
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		n++
+	}()
+}
+wg.Wait()
+fmt.Println(n)
+`,
+    ],
+    note: "Deadlock: runtime зупиняє програму лише коли заснули всі горутини, читайте стек і стан [chan send], [semacquire]. Витік: у кожної горутини має бути шлях завершення (закриття каналу, ctx.Done(), буфер для відправників). Гонка: доступ без синхронізації, перевіряється go run -race, але лише для тих гонок, що сталися.",
+    work: "На CI тести запускають із -race, а в продакшені стежать за числом горутин: стабільне зростання NumGoroutine майже завжди витік. Завислий сервіс діагностують знімком стеків усіх горутин (pprof, SIGQUIT): за станами [chan receive], [semacquire] видно, хто на кого чекає.",
+    tasks: [
+      "Чому Go не завжди повідомляє про deadlock, і що показує стан горутини у квадратних дужках у стеку fatal error?",
+      "Чому чистий звіт go run -race не доводить, що гонок немає, і де правильно вмикати цей прапорець?",
+    ],
+  },
+  {
+    t: "Семафори й обмеження паралелізму",
+    ch: "Конкурентність",
+    adv: true,
+    easy: "Семафор — це кошик із кількома жетонами на вході в басейн. Хочеш запливти: візьми жетон, а коли вийдеш, поверни. Жетони скінчилися: чекай біля бортика. Так у воді ніколи не більше людей, ніж жетонів.",
+    p: [
+      "Worker pool із попереднього уроку обмежує паралельність, але вимагає черги завдань і постійних працівників. Часто потрібніше простіше: ви вже маєте цикл, де на кожен елемент хочете запускати горутину, лише «не більше N одночасно». Інструмент для цього — <b>семафор</b>: лічильник «вільних місць». Хто бажає працювати, займає місце, а якщо вільних немає, чекає; коли закінчив, звільняє. У Go семафор не потрібен окремий пакет: його робить <b>буферизований канал</b>.",
+      "Модель у голові. <code>sem := make(chan struct{}, 3)</code>: канал з буфером на три елементи. <b>Взяти місце</b> означає надіслати в канал: <code>sem &lt;- struct{}{}</code>. Поки буфер не повний, надсилання проходить одразу; коли в буфері вже три значення, четверте надсилання <i>блокується</i>. <b>Звільнити місце</b>: прочитати з каналу, <code>&lt;-sem</code>; це звільняє комірку, і той, хто чекав, продовжує. Значення нічого не несуть, тому беруть <code>struct{}</code>, який не займає памʼяті. Отже, одночасно може тримати місце не більше трьох. Перший приклад запускає 12 завдань під лімітом 3 і перевіряє, що кількість активних ніколи не перевищила 3.",
+      "Де брати місце? Правильна ідіома: <b>до оператора <code>go</code></b>, у циклі, що запускає завдання, а звільняти <b>через <code>defer</code></b> усередині горутини. Тоді сам цикл гальмується на повному семафорі й не створює мільйон горутин наперед. Якщо брати місце вже в горутині, обмеження формально діє, але всі горутини створені одразу й чекають, що марнує пам'ять. А <code>defer</code> потрібен тому, що без нього будь-який <code>return</code> із помилкою посеред завдання залишає місце зайнятим назавжди: четвертий приклад, де після одного невдалого завдання наступне чекає вічно (deadlock). Звертайте увагу й на те, що ліміт це верхня межа, а не гарантія: фактичний пік може бути меншим, і програма не повинна на нього покладатися.",
+      "<b>errgroup-подібний патерн.</b> У світі Go дуже поширений пакет <code>golang.org/x/sync/errgroup</code>: група горутин із лімітом і збором першої помилки. Він не входить до стандартної бібліотеки, і в Go Playground його немає, але сам патерн легко відтворити своїми руками: <code>Group</code> містить <code>WaitGroup</code>, семафор-канал, <code>sync.Once</code> і поле <code>err</code>. Метод <code>Go(f func() error)</code> займає місце (блокуючись, якщо ліміт вичерпано), запускає горутину, у якій <code>defer</code> звільняє місце й виконує <code>Done</code>, а першу помилку зберігає через <code>once.Do</code>. Метод <code>Wait() error</code> чекає всіх і повертає збережену помилку. Другий приклад: шість завдань, ліміт 2, завдання з номером 3 повертає помилку, а решта виконується повністю.",
+      "Два зауваження про <code>Group</code>. По-перше, читання <code>g.err</code> у <code>Wait</code> після <code>wg.Wait()</code> безпечне: завершення <code>Done</code> гарантовано відбувається раніше за повернення <code>Wait</code> (про це докладно в уроці про модель памʼяті). По-друге, «перша» помилка залежить від планувальника, якщо падають кілька завдань відразу; у тестах із передбачуваним виводом залишайте помилку лише в одному завданні. Щоб група ще й зупиняла решту на першій помилці, додають <code>context.WithCancel</code>: функція отримує <code>ctx</code>, у <code>once.Do</code> після збереження помилки викликається <code>cancel()</code>, а завдання слухають <code>ctx.Done()</code>, так само як у конвеєрі.",
+      "Третій приклад показує ще одну ідіому: узагальнена функція <code>Map[T, R any](in []T, limit int, f func(T) R) []R</code>. Вона запускає <code>f</code> для кожного елемента не більше ніж <code>limit</code> горутин одночасно, а результати кладе за <b>індексом</b> в заздалегідь створений слайс, тому порядок збігається з вхідним, а гонки немає (кожна горутина пише у свою комірку). Тримайте в голові відмінність від пулу: пул доречний, коли працівники довгоживучі й мають стан (наприклад, зʼєднання з базою), а семафор — коли треба просто обмежити кількість одночасних завдань.",
+      "Пастки: забутий <code>release</code> на шляху з помилкою; <code>release</code> без <code>acquire</code> (<code>&lt;-sem</code> на порожньому каналі блокується навіки); семафор без буфера <code>make(chan struct{})</code>, де місць нуль і всі чекають вічно; занадто великий ліміт, що перетворює обмеження на формальність. Для зваженого семафора (завдання різного «розміру») існує <code>golang.org/x/sync/semaphore</code>, але в курсі ми обходимося стандартною бібліотекою. Підсумок: канал із буфером — семафор; місце беруть перед <code>go</code>, звільняють через <code>defer</code>; <code>Group</code> = <code>WaitGroup</code> + семафор + <code>Once</code> для першої помилки. Далі: таймери, <code>Ticker</code> і тайм-аути.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
+
+func main() {
+	const limit = 3
+	sem := make(chan struct{}, limit)
+	var active, peak, done atomic.Int64
+	var wg sync.WaitGroup
+	for range 12 {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			cur := active.Add(1)
+			for {
+				old := peak.Load()
+				if cur <= old || peak.CompareAndSwap(old, cur) {
+					break
+				}
+			}
+			done.Add(1)
+			active.Add(-1)
+		}()
+	}
+	wg.Wait()
+	fmt.Println("виконано:", done.Load())
+	fmt.Println("пік не більший за ліміт:", peak.Load() <= limit)
+}
+`,
+      String.raw`package main
+
+import (
+	"errors"
+	"fmt"
+	"sync"
+)
+
+type Group struct {
+	wg   sync.WaitGroup
+	sem  chan struct{}
+	once sync.Once
+	err  error
+}
+
+func NewGroup(limit int) *Group {
+	return &Group{sem: make(chan struct{}, limit)}
+}
+
+func (g *Group) Go(f func() error) {
+	g.sem <- struct{}{}
+	g.wg.Add(1)
+	go func() {
+		defer g.wg.Done()
+		defer func() { <-g.sem }()
+		if err := f(); err != nil {
+			g.once.Do(func() { g.err = err })
+		}
+	}()
+}
+
+func (g *Group) Wait() error {
+	g.wg.Wait()
+	return g.err
+}
+
+func main() {
+	g := NewGroup(2)
+	results := make([]int, 6)
+	for i := range results {
+		g.Go(func() error {
+			if i == 3 {
+				return errors.New("завдання 3: збій")
+			}
+			results[i] = i * 10
+			return nil
+		})
+	}
+	err := g.Wait()
+	fmt.Println("помилка:", err)
+	fmt.Println(results)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"strings"
+	"sync"
+	"unicode/utf8"
+)
+
+func Map[T, R any](in []T, limit int, f func(T) R) []R {
+	out := make([]R, len(in))
+	sem := make(chan struct{}, limit)
+	var wg sync.WaitGroup
+	for i, v := range in {
+		sem <- struct{}{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			out[i] = f(v)
+		}()
+	}
+	wg.Wait()
+	return out
+}
+
+func main() {
+	words := []string{"go", "канал", "горутина", "select", "mutex"}
+	fmt.Println(Map(words, 2, utf8.RuneCountInString))
+	bars := Map([]int{1, 3, 2}, 2, func(n int) string {
+		return strings.Repeat("*", n)
+	})
+	fmt.Println(bars)
+}
+`,
+      String.raw`// аварія: слот не звільняється на шляху з помилкою, і наступний виклик чекає вічно (deadlock)
+package main
+
+import (
+	"errors"
+	"fmt"
+)
+
+func main() {
+	sem := make(chan struct{}, 1)
+	run := func(id int) error {
+		sem <- struct{}{}
+		if id == 1 {
+			return errors.New("збій")
+		}
+		<-sem
+		return nil
+	}
+	fmt.Println(run(1))
+	fmt.Println(run(2))
+}
+`,
+    ],
+    note: "Семафор це канал із буфером: sem <- struct{}{} займає місце, <-sem звільняє. Місце беруть до go, звільняють через defer. Group = WaitGroup + семафор + Once для першої помилки; golang.org/x/sync/errgroup у стандартній бібліотеці немає, тож патерн пишуть самі. Результати кладуть за індексом.",
+    work: "Обмеження паралельних запитів до зовнішнього API (rate limit), кількості одночасних завантажень файлів, відкритих зʼєднань із базою, важких обчислень на сервері. Група з лімітом і збором першої помилки в реальних проєктах майже всюди заміщає ручні цикли з WaitGroup.",
+    tasks: [
+      "Чому семафор-канал беруть до оператора go, а звільняють через defer усередині горутини? Що трапиться в кожному з двох відхилень?",
+      "З яких частин складається власна Group, що обмежує паралельність і повертає першу помилку, і чому результати виконання краще класти за індексом?",
+    ],
+  },
+  {
+    t: "Таймери, Ticker і тайм-аути",
+    ch: "Конкурентність",
+    easy: "Таймер — це кухонний будильник: заводиш на потрібний час, він дзвонить один раз. Ticker — це метроном: цокає знову й знову, доки його не вимкнеш. А тайм-аут — це правило «чекаю відповіді не довше п'яти хвилин, а далі йду».",
+    p: [
+      "У розмові про <code>select</code> ми вже бачили <code>time.After</code>, а в уроці про <code>context</code> — <code>WithTimeout</code>. Тепер подивимося, що стоїть під ними. Базова річ — <code>time.Duration</code>: тривалість у наносекундах, яку записують як <code>50 * time.Millisecond</code>. Пакет <code>time</code> дає три основні засоби очікування: <b>таймер</b> (спрацьовує один раз), <b>Ticker</b> (спрацьовує періодично) і функцію <code>time.AfterFunc</code> (виконує вашу функцію у власній горутині). Усі вони, крім <code>AfterFunc</code>, працюють через канал: коли час настав, у канал <code>C</code> надходить поточний момент часу. Тому їх так зручно ставити в <code>select</code> поруч з іншими каналами.",
+      "<b>Таймер.</b> <code>time.After(d)</code> — найкоротша форма: повертає канал <code>&lt;-chan time.Time</code>, у який через <code>d</code> надійде одне значення. Вона підходить для одного очікування, але ви не можете її скасувати: поки таймер не спрацює, він живе. Якщо потрібно мати змогу зупинити або перезапустити очікування, створюйте його явно: <code>t := time.NewTimer(d)</code>. Тоді <code>t.C</code> — канал, <code>t.Stop()</code> скасовує таймер (повертає <code>true</code>, якщо він ще не спрацював, і <code>false</code>, якщо вже спрацював або вже зупинений), а <code>t.Reset(d)</code> заводить його наново. Другий приклад показує весь цикл життя: зупинка до спрацювання, повторна зупинка, перезапуск, спрацювання й <code>AfterFunc</code>. Ми не вмикаємо жодної залежності від реального часу, лише короткі інтервали на кілька мілісекунд і результат, який ми читаємо з каналу.",
+      "<b>Тайм-аут.</b> Шаблон один: запустити роботу в горутині, а результат чекати у <code>select</code> із таймером. Перший приклад: <code>fetch</code> запускає горутину, яка кладе відповідь у канал <code>res</code>, а <code>select</code> вибирає між <code>&lt;-res</code> і <code>&lt;-time.After(d)</code>. Дві деталі важливі. По-перше, канал <code>res</code> має мати <b>буфер 1</b>. Якщо тайм-аут спрацював першим і ніхто вже не читає, горутина-працівник усе одно зможе покласти результат у буфер і завершитися; з небуферизованим каналом вона зависла б назавжди, це <b>витік горутини</b> (урок про deadlock і витоки). По-друге, у нашому прикладі «повільний» працівник чекає на канал <code>wait</code>, а не на <code>time.Sleep</code>: так вивід не залежить від швидкості машини. У справжньому коді повільною буває мережа, а тайм-аут захищає від вічного очікування.",
+      "<b>Ticker.</b> <code>time.NewTicker(d)</code> повертає об'єкт із каналом <code>C</code>, у який кожні <code>d</code> надходить значення. Типове використання: <code>for range tk.C { … }</code> або <code>select</code> у циклі, де гілка <code>&lt;-tk.C</code> виконує періодичну роботу (опитування, оновлення метрик, heartbeat). Головне правило: <b>завжди викликайте <code>tk.Stop()</code></b>, зазвичай через <code>defer</code>. Ticker не зупиняється сам; хоча сучасні версії Go (з 1.23) вміють збирати непотрібні таймери й тікери, коли на них нема посилань, покладатися на це не варто: явний <code>Stop</code> робить намір очевидним і працює в усіх версіях. Третій приклад рахує три тіки, зупиняє тікер і показує, що після <code>Stop</code> нових тіків не буде. Зауважте: <code>Stop</code> <i>не закриває</i> канал <code>C</code>, тому <code>for range tk.C</code> після <code>Stop</code> з іншої горутини не завершиться сам; з циклу виходять через <code>break</code> чи <code>return</code>.",
+      "Тікери «пропускають» тіки, якщо споживач повільний: канал має буфер на одне значення, і якщо ви ще не прочитали попередній тік, наступний відкидається. Тому Ticker не накопичує чергу, і про точну кількість тіків за проміжок часу судити не можна. Саме тому в тестах і прикладах ми рахуємо <i>отримані</i> тіки, а не «скільки мало б пройти». Не плутайте з <code>time.Tick(d)</code>: це ярлик, що створює Ticker без можливості його зупинити; у довгоживучих програмах його краще не вживати. Та й сама ідея «періодично» небезпечна, якщо робота триває довше, ніж період: наступна ітерація почнеться одразу ж після попередньої, а не паралельно.",
+      "<b>Reset і Stop: пастки.</b> Історично після <code>Stop</code> таймера, який устиг спрацювати, у <code>t.C</code> міг залишитися непрочитаний тік, і перед <code>Reset</code> радили «дренувати» канал конструкцією <code>if !t.Stop() { <i>&lt;-t.C</i> }</code>. З Go 1.23 (якщо в <code>go.mod</code> вказано <code>go 1.23</code> або новіше) канал таймерів працює інакше: після <code>Stop</code> чи <code>Reset</code> застарілого значення в каналі не лишається, і дренування не потрібне. Але щоб код поводився однаково в обох світах, не робіть припущень про непрочитаний тік: ставте <code>Reset</code> лише на таймері, який або не запускався, або вже прочитаний. Ще одна класична помилка: <code>time.After</code> у <code>for</code>-циклі з <code>select</code> створює новий таймер на кожну ітерацію. У гарячому циклі створіть <code>NewTimer</code> один раз і викликайте <code>Reset</code>.",
+      "Як усе поєднується в роботі. Запит із тайм-аутом: <code>select</code> між результатом і таймером, а ще краще <code>context.WithTimeout</code>, який вимикає всю гілку викликів і передається вглиб. Періодичне опитування: <code>for { select { case &lt;-tk.C: poll(); case &lt;-ctx.Done(): return } }</code>. Відкладена дія: <code>time.AfterFunc(d, f)</code> виконує <code>f</code> у власній горутині, а <code>Stop</code> її скасовує, якщо вона ще не стартувала. Дебаунс (дії «після паузи»): при кожній події <code>t.Reset(d)</code>. Підсумок: <code>time.After</code> — одноразове очікування без скасування; <code>NewTimer</code> зі <code>Stop</code> і <code>Reset</code> — керований таймер; <code>Ticker</code> із <code>defer Stop()</code> — періодична робота; тайм-аут = горутина + буферизований результат + <code>select</code>. Далі: модель пам'яті Go, тобто що саме гарантує, що одна горутина побачить записи іншої.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func fetch(d time.Duration, wait <-chan struct{}) (string, bool) {
+	res := make(chan string, 1)
+	go func() {
+		<-wait
+		res <- "дані"
+	}()
+	select {
+	case v := <-res:
+		return v, true
+	case <-time.After(d):
+		return "", false
+	}
+}
+
+func main() {
+	ready := make(chan struct{})
+	close(ready)
+	fmt.Println(fetch(50*time.Millisecond, ready))
+	never := make(chan struct{})
+	fmt.Println(fetch(10*time.Millisecond, never))
+	close(never)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	t := time.NewTimer(time.Hour)
+	fmt.Println("зупинено до спрацювання:", t.Stop())
+	fmt.Println("повторна зупинка:", t.Stop())
+
+	t.Reset(5 * time.Millisecond)
+	<-t.C
+	fmt.Println("таймер спрацював")
+	fmt.Println("зупинка після спрацювання:", t.Stop())
+
+	t.Reset(time.Hour)
+	t.Reset(5 * time.Millisecond)
+	<-t.C
+	fmt.Println("після Reset спрацював знову")
+
+	done := make(chan string)
+	time.AfterFunc(5*time.Millisecond, func() { done <- "AfterFunc виконано" })
+	fmt.Println(<-done)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func main() {
+	tk := time.NewTicker(5 * time.Millisecond)
+	defer tk.Stop()
+	n := 0
+	for range tk.C {
+		n++
+		fmt.Println("тік", n)
+		if n == 3 {
+			break
+		}
+	}
+	tk.Stop()
+	select {
+	case <-tk.C:
+		fmt.Println("несподіваний тік")
+	case <-time.After(20 * time.Millisecond):
+		fmt.Println("після Stop тіків немає")
+	}
+}
+`,
+    ],
+    note: "time.After дає одне очікування без скасування; NewTimer додає Stop і Reset; Ticker потребує defer Stop() і не закриває канал C. Тайм-аут це select між результатом і таймером, а канал результату має буфер 1, щоб запізнілий працівник не завис. Не покладайтеся на непрочитаний тік після Stop: ставте Reset лише на «чистий» таймер.",
+    work: "Тайм-аути запитів до зовнішніх API й баз, періодичне опитування стану, heartbeat у з'єднаннях, повторні спроби з паузою, дебаунс подій користувача, відкладене закриття сесій через AfterFunc. Кожна мережева операція без ліміту часу рано чи пізно підвісить горутину.",
+    tasks: [
+      "Чому в шаблоні тайм-ауту канал результату роблять буферизованим на 1? Що станеться з горутиною-працівником, якщо тайм-аут спрацював першим, а канал небуферизований?",
+      "Чим <code>time.After</code> відрізняється від <code>NewTimer</code> зі <code>Stop</code>, і чому тікер потрібно зупиняти через <code>defer tk.Stop()</code>, хоча Stop не закриває канал?",
+    ],
+  },
+  {
+    t: "Модель пам'яті Go",
+    ch: "Конкурентність",
+    adv: true,
+    easy: "Уявіть двох колег, що пишуть у спільний зошит у різних кімнатах. Поки ніхто не передав записку «закінчив, читай», вони можуть бачити застарілі сторінки й навіть половину фрази. Модель пам'яті — це правила, коли записка гарантує: усе, що написано до неї, колега побачить цілим.",
+    p: [
+      "Досі ми вчили: гонки даних — це погано, а канали, мʼютекси й <code>WaitGroup</code> — ліки. Цей урок пояснює, <i>чому</i> саме вони працюють і що саме обіцяє Go. Офіційна <b>модель пам'яті Go</b> (документ «The Go Memory Model») описує, за яких умов читання змінної в одній горутині <b>гарантовано бачить</b> запис, зроблений в іншій. Без цих умов компілятор і процесор мають право перевпорядковувати операції, тримати значення в регістрах і кешах окремих ядер і не показувати чужі зміни зовсім або показувати їх у «неможливому» порядку. На одній горутині це непомітно: вона завжди бачить власні дії по порядку. Проблеми починаються між горутинами.",
+      "Центральне поняття — <b>happens-before</b> («відбувається раніше»). Якщо подія A happens-before подія B, то B гарантовано бачить результат A. Усередині однієї горутини це просто порядок рядків програми. Між горутинами порядок виникає лише через <b>синхронізацію</b>. Якщо ж між двома доступами до однієї змінної (хоча б один із них запис) немає ланцюжка happens-before, вони <b>конкурують</b>, тобто це data race, і поведінка програми не визначена. Не просто «іноді старе значення»: мова не обіцяє нічого, а на деяких типах (рядок, слайс, інтерфейс з кількох слів) можна побачити «розірваний» запис: довжина вже нова, вказівник ще старий.",
+      "Гарантії, які варто знати напам'ять. <b>Канал:</b> надсилання в канал happens-before завершення відповідного отримання; <code>close(ch)</code> happens-before отримання, що повернуло через закриття; у небуферизованому каналі <i>отримання</i> happens-before завершення надсилання; у буферизованого з ємністю C <i>k</i>-те отримання happens-before завершення (k+C)-го надсилання, саме так працює семафор із попереднього уроку. <b>Мʼютекс:</b> <code>Unlock</code> n-го разу happens-before повернення <code>Lock</code> (n+1)-го. <b>WaitGroup:</b> кожен виклик <code>Done</code> happens-before повернення <code>Wait</code>, яке він розблокував. <b>Once:</b> повернення <code>f</code> з <code>once.Do(f)</code> happens-before повернення з будь-якого <code>Do</code>. <b>Оператор go:</b> запуск горутини happens-before початок її виконання (але <i>завершення</i> горутини нічого не гарантує, доки ви не синхронізувалися явно).",
+      "Тепер <b>безпечна публікація</b>. Це ідіома: підготувати дані повністю в одній горутині, а потім виконати операцію синхронізації, після якої інші горутини побачать дані цілими. Перший приклад: горутина заповнює мапу <code>config</code> і робить <code>close(ready)</code>; головна горутина чекає <code>&lt;-ready</code> і лише тоді читає мапу, тож бачить обидва записи. Те саме з буферизованим каналом і масивом <code>buf</code>. Другий приклад показує три «мости»: <code>Mutex</code> навколо спільного лічильника, <code>WaitGroup</code> перед читанням слайсу, до якого кожна горутина писала свою комірку, і <code>sync.Once</code> для одноразової ініціалізації. Усе, що було записано <i>до</i> синхронізації, видно <i>після</i> неї, але лише тим, хто із цією синхронізацією пов'язаний.",
+      "Чому «у мене працює» — не доказ. Дані конкурують, а ваша машина випадково веде себе добре: на x86 процесор пересилає записи доволі впорядковано, невелика програма має мало конкурентів, компілятор ще не застосував оптимізацію, що виносить читання з циклу. Змініть версію компілятора, архітектуру (ARM слабша за x86), навантаження чи рівень оптимізації, і те саме читання поверне старе значення або застрягне. Третій приклад, <code>// лише компіляція</code>, показує два класичних збої. <code>for !done {}</code> без синхронізації: компілятор вправі прочитати <code>done</code> один раз і крутитися вічно, а навіть якщо цикл завершиться, <code>msg</code> може бути ще порожнім. А <code>counter++</code> у двох горутинах — це три кроки «прочитати, додати, записати», які перемішуються, і результат не дорівнює 2000. Жоден такий приклад не можна «перевірити запуском» і з упевненістю сказати, що він безпечний.",
+      "Інструменти. <b>Race detector</b>: <code>go run -race</code>, <code>go test -race</code> шукають конфлікти за допомогою відстеження ланцюжків happens-before. Він ловить лише гонки, які реально відбулися в цьому запуску, тому проганяйте тести кілька разів, але чисте виконання під <code>-race</code> не доводить безпеки. Усе ж це найкраща дешева перевірка, і в CI його вмикають завжди. <b>Атомарні операції</b> (<code>sync/atomic</code>) у Go послідовно узгоджені: якщо одна атомарна операція спостерігає ефект іншої, то все, що було до неї, теж видно. Тому <code>atomic.Pointer[T]</code> — гарний спосіб опублікувати незмінну структуру: побудуйте її повністю, <code>Store</code> вказівника, а читачі роблять <code>Load</code> і отримують цілий об'єкт (четвертий приклад і завдання). Правило: після публікації об'єкт <b>не змінюють</b>; для нової версії створюють новий об'єкт і публікують його знову.",
+      "Практичні правила. 1) Спільна змінна, яку хтось пише, має мати <b>один</b> механізм захисту: мʼютекс, канал чи атомік; не змішуйте різні. 2) Не вигадуйте власних «прапорців» на звичайних <code>bool</code> і не лікуйте проблему через <code>time.Sleep</code>: пауза не створює happens-before. 3) Не покладайтеся на те, що «горутина вже, мабуть, закінчилась»: чекайте через <code>WaitGroup</code> чи канал. 4) Не публікуйте дані, що можуть змінюватись далі: або передайте право власності (надіслали в канал і більше не торкаєтеся), або робіть копію. 5) Мапа, слайс і структура не стають безпечними лише через те, що ви «рідко пишете». Підсумок: гарантія бачення записів існує лише там, де є ланцюжок happens-before через канал, мʼютекс, <code>WaitGroup</code>, <code>Once</code> чи атомарну операцію. Далі в курсі переходимо до глави про стандартну бібліотеку.",
+    ],
+    code: [
+      String.raw`package main
+
+import "fmt"
+
+var config map[string]int
+var ready = make(chan struct{})
+
+func main() {
+	go func() {
+		config = map[string]int{"workers": 4, "retries": 3}
+		close(ready)
+	}()
+	<-ready
+	fmt.Println(config["workers"], config["retries"])
+
+	data := make(chan int, 2)
+	var buf [2]int
+	go func() {
+		buf[0], buf[1] = 10, 20
+		data <- 1
+		data <- 2
+	}()
+	<-data
+	<-data
+	fmt.Println(buf)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+)
+
+func main() {
+	var mu sync.Mutex
+	total := 0
+	var wg sync.WaitGroup
+	for i := 1; i <= 5; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			mu.Lock()
+			total += i
+			mu.Unlock()
+		}()
+	}
+	wg.Wait()
+	fmt.Println("сума:", total)
+
+	squares := make([]int, 5)
+	for i := range squares {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			squares[i] = i * i
+		}()
+	}
+	wg.Wait()
+	fmt.Println(squares)
+
+	var once sync.Once
+	var cfg string
+	load := func() { cfg = "завантажено" }
+	for range 3 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			once.Do(load)
+			_ = cfg
+		}()
+	}
+	wg.Wait()
+	fmt.Println(cfg)
+}
+`,
+      String.raw`// лише компіляція: ці дві програми містять data race, їхня поведінка не визначена
+package main
+
+import "fmt"
+
+var msg string
+var done bool
+
+func main() {
+	go func() {
+		msg = "привіт"
+		done = true
+	}()
+	for !done {
+	}
+	fmt.Println(msg)
+
+	var counter int
+	for range 2 {
+		go func() {
+			for range 1000 {
+				counter++
+			}
+		}()
+	}
+	fmt.Println(counter)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"sync"
+	"sync/atomic"
+)
+
+type Config struct {
+	Name  string
+	Limit int
+}
+
+type Holder struct{ p atomic.Pointer[Config] }
+
+func (h *Holder) Publish(c *Config) { h.p.Store(c) }
+func (h *Holder) Current() *Config  { return h.p.Load() }
+
+func main() {
+	var h Holder
+	cfg := &Config{Name: "v1", Limit: 10}
+	h.Publish(cfg)
+	var wg sync.WaitGroup
+	out := make([]string, 3)
+	for i := range out {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			c := h.Current()
+			out[i] = fmt.Sprint(c.Name, ":", c.Limit)
+		}()
+	}
+	wg.Wait()
+	fmt.Println(out)
+	h.Publish(&Config{Name: "v2", Limit: 20})
+	c := h.Current()
+	fmt.Println(c.Name, c.Limit)
+}
+`,
+    ],
+    note: "Читання бачить запис іншої горутини лише за ланцюжком happens-before: через канал (send/close перед receive), Unlock перед наступним Lock, Done перед Wait, повернення Once.Do, atomic. Без синхронізації це data race з невизначеною поведінкою, а «у мене працює» нічого не доводить. Публікуйте повністю готовий незмінний об'єкт.",
+    work: "Конфіг, що перечитується на льоту (atomic.Pointer), ініціалізація клієнтів і кешів через sync.Once, передача результатів від працівників через канали, обовʼязковий -race у CI. Більшість «плаваючих» багів у продакшені, які не відтворюються локально, це відсутній happens-before.",
+    tasks: [
+      "Що означає «A happens-before B» і які чотири-п'ять операцій синхронізації в Go створюють такий зв'язок між горутинами?",
+      "Чому програма з гонкою даних може правильно працювати на вашому ноутбуці й ламатися деінде, і чому чистий прогін із <code>-race</code> не доводить відсутності гонок?",
+    ],
+  },
 ];
