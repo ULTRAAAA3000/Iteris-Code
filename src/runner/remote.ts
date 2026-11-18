@@ -17,10 +17,10 @@ interface Reply { passed?: boolean; results?: RunOutcome["results"]; stdout?: st
 
 const fail = (error: string): RemoteOutcome => ({ results: [], stdout: "", stderr: "", passed: false, error });
 
-export async function runRemote(taskId: string, code: string, timeoutMs = 25000): Promise<RemoteOutcome> {
+export async function runRemote(taskId: string, code: string, timeoutMs = 25000, url = "/api/run"): Promise<RemoteOutcome> {
   let res: Response;
   try {
-    res = await fetch("/api/run", {
+    res = await fetch(url, {
       method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ taskId, code }), signal: AbortSignal.timeout(timeoutMs),
     });

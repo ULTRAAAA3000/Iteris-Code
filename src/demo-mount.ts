@@ -3,6 +3,7 @@ import { DEMO_HINTS, DEMO_JS, demoTask, type DemoLang } from "./demo.ts";
 import type { PageTask } from "./tasks/types.ts";
 import type { TestResult } from "./runner/core.ts";
 import { runInWorker } from "./runner/client.ts";
+import { runRemote } from "./runner/remote.ts";
 import { buildPageDoc, evalPageChecks, renderInFrame } from "./runner/page.ts";
 
 const escHtml = (s: string): string => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -18,8 +19,8 @@ export function mountDemo(): void {
   const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-dm]"));
 
   let lang: DemoLang = "js", runId = 0;
-  const drafts: Record<DemoLang, string> = { js: DEMO_JS.starter, html: demoTask("html").starter, css: demoTask("css").starter };
-  const tips: Record<DemoLang, number> = { js: 0, html: 0, css: 0 };   // скільки підказок уже показано для кожної мови
+  const drafts: Record<DemoLang, string> = { js: DEMO_JS.starter, html: demoTask("html").starter, css: demoTask("css").starter, python: demoTask("python").starter };
+  const tips: Record<DemoLang, number> = { js: 0, html: 0, css: 0, python: 0 };   // скільки підказок уже показано для кожної мови
   const tipBtn = $<HTMLButtonElement>("dm-tip"), tipBox = $("dm-tips");   // у кожної мови свій незавершений код
 
   const preview = (): { doc: Document; win: Window } | null => renderInFrame(frame, buildPageDoc(demoTask(lang) as PageTask, editor.value));
@@ -39,8 +40,10 @@ export function mountDemo(): void {
     editor.value = drafts[lng];
     panel.setAttribute("aria-labelledby", "dm-tab-" + lng);
     tabs.forEach((b) => { const on = b.dataset.dm === lng; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
-    previewWrap.hidden = lng === "js";
-    if (lng !== "js") preview();
+    const pg = lng === "html" || lng === "css";
+    previewWrap.hidden = !pg;
+    $("dm-note").hidden = lng !== "python";
+    if (pg) preview();
     showTips();
     clearResults();
   }
@@ -68,6 +71,9 @@ export function mountDemo(): void {
       if (lang === "js") {
         const r = await runInWorker(editor.value, DEMO_JS.tests, () => {});
         if (my === runId) render(r.results, r.error);
+      } else if (lang === "python") {
+        const r = await runRemote("demo-py", editor.value, 25000, "/api/demo-run");
+        if (my === runId) render(r.results, r.error);
       } else {
         const page = preview(), task = demoTask(lang) as PageTask;
         if (my === runId) page ? render(evalPageChecks(task.checks, page.doc, page.win, editor.value)) : render([], "Не вдалося відобразити сторінку");
@@ -89,7 +95,7 @@ export function mountDemo(): void {
       show(next.dataset.dm as DemoLang);
     });
   });
-  editor.addEventListener("input", () => { drafts[lang] = editor.value; if (lang !== "js") preview(); });
+  editor.addEventListener("input", () => { drafts[lang] = editor.value; if (lang === "html" || lang === "css") preview(); });
   editor.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); void run(); } });
   runBtn.addEventListener("click", () => void run());
   tipBtn.addEventListener("click", () => { if (tips[lang] < DEMO_HINTS[lang].length) tips[lang]++; showTips(); });

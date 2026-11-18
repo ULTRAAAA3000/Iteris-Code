@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { JSDOM } from "jsdom";
 
-import { DEMO_CSS, DEMO_HINTS, DEMO_HTML, DEMO_JS, DEMO_LANGS, demoHtml, demoTask } from "../src/demo.ts";
+import { DEMO_CSS, DEMO_HINTS, DEMO_HTML, DEMO_JS, DEMO_PY, DEMO_LANGS, demoHtml, demoTask } from "../src/demo.ts";
 import { runSuite } from "../src/runner/core.ts";
 import { buildPageDoc, evalPageChecks } from "../src/runner/page.ts";
 import { TASKS, taskById } from "../content/tasks/index.ts";
@@ -66,7 +66,7 @@ await test("підказки: для кожної мови 3 підказки, �
 });
 
 await test("демо відокремлене від курсів (D17): його немає серед завдань і проєктів, XP не дає", () => {
-  for (const t of [DEMO_JS, DEMO_HTML, DEMO_CSS]) {
+  for (const t of [DEMO_JS, DEMO_HTML, DEMO_CSS, DEMO_PY]) {
     assert.equal(taskById(t.id), undefined, t.id);
     assert.ok(!TASKS.some((x) => x.id === t.id || x.title === t.title), t.title);
     assert.ok(!PROJECTS.some((p) => p.id === t.id));
@@ -77,7 +77,7 @@ await test("демо відокремлене від курсів (D17): йог�
 
 await test("розмітка секції: вкладки за шаблоном ARIA, перша мова вибрана, текст завдання й заготовка вже в HTML", () => {
   const h = demoHtml();
-  assert.deepEqual(DEMO_LANGS, ["js", "html", "css"]);
+  assert.deepEqual(DEMO_LANGS, ["js", "html", "css", "python"]);
   assert.ok(h.includes('id="dm-tab-css"') && h.includes('id="dm-tip"') && h.includes('id="dm-tips"'));
   assert.ok(h.includes('role="tablist"') && h.includes('id="dm-tab-js"') && h.includes('id="dm-tab-html"'));
   assert.ok(h.includes('data-dm="js" aria-selected="true" aria-controls="dm-panel" tabindex="0"'));
@@ -88,7 +88,7 @@ await test("розмітка секції: вкладки за шаблоном 
   assert.ok(h.includes('href="/register"') && h.includes('href="/courses"'));
   assert.equal((h.match(/<h2/g) || []).length, 1); assert.equal((h.match(/<h1/g) || []).length, 0);
   assert.ok(homeHtml(false).includes('id="try"') && homeHtml(true).includes('id="try"'));
-  assert.deepEqual([demoTask("js"), demoTask("html"), demoTask("css")], [DEMO_JS, DEMO_HTML, DEMO_CSS]);
+  assert.deepEqual([demoTask("js"), demoTask("html"), demoTask("css"), demoTask("python")], [DEMO_JS, DEMO_HTML, DEMO_CSS, DEMO_PY]);
 });
 
 await test("текст в textarea екранується (заготовка HTML не ламає розмітку)", () => {

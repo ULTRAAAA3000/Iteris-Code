@@ -1,11 +1,11 @@
 // Публічне демо-завдання на лендингу («Спробуй одразу, без входу»), пункт А3 з Documentation/mvp.md.
 // Це окрема вправа, а не завдання курсу: її немає в content/ і ніде не нараховується XP, тому закритий зміст уроків (D17) не страждає.
 // Модуль чистий (без DOM і мережі): розмітку використовує і браузер, і збірка для пошуковиків; поведінка в demo-mount.ts.
-import type { JsTask, PageTask } from "./tasks/types.ts";
+import type { JsTask, PageTask, RemoteTask } from "./tasks/types.ts";
 
-export type DemoLang = "js" | "html" | "css";
-export const DEMO_LANGS: readonly DemoLang[] = ["js", "html", "css"];
-export const DEMO_LABEL: Record<DemoLang, string> = { js: "JavaScript", html: "HTML", css: "CSS" };
+export type DemoLang = "js" | "html" | "css" | "python";
+export const DEMO_LANGS: readonly DemoLang[] = ["js", "html", "css", "python"];
+export const DEMO_LABEL: Record<DemoLang, string> = { js: "JavaScript", html: "HTML", css: "CSS", python: "Python" };
 
 const base = { lesson: "demo", course: "demo", premium: false, xp: 0 } as const;
 
@@ -48,14 +48,29 @@ export const DEMO_CSS: PageTask = {
   ],
 };
 
+/** Python виконується на сервері (/api/demo-run, зовнішня пісочниця); для гостя лише це одне завдання */
+export const DEMO_PY: RemoteTask = {
+  ...base, id: "demo-py", title: "Привіт і множення",
+  context: "Python часто використовують як калькулятор і швидкий скрипт: написав рядок, запустив, побачив результат.",
+  brief: ["Виведіть два рядки: слово <code>Привіт</code> і результат виразу <code>3 * 4</code> (саме число).", "Для виводу є функція <code>print()</code>."],
+  runtime: "remote", lang: "python", file: "main.py", editorLang: "python",
+  starter: "# Виведіть: Привіт і результат 3 * 4\nprint()\n",
+  checks: [
+    { on: "stdout", name: "Виводить слово «Привіт»", has: "Привіт", hint: 'Додайте print("Привіт")' },
+    { on: "stdout", name: "Виводить число 12", has: "12", hint: "Додайте print(3 * 4)" },
+    { on: "stdout", name: "Два рядки: Привіт і 12", equals: "Привіт\n12", hint: "Спершу слово, потім число, кожне окремим print" },
+  ],
+};
+
 /** Короткі підказки до кожного завдання: від м'якої до майже готової відповіді (показуються по одній) */
 export const DEMO_HINTS: Record<DemoLang, readonly string[]> = {
   js: ["Функція має повернути значення, а не просто порахувати його: потрібне слово <code>return</code>.", "Помножити на 2 можна так: <code>n * 2</code>.", "Усе рішення: <code>return n * 2;</code> усередині функції."],
   html: ["Заголовок першого рівня це тег <code>h1</code>, у нього є початок і кінець.", "Кнопка це тег <code>button</code>. Обидва теги пишуться між <code>&lt;body&gt;</code> і <code>&lt;/body&gt;</code>.", "Приклад: <code>&lt;h1&gt;Привіт&lt;/h1&gt;</code> і <code>&lt;button&gt;Натисни&lt;/button&gt;</code>."],
+  python: ["Щоб щось показати, потрібна функція <code>print()</code>: значення пишуть у дужках.", "Текст пишуть у лапках: <code>print(\"Привіт\")</code>, а вираз без лапок: <code>print(3 * 4)</code>.", "Усе рішення: два рядки, <code>print(\"Привіт\")</code> і <code>print(3 * 4)</code>."],
   css: ["Стиль пишеться всередині фігурних дужок правила: <code>властивість: значення;</code> з крапкою з комою.", "Колір тексту це <code>color</code>, вирівнювання тексту це <code>text-align</code>, фон це <code>background-color</code>.", "Приклад: <code>h1 { color: #2563eb; text-align: center; }</code> і <code>button { background-color: #16a34a; }</code>."],
 };
 
-export const demoTask = (l: DemoLang): JsTask | PageTask => (l === "js" ? DEMO_JS : l === "html" ? DEMO_HTML : DEMO_CSS);
+export const demoTask = (l: DemoLang): JsTask | PageTask | RemoteTask => (l === "js" ? DEMO_JS : l === "html" ? DEMO_HTML : l === "css" ? DEMO_CSS : DEMO_PY);
 
 /** Розмітка секції на лендингу; текст завдання для JavaScript вже всередині, щоб його бачили й пошуковики, і браузер без скриптів */
 export function demoHtml(): string {
@@ -73,6 +88,7 @@ export function demoHtml(): string {
         <label class="dm-label" for="dm-code">Ваш код</label>
         <textarea id="dm-code" class="dm-editor" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="dm-hint">${t.starter.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</textarea>
         <p class="dm-hint" id="dm-hint">Ctrl+Enter, щоб перевірити</p>
+        <p class="dm-hint" id="dm-note" hidden>Python виконується на зовнішньому сервері, тому перевірка триває трохи довше. Не вставляйте в код паролі й особисті дані.</p>
         <div class="dm-tipbox"><button type="button" class="btn small" id="dm-tip">Підказка</button><div class="dm-tips" id="dm-tips" aria-live="polite"></div></div>
         <div class="dm-actions"><button type="button" class="btn primary" id="dm-run">Перевірити</button><button type="button" class="btn" id="dm-reset">Почати спочатку</button></div>
         <div class="dm-preview" id="dm-preview-wrap" hidden><div class="dm-preview-label">Попередній перегляд</div><iframe id="dm-preview" class="dm-preview-frame" sandbox="allow-same-origin" title="Попередній перегляд сторінки"></iframe></div>

@@ -1,7 +1,7 @@
 // Демо-завдання на лендингу, інтерфейс. Запуск: npm run build && npm i --no-save jsdom && node tests/demo-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
 import { runSuite } from "../src/runner/core.ts";
-import { DEMO_CSS, DEMO_HINTS, DEMO_HTML, DEMO_JS } from "../src/demo.ts";
+import { DEMO_CSS, DEMO_HINTS, DEMO_HTML, DEMO_JS, DEMO_PY } from "../src/demo.ts";
 
 let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
@@ -16,7 +16,7 @@ async function page({ delay = 0 } = {}) {
   const w = dom.window;
   w.__IC_PLAIN_EDITOR = true; w.scrollTo = () => {};
   const reply = (status, body) => ({ ok: status < 400, status, json: async () => body });
-  w.fetch = async (u, o = {}) => { calls.push({ method: o.method || "GET", url: u }); if (u === "/api/me") return reply(200, { user: null }); if (u === "/api/auth/config") return reply(200, { clientId: null, turnstileSiteKey: null, mail: false }); return reply(404, {}); };
+  w.fetch = async (u, o = {}) => { calls.push({ method: o.method || "GET", url: u }); if (u === "/api/demo-run") { const code = JSON.parse(o.body).code; const ok = code.includes("3 * 4") && code.includes("Привіт"); return reply(200, { passed: ok, results: [{ name: "Виводить слово «Привіт»", passed: code.includes("Привіт") }, { name: "Виводить число 12", passed: code.includes("3 * 4") }, { name: "Два рядки: Привіт і 12", passed: ok, error: ok ? undefined : "Додайте обидва print" }], stdout: "", stderr: "" }); } if (u === "/api/me") return reply(200, { user: null }); if (u === "/api/auth/config") return reply(200, { clientId: null, turnstileSiteKey: null, mail: false }); return reply(404, {}); };
   w.Worker = class {   // у jsdom воркера немає: підміняємо тим самим ядром тестів
     postMessage(m) {
       runSuite(m.code, m.tests, () => {}).then(async (r) => { if (delay) await sleep(delay); this.onmessage({ data: { nonce: m.nonce, type: "done", ...r } }); });
@@ -37,7 +37,7 @@ const GOOD_JS = "function double(n) { return n * 2; }";
 const GOOD_HTML = DEMO_HTML.starter.replace("<!-- додайте заголовок h1 з текстом Привіт і кнопку button -->", "<h1>Привіт</h1><button>Ok</button>");
 
 const p = await page();
-t("лендинг: секція «Спробуй одразу, без входу» з вкладками JavaScript, HTML і CSS", p.$("#try h2").textContent.includes("без входу") && p.$$("#try [role=tab]").length === 3 && p.$("#dm-tab-js").getAttribute("aria-selected") === "true");
+t("лендинг: секція «Спробуй одразу, без входу» з вкладками JavaScript, HTML, CSS і Python", p.$("#try h2").textContent.includes("без входу") && p.$$("#try [role=tab]").length === 4 && p.$("#dm-tab-js").getAttribute("aria-selected") === "true");
 t("JS за замовчуванням: завдання, заготовка в редакторі, перегляду й результатів немає", p.$("#dm-title").textContent === "Подвоїти число" && p.$("#dm-code").value.includes("function double(n)") && p.$("#dm-preview-wrap").hidden && p.$$("#dm-results li").length === 0 && p.$("#dm-win").hidden);
 
 await p.run();
@@ -98,7 +98,16 @@ t("CSS заготовка: «Виконано 0 з 3» з підказками",
 c.type(GOOD_CSS);
 await c.run();
 t("CSS правильно: 3 з 3 і перемога", c.$(".dm-sum").textContent.includes("3 з 3") && !c.$("#dm-win").hidden);
-c.$("#dm-tab-css").dispatchEvent(new c.w.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+c.$("#dm-tab-python").click();
+t("Python: вкладка, заготовка, без перегляду, видно примітку про зовнішній сервер", c.$("#dm-title").textContent === DEMO_PY.title && c.$("#dm-code").value === DEMO_PY.starter && c.$("#dm-preview-wrap").hidden && !c.$("#dm-note").hidden);
+await c.run();
+t("Python заготовка: запит на /api/demo-run, 1 з 3 і без перемоги", c.calls.some((x) => x.url === "/api/demo-run" && x.method === "POST") && c.$(".dm-sum").textContent.includes("0 з 3") && c.$("#dm-win").hidden);
+c.type('print("Привіт")\nprint(3 * 4)');
+await c.run();
+t("Python правильно: 3 з 3 і перемога", c.$(".dm-sum").textContent.includes("3 з 3") && !c.$("#dm-win").hidden);
+c.$("#dm-tab-js").click();
+t("примітка про сервер лише на вкладці Python", c.$("#dm-note").hidden);
+c.$("#dm-tab-python").dispatchEvent(new c.w.KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
 t("стрілка вправо з останньої вкладки переходить на першу", c.$("#dm-tab-js").getAttribute("aria-selected") === "true");
 const h = await page();
 t("підказки: спочатку не показані, кнопка «Підказка»", h.$$(".dm-tip").length === 0 && h.$("#dm-tip").textContent === "Підказка" && !h.$("#dm-tip").disabled);
