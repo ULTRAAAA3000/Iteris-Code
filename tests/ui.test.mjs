@@ -81,7 +81,7 @@ t("кабінет: ім'я екрановано, фокус на наступн�
 t("кабінет: невалідні id відкинуто (5 уроків), 5 груп навичок", h.includes("<strong>5</strong>") && (h.match(/class="card skill"/g) || []).length === 5);
 const frontendTasks = TASKS.filter((x) => ["html", "css", "js", "ts"].includes(x.course)).length;   // кількість завдань групи росте разом із курсами
 t(`кабінет: практика в групі Frontend 1/${frontendTasks}, назва завдання замість id`, h.includes(`Практика: 1/${frontendTasks}`) && h.includes("Безпечне читання міста"));
-t("кабінет: календар активності і Free-бейдж", (h.match(/<i class="l\d"/g) || []).length >= 182 && h.includes("Перейти на Pro за $5"));
+t("кабінет: календар активності, без Free-бейджа і кнопки оплати", (h.match(/<i class="l\d"/g) || []).length >= 182 && !h.includes("Перейти на Pro") && !h.includes("$5") && !h.includes("data-act=\"upgrade\"") && !h.includes("Оновити статус"));
 const pro = await page({ me: { ...user, isPro: true, proUntil: "2999-05-01 00:00:00" }, dash: { ...dash, user: { ...user, isPro: true, proUntil: "2999-05-01 00:00:00" } } });
 t("Pro: градієнтний бейдж і дата", pro.html().includes('class="plan pro"') && pro.html().includes("2999"));
 t("помилка API: картка з повтором", (await page({ me: user, dash: null })).html().includes("Не вдалося завантажити кабінет"));
@@ -165,16 +165,15 @@ t("повторне розв'язання: XP не нараховується", 
 
 
 /* ---- оплата ---- */
-const payFree = await page({ me: user, dash });
+const payFree = await page({ me: user, dash, hash: "#/lesson/js/8" });
 payFree.w.window_open = [];
 payFree.$("[data-act=upgrade]").click();
 await sleep(60);
 t("оплата: «Перейти на Pro» запитує посилання на оплату в сервера", payFree.calls.some((c) => c.method === "POST" && c.url === "/api/billing/checkout"));
-const payOff = await page({ me: user, dash, billing: () => ({ ok: false, status: 503, json: async () => ({ error: "not_configured" }) }) });
+const payOff = await page({ me: user, dash, hash: "#/lesson/js/8", billing: () => ({ ok: false, status: 503, json: async () => ({ error: "not_configured" }) }) });
 payOff.$("[data-act=upgrade]").click();
 await sleep(60);
 t("оплата не налаштована (503): зрозуміле повідомлення", payOff.w.document.querySelector(".toast")?.textContent.includes("Оплату ще не налаштовано"));
-t("кабінет Free: є кнопка «Оновити статус» після оплати", payFree.html().includes("Оновити статус"));
 const proDash = { ...dash, user: { ...user, isPro: true, proUntil: "2999-05-01 00:00:00" } };
 const payPro = await page({ me: { ...user, isPro: true }, dash: proDash, portal: true });
 let opened = null;
