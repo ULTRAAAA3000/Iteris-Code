@@ -18,6 +18,9 @@
 ## Додати проєкт за ТЗ
 Опишіть його в `content/projects/index.ts` за зразком `js-todo` (ТЗ, вимоги R1…Rn з перевірками, заготовка) і додайте еталонне рішення в `tests/solutions.mjs`. Деталі: розділ «Проекты по ТЗ» у `SETUP.md`.
 
+## SEO та видимість в ІІ
+Усе генерується під час `npm run build` у `src/seo.ts`: метадані, JSON-LD, `sitemap.xml`, `robots.txt` з правилами для ІІ-ботів, `llms.txt`, `llms-full.txt`, Markdown-довідники `/ref/<мова>.md`, іконки й маніфест. Ручні кроки (Cloudflare, Google Search Console, Bing): розділ «SEO и видимость в ИИ» у `SETUP.md`.
+
 ## Додати розділ довідника
 Додайте `{ t, items: [{ t, code, note }] }` у `src/data/reference/<мова>.ts`. У `note` текст у зворотних апострофах стає `<code>`.
 

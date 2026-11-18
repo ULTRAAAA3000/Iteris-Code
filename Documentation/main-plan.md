@@ -157,6 +157,14 @@
 
 **Готово, когда:** каждая страница справочника имеет свой индексируемый адрес и красивую карточку при отправке ссылки; главная адекватно выглядит на телефоне.
 
+**Дополнение к 2Б: SEO и видимость в ИИ.** Расширен `src/seo.ts` (подробности и ручные шаги: раздел «SEO и видимость в ИИ» в [SETUP.md](../SETUP.md)).
+- Метаданные: `robots` с `max-snippet`, `hreflang` (uk, x-default), Open Graph с размерами и alt, Twitter alt, коды подтверждения сайта из переменных `GOOGLE_SITE_VERIFICATION`, `BING_SITE_VERIFICATION`, `YANDEX_VERIFICATION`.
+- JSON-LD одним графом на страницу с общими `@id`: Organization (EducationalOrganization), WebSite, страница по типу (AboutPage, ContactPage, CollectionPage, WebPage), BreadcrumbList, FAQPage (дословно как видимые вопросы), ItemList из Course, TechArticle + LearningResource.
+- Для ИИ: `llms.txt`, `llms-full.txt`, Markdown-версии справочников `/ref/<язык>.md`; в `robots.txt` явные правила для ИИ-ботов и `Content-Signal`; список ботов в `AI_BOTS`.
+- Технические файлы: настоящие иконки (`favicon.ico`, 192, 512, maskable, apple-touch) вместо эмодзи в data-адресе, `manifest.webmanifest`, `security.txt`; `X-Robots-Tag: noindex` для закрытых адресов в `_headers`; `lastmod` в sitemap из истории git.
+- Тесты: `tests/seo.test.mjs` (35 проверок: метаданные, граф JSON-LD и его ссылки, robots по группам, sitemap, форматы `llms*.txt`, Markdown-справочники, иконки, манифест, заголовки, закрытый контент не попадает в публичные файлы).
+- ❓ Вручную владельцу: выключить блокировку ИИ-ботов в Cloudflare, подтвердить сайт в Google Search Console и Bing Webmaster Tools и отправить sitemap.
+
 ### Этап 3. Практика и проекты по ТЗ 🔄
 **Цель:** главное отличие платформы. После нескольких уроков человек получает ТЗ и делает небольшой продукт.
 

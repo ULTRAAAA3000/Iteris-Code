@@ -189,6 +189,30 @@ npx wrangler d1 execute iteris-code --remote --file=migrations/0012_security.sql
 ```
 Сайт сам добавляет колонку `session_ver` и таблицу `reports`, команда нужна для порядка. Обязательные настройки Cloudflare и GitHub (Turnstile, rate limiting, защита ветки `main`) перечислены в [Documentation/security.md](Documentation/security.md).
 
+## SEO и видимость в ИИ
+Всё нужное для поисковиков и ИИ-ассистентов собирается автоматически при `npm run build` (код: `src/seo.ts`) и попадает в `dist/`:
+- по странице на каждый публичный адрес (26 штук): `title`, `description`, `canonical`, `hreflang` (uk и x-default), `robots` с `max-snippet`, Open Graph (с размерами и alt картинки), Twitter Cards, **один граф JSON-LD** (Organization, WebSite, страница нужного типа, BreadcrumbList; FAQPage на главной, список курсов `Course` в каталоге и напрямах, `TechArticle` + `LearningResource` у справочников);
+- `sitemap.xml` с датой изменения (дата последнего коммита, который трогал публичный контент; у «Що нового» дата свежего релиза);
+- `robots.txt`: все публичные страницы открыты; для известных поисковиков и ИИ-ботов (OpenAI, Anthropic, Perplexity, Google, Bing, Apple и др.) перечислены явные правила, плюс `Content-Signal`; кабинет, уроки, проекты и API закрыты;
+- **`llms.txt`** (краткий опис сайту для ІІ), **`llms-full.txt`** (опис, часті запитання и справочники всех языков одним файлом) и **`/ref/<язык>.md`**: Markdown-версии справочников (на странице справочника есть `<link rel="alternate" type="text/markdown">`);
+- `favicon.ico`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`, `apple-touch-icon.png` (из логотипа: `python3 assets-src/make-icons.py`), `manifest.webmanifest`, `/.well-known/security.txt`;
+- в `_headers`: `X-Robots-Tag: noindex, nofollow` для закрытых адресов (SPA отдаёт для них общий `index.html`, поэтому заголовок надёжнее мета-тега) и правильные `Content-Type` для `llms*.txt` и `.md`.
+
+**Что сделать вручную (один раз)**
+1. **Cloudflare, Security → Bots (AI Crawl Control):** выключите блокировку ИИ-ботов (`Block AI bots`) или разрешите нужных. Блокировка работает на уровне Cloudflare и перебивает `robots.txt`: пока она включена, ИИ не сможет прочитать сайт. Если включён «Managed robots.txt», проверьте итоговый `https://iteris-code.org/robots.txt`.
+2. `SITE_URL` = `https://iteris-code.org` в Variables and Secrets (Production): от него зависят canonical, sitemap, Open Graph и все ссылки в `llms.txt`.
+3. **Google Search Console:** добавьте ресурс; для подтверждения через мета-тег положите значение `content` в переменную `GOOGLE_SITE_VERIFICATION` (Production), передеплойте, нажмите «Подтвердить» (подойдёт и DNS TXT). Затем «Файлы Sitemap» → `sitemap.xml`, а в «Проверке URL» запросите индексирование `/`, `/courses` и пары справочников.
+4. **Bing Webmaster Tools** (Bing питает ChatGPT Search и Copilot): импортируйте сайт из Google или используйте `BING_SITE_VERIFICATION`. Для Яндекса есть `YANDEX_VERIFICATION`. Переменные необязательные: пока не заданы, мета-тегов подтверждения нет.
+5. Проверьте результат: `curl -s https://iteris-code.org/llms.txt`, `curl -sI -A "GPTBot" https://iteris-code.org/` (должен быть 200, не 403), «Проверка расширенных результатов» Google и validator.schema.org для JSON-LD, Facebook Sharing Debugger / LinkedIn Post Inspector / предпросмотр в Telegram для картинки.
+
+**Как поменять политику для ИИ:** список ботов в `AI_BOTS` (`src/seo.ts`): уберите строки «Збір даних для навчання моделей» (`GPTBot`, `ClaudeBot`, `Google-Extended` и др.), если не хотите, чтобы публичные справочники использовались для обучения; ответы ассистентов по запросам пользователей (`ChatGPT-User`, `Claude-User`, `PerplexityBot` и т.п.) при этом остаются. Директива `Content-Signal` в `robots()` управляет тем же в виде сигнала Cloudflare.
+
+**Новая публичная страница** появляется в `sitemap.xml`, JSON-LD и тестах сразу после добавления в `publicPages()` (`src/pages.ts`). В `llms.txt` общие страницы перечислены в `llmsTxt()` вручную, справочники и напрямы добавляются сами.
+
+**Что не индексируется:** `/api/`, `/dashboard`, `/profile`, `/path`, `/start`, `/lesson/`, `/course/`, `/project/`, `/admin` (список `PRIVATE_PATHS`), уроки, задания, проекты и факты кабинета в публичные файлы не попадают (тесты это проверяют).
+
+Важно: ни один из этих файлов не гарантирует, что ИИ или поисковик станут рекомендовать сайт. Они лишь убирают технические препятствия. Дальше решают индексация, ссылки на сайт с других ресурсов и репутация.
+
 ## Локальная разработка
 Создайте файл `.dev.vars` (он в `.gitignore`):
 ```
