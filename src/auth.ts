@@ -6,7 +6,7 @@ import { idolById, idolSrc } from "./data/idols.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
-import { calendarCard, factCard, levelCard, pathCard, streakCard } from "./cabinet.ts";
+import { calendarCard, factCard, goalCard, levelCard, pathCard, streakCard, streakRiskCard } from "./cabinet.ts";
 import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
 import { onboardingHtml, setOnboarding } from "./onboarding.ts";
 import { escA, pl } from "./util.ts";
@@ -251,7 +251,7 @@ function focusLesson(set: Set<string>, last: string | null, chosen: string[] = [
 }
 
 function full(d: DashboardData): string {
-  setOnboarding(d.onboarding);
+  setOnboarding(d.onboarding, d.goal?.custom ? d.goal.target : undefined);
   if (d.onboarding === null) return onboardingHtml();   // перший вхід: спершу вибір курсів і рівня
   const u = d.user;
   const set = new Set(d.completedLessons.filter((id) => { const [k, n] = id.split("/"); return C[k] && +n >= 1 && +n <= C[k].L.length; }));
@@ -287,12 +287,14 @@ function full(d: DashboardData): string {
     ? `<span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button>`
     : `<span class="plan free">Free</span> <button class="btn primary small" data-act="upgrade">Перейти на Pro за $5</button> <button class="btn small" data-act="retry">Оновити статус</button>`;
   return `<div class="dash">
+      ${streakRiskCard(u.streak, d.activity, f ? `/lesson/${f[0]}/${f[1]}` : "/courses")}
       <section class="card dash-head dash-hero">${heroFx()}${avatarRing(avatar(u, true), d.xp ?? 0)}
         <div class="grow"><span class="hero-hi">${greeting()}</span><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p><p class="plan-row">${plan}</p>${heroChips(d.xp ?? 0, u.streak, set.size)}</div>
         <div class="hero-actions"><a class="btn small" href="/profile">Мій профіль</a><button class="btn small" data-act="logout">Вийти</button></div></section>
       ${factCard(d)}
       <div class="dash-grid">
         <section class="card">${focus}</section>
+        ${goalCard(d)}
         ${levelCard(d)}
         ${streakCard(u.streak, d.activity)}
         <section class="card"><h3>Підсумки</h3><div class="stats3">

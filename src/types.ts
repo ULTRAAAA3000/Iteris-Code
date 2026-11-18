@@ -1,3 +1,4 @@
+import type { GoalInfo } from "./goal.ts";
 import type { Task } from "./tasks/types.ts";
 
 export interface Lesson {
@@ -70,4 +71,6 @@ export interface DashboardData {
   onboarding?: { level: "beginner" | "intermediate" | "advanced"; courses: string[] } | null;
   days?: Record<string, { l: string[]; t: string[] }>;
   fact?: DailyFact | null;
+  /** Денна ціль: заплановано й зроблено кроків сьогодні */
+  goal?: GoalInfo;
 }
