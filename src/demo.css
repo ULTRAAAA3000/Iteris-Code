@@ -50,3 +50,7 @@
 .dm-confetti i{position:absolute;top:-14px;left:calc(var(--i) * 8% + 2%);width:8px;height:14px;border-radius:2px;background:hsl(calc(var(--i) * 53),85%,55%);animation:dm-fall 1.6s ease-in calc(var(--i) * .06s) forwards}
 @keyframes dm-fall{to{transform:translateY(320px) rotate(540deg);opacity:0}}
 @media (max-width:480px){.dm-actions .btn,.dm-win-actions .btn{flex:1 1 100%;justify-content:center}}
+.dm-tipbox{display:grid;gap:8px;justify-items:start}
+.dm-tips:empty{display:none}
+.dm-tip{margin:0 0 4px;padding:8px 12px;border:2px dashed var(--line);border-radius:10px;color:var(--muted);animation:dm-rise .3s ease backwards}
+.dm-tip code{background:var(--grid);padding:1px 6px;border-radius:6px;font-family:var(--code);color:var(--ink)}

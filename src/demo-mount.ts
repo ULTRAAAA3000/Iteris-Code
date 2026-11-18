@@ -1,5 +1,6 @@
 // Поведінка демо-завдання на лендингу: вибір мови, редактор, перевірка в браузері (JS у Web Worker, HTML в ізольованому iframe).
-import { DEMO_HTML, DEMO_JS, demoTask, type DemoLang } from "./demo.ts";
+import { DEMO_HINTS, DEMO_JS, demoTask, type DemoLang } from "./demo.ts";
+import type { PageTask } from "./tasks/types.ts";
 import type { TestResult } from "./runner/core.ts";
 import { runInWorker } from "./runner/client.ts";
 import { buildPageDoc, evalPageChecks, renderInFrame } from "./runner/page.ts";
@@ -17,9 +18,17 @@ export function mountDemo(): void {
   const tabs = Array.from(root.querySelectorAll<HTMLButtonElement>("[data-dm]"));
 
   let lang: DemoLang = "js", runId = 0;
-  const drafts: Record<DemoLang, string> = { js: DEMO_JS.starter, html: DEMO_HTML.starter };   // у кожної мови свій незавершений код
+  const drafts: Record<DemoLang, string> = { js: DEMO_JS.starter, html: demoTask("html").starter, css: demoTask("css").starter };
+  const tips: Record<DemoLang, number> = { js: 0, html: 0, css: 0 };   // скільки підказок уже показано для кожної мови
+  const tipBtn = $<HTMLButtonElement>("dm-tip"), tipBox = $("dm-tips");   // у кожної мови свій незавершений код
 
-  const preview = (): { doc: Document; win: Window } | null => renderInFrame(frame, buildPageDoc(DEMO_HTML, editor.value));
+  const preview = (): { doc: Document; win: Window } | null => renderInFrame(frame, buildPageDoc(demoTask(lang) as PageTask, editor.value));
+  const showTips = (): void => {   // тексти підказок це наші константи; показуємо їх по одній
+    const all = DEMO_HINTS[lang], n = tips[lang];
+    tipBox.innerHTML = all.slice(0, n).map((h, i) => `<p class="dm-tip"><b>${i + 1}.</b> ${h}</p>`).join("");
+    tipBtn.disabled = n >= all.length;
+    tipBtn.textContent = n === 0 ? "Підказка" : n >= all.length ? "Підказок більше немає" : `Ще підказка (${n}/${all.length})`;
+  };
   const clearResults = (): void => { runId++; results.innerHTML = ""; win.hidden = true; box.classList.remove("done"); };
 
   function show(lng: DemoLang): void {
@@ -30,8 +39,9 @@ export function mountDemo(): void {
     editor.value = drafts[lng];
     panel.setAttribute("aria-labelledby", "dm-tab-" + lng);
     tabs.forEach((b) => { const on = b.dataset.dm === lng; b.setAttribute("aria-selected", String(on)); b.tabIndex = on ? 0 : -1; });
-    previewWrap.hidden = lng !== "html";
-    if (lng === "html") preview();
+    previewWrap.hidden = lng === "js";
+    if (lng !== "js") preview();
+    showTips();
     clearResults();
   }
 
@@ -59,8 +69,8 @@ export function mountDemo(): void {
         const r = await runInWorker(editor.value, DEMO_JS.tests, () => {});
         if (my === runId) render(r.results, r.error);
       } else {
-        const page = preview();
-        if (my === runId) page ? render(evalPageChecks(DEMO_HTML.checks, page.doc, page.win, editor.value)) : render([], "Не вдалося відобразити сторінку");
+        const page = preview(), task = demoTask(lang) as PageTask;
+        if (my === runId) page ? render(evalPageChecks(task.checks, page.doc, page.win, editor.value)) : render([], "Не вдалося відобразити сторінку");
       }
     } finally {
       runBtn.disabled = false;
@@ -79,8 +89,9 @@ export function mountDemo(): void {
       show(next.dataset.dm as DemoLang);
     });
   });
-  editor.addEventListener("input", () => { drafts[lang] = editor.value; if (lang === "html") preview(); });
+  editor.addEventListener("input", () => { drafts[lang] = editor.value; if (lang !== "js") preview(); });
   editor.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "Enter") { e.preventDefault(); void run(); } });
   runBtn.addEventListener("click", () => void run());
-  $("dm-reset").addEventListener("click", () => { drafts[lang] = demoTask(lang).starter; show(lang); editor.focus(); });
+  tipBtn.addEventListener("click", () => { if (tips[lang] < DEMO_HINTS[lang].length) tips[lang]++; showTips(); });
+  $("dm-reset").addEventListener("click", () => { drafts[lang] = demoTask(lang).starter; tips[lang] = 0; show(lang); editor.focus(); });
 }

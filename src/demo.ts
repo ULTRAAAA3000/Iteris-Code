@@ -3,9 +3,9 @@
 // Модуль чистий (без DOM і мережі): розмітку використовує і браузер, і збірка для пошуковиків; поведінка в demo-mount.ts.
 import type { JsTask, PageTask } from "./tasks/types.ts";
 
-export type DemoLang = "js" | "html";
-export const DEMO_LANGS: readonly DemoLang[] = ["js", "html"];
-export const DEMO_LABEL: Record<DemoLang, string> = { js: "JavaScript", html: "HTML" };
+export type DemoLang = "js" | "html" | "css";
+export const DEMO_LANGS: readonly DemoLang[] = ["js", "html", "css"];
+export const DEMO_LABEL: Record<DemoLang, string> = { js: "JavaScript", html: "HTML", css: "CSS" };
 
 const base = { lesson: "demo", course: "demo", premium: false, xp: 0 } as const;
 
@@ -34,7 +34,28 @@ export const DEMO_HTML: PageTask = {
   ],
 };
 
-export const demoTask = (l: DemoLang): JsTask | PageTask => (l === "js" ? DEMO_JS : DEMO_HTML);
+export const DEMO_CSS: PageTask = {
+  ...base, id: "demo-css", title: "Колір і вирівнювання",
+  context: "CSS перетворює голу сторінку на гарну: кольори, відступи, розташування.",
+  brief: ["Розмітка вже готова: заголовок і кнопка. Напишіть стилі: заголовку <code>h1</code> колір <code>#2563eb</code> і вирівнювання по центру, кнопці <code>button</code> зелений фон <code>#16a34a</code>.", "Пишіть повні властивості: <code>color</code>, <code>text-align</code>, <code>background-color</code>."],
+  runtime: "page", edit: "css", file: "style.css", editorLang: "css",
+  markup: "<h1>Привіт</h1>\n<button>Натисни</button>",
+  starter: "h1 {\n  /* колір і вирівнювання */\n}\n\nbutton {\n  /* фон кнопки */\n}\n",
+  checks: [
+    { name: "Заголовок синього кольору #2563eb", selector: "h1", style: { color: "#2563eb" }, hint: "У правилі h1 додайте: color: #2563eb;" },
+    { name: "Заголовок по центру", selector: "h1", style: { "text-align": "center" }, hint: "У правилі h1 додайте: text-align: center;" },
+    { name: "Кнопка із зеленим фоном #16a34a", selector: "button", style: { "background-color": "#16a34a" }, hint: "У правилі button додайте: background-color: #16a34a;" },
+  ],
+};
+
+/** Короткі підказки до кожного завдання: від м'якої до майже готової відповіді (показуються по одній) */
+export const DEMO_HINTS: Record<DemoLang, readonly string[]> = {
+  js: ["Функція має повернути значення, а не просто порахувати його: потрібне слово <code>return</code>.", "Помножити на 2 можна так: <code>n * 2</code>.", "Усе рішення: <code>return n * 2;</code> усередині функції."],
+  html: ["Заголовок першого рівня це тег <code>h1</code>, у нього є початок і кінець.", "Кнопка це тег <code>button</code>. Обидва теги пишуться між <code>&lt;body&gt;</code> і <code>&lt;/body&gt;</code>.", "Приклад: <code>&lt;h1&gt;Привіт&lt;/h1&gt;</code> і <code>&lt;button&gt;Натисни&lt;/button&gt;</code>."],
+  css: ["Стиль пишеться всередині фігурних дужок правила: <code>властивість: значення;</code> з крапкою з комою.", "Колір тексту це <code>color</code>, вирівнювання тексту це <code>text-align</code>, фон це <code>background-color</code>.", "Приклад: <code>h1 { color: #2563eb; text-align: center; }</code> і <code>button { background-color: #16a34a; }</code>."],
+};
+
+export const demoTask = (l: DemoLang): JsTask | PageTask => (l === "js" ? DEMO_JS : l === "html" ? DEMO_HTML : DEMO_CSS);
 
 /** Розмітка секції на лендингу; текст завдання для JavaScript вже всередині, щоб його бачили й пошуковики, і браузер без скриптів */
 export function demoHtml(): string {
@@ -52,6 +73,7 @@ export function demoHtml(): string {
         <label class="dm-label" for="dm-code">Ваш код</label>
         <textarea id="dm-code" class="dm-editor" rows="7" spellcheck="false" autocomplete="off" autocapitalize="off" aria-describedby="dm-hint">${t.starter.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</textarea>
         <p class="dm-hint" id="dm-hint">Ctrl+Enter, щоб перевірити</p>
+        <div class="dm-tipbox"><button type="button" class="btn small" id="dm-tip">Підказка</button><div class="dm-tips" id="dm-tips" aria-live="polite"></div></div>
         <div class="dm-actions"><button type="button" class="btn primary" id="dm-run">Перевірити</button><button type="button" class="btn" id="dm-reset">Почати спочатку</button></div>
         <div class="dm-preview" id="dm-preview-wrap" hidden><div class="dm-preview-label">Попередній перегляд</div><iframe id="dm-preview" class="dm-preview-frame" sandbox="allow-same-origin" title="Попередній перегляд сторінки"></iframe></div>
         <ul class="dm-results" id="dm-results" aria-live="polite"></ul>
