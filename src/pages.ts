@@ -3,6 +3,7 @@
 import { C, CATS, darkText, publicLessonTotal } from "./data.ts";
 import { REF } from "./data/reference/index.ts";
 import { contactHtml } from "./contact.ts";
+import { demoHtml } from "./demo.ts";
 import { NEWS_PATH, NEWS_TITLE, newsHtml } from "./changelog.ts";
 import { PRIVACY_HTML, PRIVACY_TITLE, TERMS_HTML, TERMS_TITLE } from "./legal.ts";
 import { count, esc, W } from "./util.ts";
@@ -54,7 +55,7 @@ const FAQ: readonly (readonly [string, string])[] = [
   ["Чи є проєкти за технічним завданням?", "Так. Ви отримуєте технічне завдання, складаєте невеликий продукт і бачите звіт «виконано X з N». Перший проєкт (JavaScript) уже в кабінеті, нові з'являтимуться поступово."],
 ];
 
-const homeHtml = (loggedIn: boolean): string => `
+export const homeHtml = (loggedIn: boolean): string => `
   <section class="hero" aria-labelledby="h1">
     <div>
       <h1 id="h1">Вчися програмувати. Безкоштовно.</h1>
@@ -82,6 +83,8 @@ print("Привіт,", name + "!")</pre>
       </div>
     </div>
   </section>
+
+  ${demoHtml()}
 
   <section aria-labelledby="how">
     <h2 class="section-title" id="how">Як проходить навчання</h2>
