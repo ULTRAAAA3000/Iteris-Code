@@ -62,26 +62,38 @@ export function initStage2(): void {
   document.addEventListener("ic:progress", () => { clearTimeout(timer); timer = setTimeout(() => void runSync(), 350); });
 }
 
-async function saveOnboarding(level: Level, courses: string[]): Promise<boolean> {
-  const r = await post("/api/onboarding", { level, courses });
+async function saveOnboarding(level: Level, courses: string[], goal: number): Promise<boolean> {
+  const r = await post("/api/onboarding", { level, courses, dailyGoal: goal });
   if (!r.ok) return false;
-  setOnboarding({ level, courses });
+  setOnboarding({ level, courses }, goal);
   invalidate();
   navigate("/path/" + courses[0]);
   return true;
 }
 
+/** Вибір денної цілі в кабінеті: зберігаємо й перемальовуємо кабінет із новими даними */
+function mountGoalPick(): void {
+  document.querySelector(".goal-pick")?.addEventListener("click", (e) => {
+    const b = (e.target as Element).closest<HTMLButtonElement>("button[data-goal]");
+    if (!b || b.disabled) return;
+    b.disabled = true;
+    void post("/api/goal", { goal: Number(b.dataset.goal) }).then((r) => {
+      if (r.ok) { invalidate(); ui.render(); } else b.disabled = false;
+    });
+  });
+}
+
 /** Викликається після кожного рендеру сторінки */
 export function mountStage2(a: string | undefined): void {
-  if (a === "dashboard") mountCabinet();
+  if (a === "dashboard") { mountCabinet(); mountGoalPick(); }
   if (a === "path") mountPath();
   if (document.getElementById("onb")) mountOnboarding(saveOnboarding);
   // Шлях і форма зміни рівня потребують збереженого вибору: завантажуємо його один раз і перемальовуємо сторінку
   if ((a === "path" || a === "start") && getUser() && getOnboarding() === undefined && !loadingOnb) {
     loadingOnb = true;
-    void api<{ onboarding: unknown }>("/api/onboarding").then((r) => {
+    void api<{ onboarding: unknown; goal?: unknown }>("/api/onboarding").then((r) => {
       loadingOnb = false;
-      setOnboarding(r.ok && r.data ? r.data.onboarding ?? null : null);
+      setOnboarding(r.ok && r.data ? r.data.onboarding ?? null : null, r.ok && r.data ? r.data.goal : undefined);
       if (getOnboarding() !== undefined && /^(path|start)(\/|$)/.test(pathOf())) ui.render();
     });
   }

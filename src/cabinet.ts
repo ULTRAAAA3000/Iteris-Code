@@ -1,6 +1,7 @@
 // Картки кабінету Етапу 2: рівень і XP, серія з анімацією, календар із деталями дня, шлях.
 // Модуль без залежності від auth.ts (лише HTML і DOM), щоб не створювати цикл імпортів.
 import { allProjects, allTasks, C, darkText, projectMeta, taskMeta } from "./data.ts";
+import { DEFAULT_GOAL, GOAL_TEXT, GOALS } from "./goal.ts";
 import type { DashboardData } from "./types.ts";
 import { esc, escA, pl, store } from "./util.ts";
 import { currentLesson, LESSON_XP, levelInfo, STREAK_BONUS, STREAK_MILESTONES } from "./xp.ts";
@@ -23,12 +24,47 @@ export function levelCard(d: DashboardData): string {
     <p class="dash-muted lvl-hint">Урок: +${LESSON_XP} XP · завдання: до +${maxTaskXp} XP · бонус за серію</p></section>`;
 }
 
+/** Серія під загрозою: вона є, а сьогодні ще не було жодного кроку. Новий день за UTC, тому дедлайн це найближча північ UTC у часі користувача */
+export function streakRisk(streak: number, activity: Record<string, number> = {}, now: Date = new Date()): { risk: boolean; deadline: Date; at: string; left: string } {
+  const deadline = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+  return {
+    risk: streak > 0 && (activity[utcKey(now)] || 0) === 0,
+    deadline,
+    at: deadline.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }),
+    left: eta(deadline.getTime() - now.getTime()),
+  };
+}
+
+/** Заметна підказка вгорі кабінету: серія є, а сьогодні ще нічого не пройдено */
+export function streakRiskCard(streak: number, activity: Record<string, number> | undefined, href: string): string {
+  const r = streakRisk(streak, activity);
+  if (!r.risk) return "";
+  return `<section class="card risk-banner" role="status" aria-live="polite"><span class="risk-ico" aria-hidden="true">🔥</span>
+    <div class="risk-text"><b>Серія ${streak} ${pl(streak, "день", "дні", "днів")} сьогодні під загрозою</b>
+      <p>Зробіть урок або завдання до ${r.at} (за вашим часом): лишилось ${r.left}. Тоді серія продовжиться.</p></div>
+    <a class="btn primary small" href="${escA(href)}">Продовжити</a></section>`;
+}
+
+/** Картка «Ціль на сьогодні»: крапки-кроки, підказка, вибір цілі (клік обробляє stage2.ts) */
+export function goalCard(d: DashboardData): string {
+  const g = d.goal ?? { target: DEFAULT_GOAL, done: 0, custom: false };
+  const left = Math.max(0, g.target - g.done), reached = left === 0;
+  const dots = Array.from({ length: g.target }, (_, i) => `<i class="${i < g.done ? "on" : ""}" style="--i:${i}"></i>`).join("");
+  const pick = GOALS.map((n) => `<button type="button" class="btn small${n === g.target ? " on" : ""}" data-goal="${n}" aria-pressed="${n === g.target}" title="${GOAL_TEXT[n]}">${n}</button>`).join("");
+  return `<section class="card goal-card${reached ? " reached" : ""}"><h3>Ціль на сьогодні</h3>
+    <div class="goal-row"><b class="goal-n">${g.done}</b><span>з ${g.target} ${pl(g.target, "кроку", "кроків", "кроків")}</span></div>
+    <div class="goal-dots" role="progressbar" aria-valuemin="0" aria-valuemax="${g.target}" aria-valuenow="${Math.min(g.done, g.target)}" aria-label="Кроки за сьогодні">${dots}</div>
+    <p class="dash-muted goal-msg">${reached ? "Ціль виконано, так тримати! ✓" : `Ще ${left} ${pl(left, "крок", "кроки", "кроків")}: урок або завдання, пройдені вперше.`}</p>
+    <div class="goal-pick" role="group" aria-label="Змінити денну ціль"><span class="dash-muted">Ціль:</span>${pick}</div></section>`;
+}
+
 export function streakCard(streak: number, activity: Record<string, number> = {}): string {
   const today = new Date(), todayKey = utcKey(today), active = (activity[todayKey] || 0) > 0;
   const week = Array.from({ length: 7 }, (_, i) => { const x = new Date(today); x.setUTCDate(x.getUTCDate() - (6 - i)); return x; })
     .map((x, i) => { const k = utcKey(x); return `<li class="${(activity[k] || 0) > 0 ? "on" : ""}${k === todayKey ? " today" : ""}" style="--i:${i}" title="${k}"><span>${DAY[x.getUTCDay()]}</span><i></i></li>`; }).join("");
   const next = STREAK_MILESTONES.find((m) => m > streak);
-  const msg = active ? "Сьогодні вже зараховано ✓" : streak ? "Зробіть урок або завдання сьогодні, щоб не втратити серію." : "Позначте урок пройденим, щоб почати серію.";
+  const risk = streakRisk(streak, activity);
+  const msg = active ? "Сьогодні вже зараховано ✓" : streak ? `Серія під загрозою: зробіть урок або завдання до ${risk.at}, щоб не втратити серію.` : "Позначте урок пройденим, щоб почати серію.";
   return `<section class="card streak-card"><h3>Серія занять</h3>
     <div class="streak2"><span class="flame ${active ? "lit" : "dim"}" aria-hidden="true">🔥</span><b class="streak-n" data-to="${streak}">${streak}</b><span>${pl(streak, "день", "дні", "днів")} поспіль</span></div>
     <ol class="week" aria-label="Останні 7 днів">${week}</ol>

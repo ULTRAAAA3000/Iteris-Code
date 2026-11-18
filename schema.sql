@@ -85,6 +85,14 @@ CREATE TABLE IF NOT EXISTS xp_events (
 );
 CREATE INDEX IF NOT EXISTS idx_xp_user_time ON xp_events(user_id, created_at);
 
+-- Денна ціль: скільки кроків (уроків або завдань) на день хоче робити людина
+CREATE TABLE IF NOT EXISTS user_goals (
+  user_id TEXT PRIMARY KEY,
+  daily_goal INTEGER NOT NULL,        -- 1 | 2 | 3 | 5
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
 CREATE TABLE IF NOT EXISTS user_onboarding (
   user_id TEXT PRIMARY KEY,
   level TEXT NOT NULL,               -- beginner | intermediate | advanced

@@ -300,3 +300,20 @@
 @keyframes fact-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.fact-card{animation:none}}
 
+
+/* Денна ціль і підказка «серія під загрозою» */
+.risk-banner{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--hl);color:var(--hl-ink);border:2px solid var(--ink);box-shadow:4px 4px 0 var(--ink);margin-bottom:16px}
+.risk-banner .risk-ico{font-size:1.8rem;line-height:1}
+.risk-banner .risk-text{flex:1 1 240px;min-width:0}.risk-banner p{margin:4px 0 0;color:inherit;opacity:.9}
+.risk-banner .btn{flex:0 0 auto}
+@media (max-width:520px){.risk-banner .btn{width:100%;justify-content:center;text-align:center}}
+.goal-row{display:flex;align-items:baseline;gap:8px;margin:6px 0}.goal-n{font-size:2.2rem;line-height:1}
+.goal-dots{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}
+.goal-dots i{width:26px;height:26px;border-radius:50%;border:2px solid var(--ink);background:var(--grid)}
+.goal-dots i.on{background:var(--ok);box-shadow:0 0 8px rgba(30,142,78,.55)}
+.dash:not(.again) .goal-dots i.on{animation:dv-dot .45s cubic-bezier(.2,1.6,.4,1) calc(var(--i) * 80ms + .2s) backwards}
+.goal-card.reached{border-color:var(--ok)}
+.goal-pick{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}
+.goal-pick .btn.on{background:var(--pen);color:var(--pen-ink);box-shadow:3px 3px 0 var(--ink)}
+.onb-goals{display:flex;flex-wrap:wrap;gap:8px}
+@media (prefers-reduced-motion:reduce){.goal-dots i.on{animation:none!important}}
