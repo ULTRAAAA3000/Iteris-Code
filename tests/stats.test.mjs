@@ -66,6 +66,9 @@ await test("доступ: лише пошти зі списку; пароль б
   assert.equal(await isAdmin({ ...env, RESEND_API_KEY: "k", MAIL_FROM: "a@b.c" }, "adm2"), true);
   sqlite.prepare("UPDATE users SET email_verified = 0 WHERE id = 'adm2'").run();
   assert.equal(await isAdmin({ ...env, RESEND_API_KEY: "k", MAIL_FROM: "a@b.c" }, "adm2"), false);
+  assert.equal(await isAdmin({ ...env, ADMIN_PASSWORD: "hash" }, "adm2"), true);        // пошта не підтверджена, листів немає, але хеш збігається
+  assert.equal(await isAdmin({ ...env, ADMIN_PASSWORD: "other" }, "adm2"), false);
+  assert.equal(await isAdmin({ ...env, ADMIN_PASSWORD: "hash" }, "rnd"), false);
   assert.equal(await isAdmin(env, "rnd"), false);
   assert.equal(await isAdmin({ ...env, ADMIN_EMAILS: "" }, "adm1"), false);
 });
