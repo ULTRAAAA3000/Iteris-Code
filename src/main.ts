@@ -1,4 +1,5 @@
 import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
+import { mountDemo } from "./demo-mount.ts";
 import { adminHtml, mountAdmin } from "./admin.ts";
 import { mountContact } from "./contact-mount.ts";
 import { cachedLesson, cachedProject, fetchLesson, fetchProject, lessonFailed, outlineLoaded, projectFailed, retryLesson, retryProject } from "./content.ts";
@@ -77,7 +78,7 @@ function render(): void {
   document.documentElement.classList.remove("spa");
   document.querySelectorAll<HTMLElement>("#nav a").forEach((l) => (l.dataset.k === active ? l.setAttribute("aria-current", "page") : l.removeAttribute("aria-current")));
   window.scrollTo(0, 0);
-  if (page?.kind === "home") initHome();
+  if (page?.kind === "home") { initHome(); mountDemo(); }
   if (task) void mountWorkspace(task);
   if (project) void mountProject(project);
   if (page?.path === "/contact") mountContact(getUser());

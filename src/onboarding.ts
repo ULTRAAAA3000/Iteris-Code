@@ -1,19 +1,20 @@
 // Онбординг після першої реєстрації: які курси вивчати й який рівень. Рівень лише визначає стартову точку шляху,
 // усі уроки лишаються доступними (D6). Модуль не залежить від auth.ts: збереження передається колбеком.
 import { C, CATS } from "./data.ts";
-import { escA } from "./util.ts";
+import { DEFAULT_GOAL, GOAL_TEXT, GOALS, isGoal } from "./goal.ts";
+import { escA, pl } from "./util.ts";
 import { chaptersOf, isLevel, LEVELS, startLesson, type Level } from "./xp.ts";
 
-export interface OnboardingState { level: Level; courses: string[] }
+export interface OnboardingState { level: Level; courses: string[]; goal?: number }
 export const MAX_COURSES = 5;
 
 // undefined = ще не завантажено, null = користувач ще не обирав
 let cache: OnboardingState | null | undefined;
 export const getOnboarding = (): OnboardingState | null | undefined => cache;
-export function setOnboarding(v: unknown): void {
+export function setOnboarding(v: unknown, goal?: unknown): void {
   if (v === null) { cache = null; return; }
   const o = v as Partial<OnboardingState> | undefined;
-  if (o && isLevel(o.level) && Array.isArray(o.courses)) cache = { level: o.level, courses: o.courses.filter((k): k is string => typeof k === "string" && !!C[k]) };
+  if (o && isLevel(o.level) && Array.isArray(o.courses)) cache = { level: o.level, courses: o.courses.filter((k): k is string => typeof k === "string" && !!C[k]), ...(isGoal(goal) ? { goal } : {}) };
 }
 export const resetOnboardingCache = (): void => { cache = undefined; };
 
@@ -39,26 +40,30 @@ export function onboardingHtml(prefill: OnboardingState | null | undefined = cac
     return ks.length ? `<div class="onb-group"><h3>${escA(g.title)}</h3><div class="onb-chips">${ks.map((k) => courseChoice(k, picked.has(k))).join("")}</div></div>` : "";
   }).join("");
   const levels = LEVELS.map((l) => `<label class="onb-level"><input type="radio" name="level" value="${l}"${l === lvl ? " checked" : ""}><span><b>${LEVEL_TEXT[l][0]}</b><small>${LEVEL_TEXT[l][1]}</small></span></label>`).join("");
+  const goal = prefill?.goal ?? DEFAULT_GOAL;
+  const goalChoices = GOALS.map((n) => `<label class="onb-chip"><input type="radio" name="goal" value="${n}"${n === goal ? " checked" : ""}><span><b>${n}</b> ${pl(n, "крок", "кроки", "кроків")} на день · ${GOAL_TEXT[n].toLowerCase()}</span></label>`).join("");
   return `<div class="card onb" id="onb">
     <h1>Налаштуємо ваш шлях</h1>
     <p class="dash-muted">Усі уроки доступні завжди. Рівень лише підказує, з якого місця почати, а попередні глави лишаються відкритими.</p>
     <form id="onb-form">
       <fieldset><legend>Що хочете вивчати? <small>до ${MAX_COURSES} курсів</small></legend>${groups}</fieldset>
       <fieldset><legend>Ваш рівень</legend><div class="onb-levels">${levels}</div></fieldset>
+      <fieldset><legend>Денна ціль <small>крок це урок або завдання</small></legend><div class="onb-goals">${goalChoices}</div></fieldset>
       <div class="onb-preview" id="onb-preview" aria-live="polite"></div>
       <p class="form-msg" id="onb-msg" role="alert"></p>
       <button class="btn primary" type="submit">Почати навчання</button>
     </form></div>`;
 }
 
-export function mountOnboarding(save: (level: Level, courses: string[]) => Promise<boolean>): void {
+export function mountOnboarding(save: (level: Level, courses: string[], goal: number) => Promise<boolean>): void {
   const f = document.getElementById("onb-form") as HTMLFormElement | null;
   if (!f) return;
   const prev = document.getElementById("onb-preview") as HTMLElement, msg = document.getElementById("onb-msg") as HTMLElement;
   const btn = f.querySelector("button[type=submit]") as HTMLButtonElement;
-  const read = (): { level: Level; courses: string[] } => {
+  const read = (): { level: Level; courses: string[]; goal: number } => {
     const v = f.querySelector<HTMLInputElement>("input[name=level]:checked")?.value;
-    return { level: isLevel(v) ? v : "beginner", courses: Array.from(f.querySelectorAll<HTMLInputElement>("input[name=course]:checked"), (i) => i.value) };
+    const g = Number(f.querySelector<HTMLInputElement>("input[name=goal]:checked")?.value);
+    return { level: isLevel(v) ? v : "beginner", goal: isGoal(g) ? g : DEFAULT_GOAL, courses: Array.from(f.querySelectorAll<HTMLInputElement>("input[name=course]:checked"), (i) => i.value) };
   };
   const refresh = (): void => {
     const { level, courses } = read();
@@ -71,11 +76,11 @@ export function mountOnboarding(save: (level: Level, courses: string[]) => Promi
   refresh();
   f.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const { level, courses } = read();
+    const { level, courses, goal } = read();
     if (!courses.length) { msg.textContent = "Оберіть хоча б один курс"; return; }
     btn.disabled = true;
     btn.classList.add("is-loading");
     msg.textContent = "";
-    if (!(await save(level, courses))) { msg.textContent = "Не вдалося зберегти. Спробуйте ще раз"; btn.disabled = false; btn.classList.remove("is-loading"); }
+    if (!(await save(level, courses, goal))) { msg.textContent = "Не вдалося зберегти. Спробуйте ще раз"; btn.disabled = false; btn.classList.remove("is-loading"); }
   });
 }

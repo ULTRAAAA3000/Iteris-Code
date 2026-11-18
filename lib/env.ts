@@ -22,6 +22,8 @@ export interface Env {
   SUPPORT_EMAIL?: string;
   /** Пошти власників через кому: лише їм відкривається закрита сторінка /admin з аналітикою */
   ADMIN_EMAILS?: string;
+  /** Хеш пароля власника (users.password_hash): дозволяє /admin для входу поштою й паролем без листів */
+  ADMIN_PASSWORD?: string;
   /** Lemon Squeezy: секрет подписи вебхука */
   LEMONSQUEEZY_WEBHOOK_SECRET?: string;
   /** Lemon Squeezy: ссылка на оплату тарифа Pro, например https://магазин.lemonsqueezy.com/checkout/buy/<id> */
