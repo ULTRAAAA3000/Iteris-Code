@@ -1,6 +1,7 @@
 // Збірка: TypeScript → dist/ (esbuild). Тип-перевірка окремо: npm run check
 // Файли отримують хеш у назві, тому браузер ніколи не змішає стару та нову версії сайту.
 import { build } from "esbuild";
+import { execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { basename, dirname } from "node:path";
 
@@ -44,13 +45,30 @@ const stage2css = readFileSync("src/stage2.css", "utf8") + readFileSync("src/lan
 if (!html.includes("</style>")) throw new Error("src/index.template.html: не знайдено </style>");
 const template = html.replace("</style>", () => stage2css + "</style>").replace('<script src="app.js"></script>', () => boot).replaceAll("__ROOT__", ROOT).replaceAll("__DASH__", DASH);
 // Кожна публічна сторінка отримує власний HTML: заголовок, опис, canonical, Open Graph, JSON-LD і готовий вміст
-const pages = seo.buildPages(template, SITE);
+// Дата останньої зміни вмісту для sitemap і розмітки: коміт, що востаннє чіпав публічний вміст; без git (або коли історії немає) це дата збірки
+const today = new Date().toISOString().slice(0, 10);
+const gitDate = (paths) => {
+  try {
+    const d = execSync(`git log -1 --format=%cs -- ${paths}`, { stdio: ["ignore", "pipe", "ignore"] }).toString().trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : "";
+  } catch { return ""; }
+};
+const modified = gitDate("content src/data src/pages.ts src/legal.ts src/changelog.ts") || today;
+// Коди підтвердження сайту в пошуковиках: змінні GOOGLE_SITE_VERIFICATION, BING_SITE_VERIFICATION, YANDEX_VERIFICATION (необов'язкові)
+const seoOpts = { google: process.env.GOOGLE_SITE_VERIFICATION, bing: process.env.BING_SITE_VERIFICATION, yandex: process.env.YANDEX_VERIFICATION, modified };
+const pages = seo.buildPages(template, SITE, seoOpts);
 for (const f of pages) {
   mkdirSync(dirname("dist/" + f.file), { recursive: true });
   writeFileSync("dist/" + f.file, f.html);
 }
-writeFileSync("dist/sitemap.xml", seo.sitemap(SITE, new Date().toISOString().slice(0, 10)));
+writeFileSync("dist/sitemap.xml", seo.sitemap(SITE, modified));
 writeFileSync("dist/robots.txt", seo.robots(SITE));
+// llms.txt, llms-full.txt, Markdown-довідники (ref/*.md), manifest.webmanifest, .well-known/security.txt
+const textFiles = seo.textFiles(SITE, seoOpts);
+for (const f of textFiles) {
+  mkdirSync(dirname("dist/" + f.file), { recursive: true });
+  writeFileSync("dist/" + f.file, f.text);
+}
 if (existsSync("static")) cpSync("static", "dist", { recursive: true });
 
 // Сумісність зі старими закешованими сторінками: вони все ще просять app.js.
@@ -81,7 +99,7 @@ writeFileSync("dist/_headers", `${SECURITY_HEADERS}/
   Cache-Control: no-cache
 ${pages.filter((f) => f.file !== "index.html").map((f) => `/${f.file}\n  Cache-Control: no-cache\n/${f.file.replace(/\.html$/, "")}\n  Cache-Control: no-cache\n`).join("")}/sitemap.xml
   Cache-Control: no-cache
-/app.js
+${seo.seoHeaders()}/app.js
   Cache-Control: no-store
   Clear-Site-Data: "cache"
 /idols/*
@@ -91,7 +109,7 @@ ${pages.filter((f) => f.file !== "index.html").map((f) => `/${f.file}\n  Cache-C
 /${worker}
   Cache-Control: public, max-age=31536000, immutable
 `);
-console.log(`dist: ${app}, ${worker}, сторінок: ${pages.length}`);
+console.log(`dist: ${app}, ${worker}, сторінок: ${pages.length}, файлів для ІІ та пошуку: ${textFiles.length + 2}`);
 
 // У Cloudflare Pages (CF_PAGES=1) дублюємо готові файли в корінь репозиторію.
 // Так сайт працює незалежно від того, чи в налаштуваннях Build output directory вказано "dist" чи "/".
