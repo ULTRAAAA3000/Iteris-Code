@@ -904,4 +904,951 @@ func main() {
       "У яких випадках варто брати json.Decoder замість Unmarshal і що дають DisallowUnknownFields, RawMessage та UseNumber?",
     ],
   },
+  {
+    t: "regexp",
+    ch: "Стандартна бібліотека",
+    adv: true,
+    easy: "Регулярний вираз — це трафарет для тексту: ви описуєте, як виглядає те, що шукаєте («чотири цифри, дефіс, дві цифри»), а пакет regexp прикладає трафарет до рядка й показує, де він збігся. Скомпільований вираз — це готовий трафарет, який варто вирізати один раз і користуватися ним скільки завгодно.",
+    p: [
+      "Звичайні функції пакета <code>strings</code> шукають конкретний підрядок. Але що робити, коли шукане задано лише формою: номер замовлення виду <code>AB-123</code>, дата, адреса пошти, число в довільному місці рядка? Писати для цього цикл по рунах з купою <code>if</code> довго й помилково. Регулярний вираз (regular expression, скорочено regexp) описує форму шаблоном, а пакет <code>regexp</code> шукає, перевіряє й замінює за ним. Без нього розбір логів, валідація простих полів і чистка тексту перетворюються на нечитний код.",
+      "Модель така: у Go є два етапи. Спочатку шаблон <b>компілюється</b> у внутрішню програму (тип <code>*regexp.Regexp</code>), потім ця програма <b>застосовується</b> до рядків. Компіляція коштує дорого, застосування дешеве, тому золоте правило: компілюйте <b>один раз</b>, зазвичай у змінній пакета <code>var reID = regexp.MustCompile(...)</code>, а не всередині функції чи циклу. <code>regexp.Compile</code> повертає <code>(*Regexp, error)</code>, а <code>MustCompile</code> аварійно завершується, якщо шаблон хибний. Для шаблонів-літералів у вашому коді береться саме <code>MustCompile</code>: помилка в шаблоні це помилка програміста, і краще впасти одразу під час запуску. Compile лишають для шаблонів, які приходять ззовні (від користувача чи з конфігурації).",
+      "Шаблони пишуть у сирих рядках із зворотними апострофами: <code>`\\d+`</code>. У звичайному рядку з лапками довелося б подвоювати кожен зворотний слеш (<code>\"\\\\d+\"</code>), і читати це неможливо. Базовий синтаксис: <code>.</code> будь-який символ крім переведення рядка, <code>\\d</code> цифра, <code>\\w</code> літера, цифра чи підкреслення, <code>\\s</code> пробіл, <code>+</code> один чи більше, <code>*</code> нуль чи більше, <code>?</code> нуль чи один, <code>{2,4}</code> від двох до чотирьох, <code>[a-z]</code> клас символів, <code>^</code> і <code>$</code> початок і кінець, <code>(...)</code> група, <code>|</code> «або». Увага: <code>\\w</code> і <code>[a-z]</code> розуміють лише латиницю й цифри; для кирилиці пишіть <code>[а-яіїєґ]</code> або <code>\\p{Cyrillic}</code>. Прапорці ставлять на початку: <code>(?i)</code> ігнорує регістр, <code>(?s)</code> дозволяє крапці збігатися з переведенням рядка, <code>(?m)</code> робить <code>^</code> і <code>$</code> межами кожного рядка.",
+      "Методи поділяються за тим, що вони вертають. <code>MatchString(s)</code> просто відповідає «так/ні». <code>FindString(s)</code> дає перший збіг або порожній рядок, <code>FindAllString(s, n)</code> усі збіги (n менше нуля означає «скільки є»; якщо збігів немає, результат <code>nil</code>). <code>FindStringIndex</code> повертає позиції в <b>байтах</b>. Для груп є <code>FindStringSubmatch</code>: елемент 0 це весь збіг, елемент 1 перша група, 2 друга і так далі; а <code>FindAllStringSubmatch</code> дає такі зрізи для кожного збігу. Групам можна дати імена: <code>(?P&lt;year&gt;\\d{4})</code>. Тоді <code>re.SubexpNames()</code> повертає імена за номерами, а <code>re.SubexpIndex(\"year\")</code> номер групи за ім'ям, тож код не залежить від порядку дужок.",
+      "Заміна: <code>ReplaceAllString(s, repl)</code> у рядку-заміні розуміє <code>$1</code>, <code>$2</code> (номери груп) і <code>$name</code>. Пастка: <code>$1_x</code> Go прочитає як групу з ім'ям «1_x», якої немає, і підставить порожній рядок. Пишіть <code>${1}_x</code>. Якщо дужки в заміні не потрібні, беріть <code>ReplaceAllLiteralString</code>, а для обчислюваної заміни <code>ReplaceAllStringFunc</code> з функцією <code>func(string) string</code>. Коли вам потрібно знайти <i>буквально</i> введений користувачем текст, огорніть його в <code>regexp.QuoteMeta</code>, щоб крапка й плюс не стали метасимволами.",
+      "Головна особливість Go: движок працює за алгоритмом <b>RE2</b> і гарантує лінійний за довжиною тексту час. Ціна цієї гарантії: немає зворотних посилань (<code>\\1</code>) і lookahead/lookbehind (<code>(?=...)</code>, <code>(?&lt;=...)</code>). Спроба скомпілювати такий шаблон дає помилку, і це добре: зловмисний ввід не підвісить ваш сервіс, як це буває в движках із «катастрофічним поверненням». Квантифікатори за замовчуванням жадібні (<code>.*</code> забирає максимум), додайте <code>?</code>, щоб стали ледачими (<code>.*?</code>). Ще одна пастка: без <code>^</code> і <code>$</code> шаблон збігається з частиною рядка, тому для перевірки «весь рядок має такий вигляд» якорі обов'язкові.",
+      "Ідіоми. Не користуйтеся регулярними виразами там, де вистачить <code>strings.Contains</code>, <code>Cut</code> чи <code>Fields</code>: вони швидші й зрозуміліші. Для розбору складних форматів (HTML, JSON, адреси) беріть справжній парсер: <code>encoding/json</code>, <code>net/mail</code>, <code>net/url</code>. Регулярний вираз лишається найкращим для логів, швидкої валідації форми й масової заміни. Шаблон складного виразу складайте з частин або розписуйте в коментарі до змінної, а перевіряйте таблицею прикладів. Далі в цій главі <code>text/template</code>, де вже ви будете генерувати текст за шаблоном.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"regexp"
+)
+
+func main() {
+	re := regexp.MustCompile(${BT}\d+${BT})
+	fmt.Println(re.MatchString("замовлення 42"))
+	fmt.Println(re.FindString("a12b345"))
+	fmt.Println(re.FindAllString("a12b345c6", -1))
+	fmt.Println(re.FindAllString("a12b345c6", 2))
+	fmt.Println(re.FindStringIndex("ab77"))
+	fmt.Println(re.FindString("цифр немає") == "")
+	fmt.Println(re.FindAllString("цифр немає", -1) == nil)
+
+	_, err := regexp.Compile(${BT}(abc${BT})
+	fmt.Println(err)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"regexp"
+)
+
+func main() {
+	date := regexp.MustCompile(${BT}(\d{4})-(\d{2})-(\d{2})${BT})
+	m := date.FindStringSubmatch("реліз 2026-11-16 готовий")
+	fmt.Println(len(m), m[0], m[1], m[2], m[3])
+	fmt.Println(date.FindStringSubmatch("дати немає") == nil)
+
+	mail := regexp.MustCompile(${BT}(?P<user>[a-z]+)@(?P<host>[a-z.]+)${BT})
+	m = mail.FindStringSubmatch("пишіть ira@example.com сьогодні")
+	for i, name := range mail.SubexpNames() {
+		if name != "" {
+			fmt.Println(name, "=", m[i])
+		}
+	}
+	fmt.Println("host має номер", mail.SubexpIndex("host"))
+
+	pairs := regexp.MustCompile(${BT}(\w+)=(\d+)${BT}).FindAllStringSubmatch("a=1 b=22 c=333", -1)
+	for _, p := range pairs {
+		fmt.Println(p[1], "->", p[2])
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"regexp"
+	"strings"
+)
+
+func main() {
+	spaces := regexp.MustCompile(${BT}\s+${BT})
+	fmt.Println(spaces.ReplaceAllString("a   b 	 c", " "))
+
+	addr := regexp.MustCompile(${BT}(\w+)@(\w+)\.com${BT})
+	fmt.Println(addr.ReplaceAllString("ira@site.com", "$2:$1"))
+	fmt.Println("[" + addr.ReplaceAllString("ira@site.com", "$1_x") + "]")
+	fmt.Println(addr.ReplaceAllString("ira@site.com", "${"${"}1}_x"))
+	fmt.Println(addr.ReplaceAllLiteralString("ira@site.com", "$1"))
+
+	num := regexp.MustCompile(${BT}\d+${BT})
+	fmt.Println(num.ReplaceAllStringFunc("a1 b22 c333", func(s string) string {
+		return "<" + strings.Repeat("#", len(s)) + ">"
+	}))
+
+	fmt.Println(regexp.QuoteMeta("1+1=2?"))
+	word := regexp.MustCompile("(?i)" + regexp.QuoteMeta("C++"))
+	fmt.Println(word.MatchString("я люблю c++"))
+	fmt.Println(regexp.MustCompile(${BT}(?i)привіт${BT}).MatchString("ПРИВІТ, світе"))
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"regexp"
+)
+
+var reID = regexp.MustCompile(${BT}^[A-Z]{2}-\d{3}$${BT})
+
+func validID(s string) bool {
+	return reID.MatchString(s)
+}
+
+func main() {
+	for _, s := range []string{"AB-123", "ab-123", "AB-1234", "xAB-123"} {
+		fmt.Println(s, validID(s))
+	}
+	fmt.Println(regexp.MustCompile(${BT}\d{3}${BT}).MatchString("xAB-123y"))
+
+	greedy := regexp.MustCompile(${BT}<.+>${BT})
+	lazy := regexp.MustCompile(${BT}<.+?>${BT})
+	html := "<b>жирний</b>"
+	fmt.Println(greedy.FindString(html))
+	fmt.Println(lazy.FindString(html))
+
+	_, err := regexp.Compile(${BT}(a)\1${BT})
+	fmt.Println(err)
+	_, err = regexp.Compile(${BT}a(?=b)${BT})
+	fmt.Println(err)
+}
+`,
+    ],
+    note: "Компілюйте шаблон один раз (змінна пакета + MustCompile), пишіть його в сирому рядку з зворотними апострофами, для перевірки всього рядка ставте ^ і $. Група 0 це весь збіг. У заміні пишіть ${1}_x, а не $1_x. RE2 не знає зворотних посилань і lookahead, зате працює за лінійний час.",
+    work: "Розбір рядків логів за іменованими групами, швидка валідація кодів і артикулів, чистка пробілів і службових символів у тексті, маскування номерів карток у журналі, масова зміна форматів у конфігураціях. Те, що не вдається описати без зворотних посилань, зазвичай варто віддати справжньому парсеру.",
+    tasks: [
+      "Чому регулярний вираз слід компілювати один раз у змінній пакета, а не всередині функції, і чим MustCompile відрізняється від Compile?",
+      "Які можливості звичайних регулярних виразів Go (RE2) свідомо не підтримує і яку гарантію отримуємо натомість?",
+    ],
+  },
+  {
+    t: "text/template",
+    ch: "Стандартна бібліотека",
+    adv: true,
+    easy: "Шаблон — це бланк із пропусками: «Шановний {{.Name}}, ваше замовлення {{.ID}} готове». Програма бере бланк, підставляє дані в пропуски й повторює шматки бланка для кожного елемента списку. Так друкують листи, звіти, конфігурації й навіть код.",
+    p: [
+      "Складати великий текст через <code>+</code> чи <code>Sprintf</code> зручно, поки в ньому три рядки. Коли ж потрібен лист зі списком позицій, умовними абзацами й повторюваними блоками, код швидко перетворюється на кашу з лапок і <code>\\n</code>. Пакет <code>text/template</code> відділяє <b>форму</b> (текст шаблону) від <b>даних</b> (структура чи мапа) і від <b>логіки</b> (кілька простих дій у самому шаблоні). Форму можна зберігати окремо від коду й правити, не перекомпільовуючи Go. Для HTML існує майже ідентичний пакет <code>html/template</code>, який додатково екранує спецсимволи; для сторінок користувачам беріть саме його, а <code>text/template</code> лишайте для тексту, листів, конфігурацій і генерації коду.",
+      "Модель: шаблон це текст, у якому дії записані у подвійних фігурних дужках <code>{{ ... }}</code>. Усе поза дужками копіюється як є. Усередині дії крапка <code>.</code> означає <b>поточні дані</b> (dot). На початку це значення, яке ви передали в <code>Execute</code>; <code>{{.Name}}</code> бере поле <code>Name</code> зі структури або ключ «Name» із мапи. Працює лише з <b>експортованими</b> полями (з великої літери), а також викликає методи: <code>{{.Total}}</code> викличе метод <code>Total()</code>. Життєвий цикл такий: <code>template.New(\"назва\").Parse(текст)</code> розбирає шаблон (помилки синтаксису повертаються тут), а <code>t.Execute(w, дані)</code> виконує його і пише в <code>io.Writer</code>. Для шаблонів-літералів користуйтеся <code>template.Must(...)</code>, який аварійно завершується на помилці розбору.",
+      "Керування потоком. <code>{{if .Admin}}...{{else}}...{{end}}</code> перевіряє «правдивість»: порожні рядок, нуль, <code>nil</code>, порожні слайс і мапа вважаються хибними. <code>{{range .Items}}...{{end}}</code> повторює блок для кожного елемента, причому <b>всередині крапка стає самим елементом</b>; блок <code>{{else}}</code> у <code>range</code> виконується для порожньої колекції. <code>{{with .Note}}...{{end}}</code> виконується лише коли значення непорожнє і теж змінює крапку. Змінні вводяться так: <code>{{$n := len .Items}}</code>, а в range можна взяти індекс: <code>{{range $i, $x := .Items}}</code>. Змінна <code>$</code> завжди вказує на початкові дані, що рятує, коли всередині range потрібне поле зовнішньої структури: <code>{{$.Title}}</code>.",
+      "Порівняння записуються функціями у префіксному вигляді: <code>{{if eq .Role \"admin\"}}</code>, <code>gt</code>, <code>lt</code>, <code>ge</code>, <code>le</code>, <code>ne</code>, а <code>and</code>, <code>or</code>, <code>not</code> дають логіку. Є вбудовані <code>len</code>, <code>index</code>, <code>printf</code>, <code>print</code>, <code>html</code>, <code>urlquery</code>, <code>call</code>. Конвеєр <code>|</code> передає результат ліворуч останнім аргументом наступної функції: <code>{{.Name | printf \"%q\"}}</code>. Власні функції додаються через <code>template.FuncMap</code>, причому їх треба зареєструвати <b>до</b> <code>Parse</code>: <code>template.New(\"t\").Funcs(template.FuncMap{\"upper\": strings.ToUpper}).Parse(...)</code>. Функція має повертати одне значення або пару (значення, error).",
+      "Пробіли — головний біль шаблонів. Кожен рядок з дією залишає по собі переведення рядка, і вивід розповзається порожніми рядками. Маркери <code>{{-</code> та <code>-}}</code> зрізають усі пробіли й переведення рядків відповідно зліва та справа від дії: <code>{{- range .Items}}</code> з'їдає перенос перед ним. Лише дефіс, відділений пробілом (<code>{{- </code>, не <code>{{-3}}</code>), вважається маркером. Практичний метод: напишіть шаблон так, як він читається, запустіть, а потім ставте дефіси там, де лишилися зайві порожні рядки. Ще одна дрібниця: <code>Execute</code> пише у <code>io.Writer</code>, тож у <code>os.Stdout</code> для друку, у <code>strings.Builder</code> щоб отримати рядок, у <code>http.ResponseWriter</code> для відповіді.",
+      "Пастки. Помилка в шаблоні може бути двох видів: синтаксична (виявляється в <code>Parse</code>) і виконавча (поле не існує, виклик методу повернув помилку, функція не зареєстрована: це виявляється під <code>Execute</code>, причому текст до місця помилки вже записаний у <code>w</code>). Тому перевіряйте обидві помилки й не віддавайте клієнту напівготовий вивід: спершу пишіть у <code>strings.Builder</code> чи <code>bytes.Buffer</code>, і лише за успіху копіюйте далі. Для мапи звернення до відсутнього ключа за замовчуванням друкує <code>&lt;no value&gt;</code>; <code>.Option(\"missingkey=error\")</code> перетворює це на помилку. Шаблони розбирайте <b>один раз</b> при старті, а не на кожен запит, і діліть на частини через <code>{{define \"назва\"}}...{{end}}</code> та <code>{{template \"назва\" .}}</code>.",
+      "Ідіоми. Дані передавайте як окрему структуру під шаблон (view model), а не ваші доменні типи: у шаблоні має лишитися мінімум логіки, обчислення виносьте в методи й FuncMap. Форматування грошей, дат і множини робіть функціями. Шаблони можна вбудовувати в бінарник через <code>embed</code> (про це в уроці про файлову систему). Далі в главі йде журналювання через <code>log</code> і <code>log/slog</code>, де замість шаблонів використовують структуровані атрибути.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"os"
+	"text/template"
+)
+
+type User struct {
+	Name string
+	Age  int
+	Tags []string
+}
+
+func (u User) Adult() bool {
+	return u.Age >= 18
+}
+
+func main() {
+	t := template.Must(template.New("hi").Parse("Привіт, {{.Name}}! Вік: {{.Age}}.\n"))
+	t.Execute(os.Stdout, User{Name: "Іра", Age: 25})
+
+	m := template.Must(template.New("m").Parse("Тег: {{.tag}}, повнолітній: {{.Adult}}\n"))
+	m.Execute(os.Stdout, map[string]any{"tag": "go", "Adult": true})
+
+	u := template.Must(template.New("u").Parse("{{.Name}} повнолітній: {{.Adult}}\n"))
+	u.Execute(os.Stdout, User{Name: "Тарас", Age: 15})
+}
+`,
+      String.raw`package main
+
+import (
+	"os"
+	"text/template"
+)
+
+type Item struct {
+	Name string
+	Qty  int
+}
+
+type Order struct {
+	Customer string
+	Items    []Item
+	Note     string
+}
+
+const tpl = ${BT}Замовлення для {{.Customer}}:
+{{- range $i, $it := .Items}}
+{{$i}}. {{$it.Name}} x{{$it.Qty}}{{if gt $it.Qty 1}} (опт){{end}}
+{{- else}}
+(порожньо)
+{{- end}}
+{{with .Note}}Примітка: {{.}}{{else}}Без приміток{{end}}
+${BT}
+
+func main() {
+	t := template.Must(template.New("order").Parse(tpl))
+	t.Execute(os.Stdout, Order{"Іра", []Item{{"Чай", 2}, {"Кава", 1}}, "без цукру"})
+	t.Execute(os.Stdout, Order{Customer: "Тарас"})
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"strings"
+	"text/template"
+)
+
+func render(tpl string, data any) (string, error) {
+	t, err := template.New("t").Funcs(template.FuncMap{
+		"upper": strings.ToUpper,
+		"money": func(v float64) string { return fmt.Sprintf("%.2f грн", v) },
+		"add":   func(a, b int) int { return a + b },
+	}).Parse(tpl)
+	if err != nil {
+		return "", err
+	}
+	var b strings.Builder
+	if err := t.Execute(&b, data); err != nil {
+		return b.String(), err
+	}
+	return b.String(), nil
+}
+
+func main() {
+	data := map[string]any{"name": "ira", "price": 12.5, "n": 3}
+	out, err := render("{{.name | upper}} платить {{money .price}}, далі {{add .n 1}}", data)
+	fmt.Println(out, err)
+
+	out, err = render("{{.name | printf \"%q\"}}", data)
+	fmt.Println(out, err)
+
+	_, err = render("{{.name", data)
+	fmt.Println("розбір:", err)
+
+	out, err = render("до: {{nope .name}}", data)
+	fmt.Println("вивід:", out, err)
+
+	out, err = render("до: {{index .tags 0}}", map[string]any{"tags": []string{}})
+	fmt.Printf("%q %v\n", out, err != nil)
+}
+`,
+      String.raw`package main
+
+import (
+	"os"
+	"strings"
+	"text/template"
+)
+
+type Row struct {
+	Title string
+	Done  bool
+}
+
+type Page struct {
+	Title string
+	Rows  []Row
+}
+
+const tpl = ${BT}{{define "row"}}[{{if .Done}}x{{else}} {{end}}] {{.Title}}{{end -}}
+{{define "page" -}}
+# {{.Title}}
+{{range .Rows}}{{template "row" .}}
+{{end}}{{end -}}
+{{template "page" .}}${BT}
+
+func main() {
+	t := template.Must(template.New("root").Parse(tpl))
+	t.Execute(os.Stdout, Page{"Справи", []Row{{"молоко", true}, {"Go", false}}})
+
+	strict := template.Must(template.New("s").Option("missingkey=error").Parse("{{.a}} {{.b}}\n"))
+	var sb strings.Builder
+	err := strict.Execute(&sb, map[string]int{"a": 1})
+	os.Stdout.WriteString(sb.String() + "|\n")
+	os.Stdout.WriteString(err.Error() + "\n")
+
+	loose := template.Must(template.New("l").Parse("{{.a}} {{.b}}\n"))
+	loose.Execute(os.Stdout, map[string]int{"a": 1})
+}
+`,
+    ],
+    note: "Крапка означає поточні дані; range і with змінюють її, $ завжди вказує на початкові. Функції з FuncMap реєструйте до Parse. Перевіряйте помилки і Parse, і Execute, а результат спершу збирайте в strings.Builder. {{- і -}} прибирають зайві пробіли й переведення рядків навколо дії.",
+    work: "Листи й повідомлення з даних, текстові звіти й рахунки, генерація конфігураційних файлів і Dockerfile, генерація коду (кодогенератори в екосистемі Go переважно на шаблонах), шаблони команд у CLI-утилітах. Для сторінок у браузері той самий синтаксис, але з екрануванням, дає html/template.",
+    tasks: [
+      "Що означає крапка в {{.Name}}, як вона змінюється всередині range і with та як усередині range дістатися до поля зовнішньої структури?",
+      "Навіщо ставити Funcs до Parse, у чому різниця між помилкою розбору й помилкою виконання шаблону і чому результат варто спершу збирати в strings.Builder?",
+    ],
+  },
+  {
+    t: "log і log/slog",
+    ch: "Стандартна бібліотека",
+    easy: "Журнал (лог) — це бортовий щоденник програми: що сталося, коли і з якими подробицями. Коли щось іде не так, ви відкриваєте щоденник і бачите ланцюжок подій. Пакет log пише в щоденник прості рядки, а log/slog записує структуровані «картки»: повідомлення плюс пари ключ=значення, які легко шукати й фільтрувати.",
+    p: [
+      "<code>fmt.Println</code> для налагодження годиться лише на столі розробника. У реальній програмі потрібні: мітка часу, <b>рівень важливості</b> (інформація, попередження, помилка), одне й те саме місце виводу (<code>stderr</code>, файл чи система збору логів) і можливість вимкнути зайве. Без цього в продакшені ви не відрізните важливу помилку від потоку службових повідомлень. Стандартна бібліотека дає два рівні інструментів: простий пакет <code>log</code> і сучасний структурований <code>log/slog</code>, який з'явився в Go 1.21.",
+      "Пакет <code>log</code>. Функції <code>log.Println</code>, <code>log.Printf</code> пишуть у <code>stderr</code> із префіксом-датою й часом за замовчуванням (прапорці <code>log.LstdFlags</code> = <code>Ldate | Ltime</code>). Власний журнал створюється так: <code>l := log.New(os.Stdout, \"[app] \", 0)</code>: приймач (<code>io.Writer</code>), префікс і прапорці. Прапорець <code>0</code> прибирає час, тому вивід детермінований; прапорці <code>Lshortfile</code> і <code>Llongfile</code> додають <code>файл:рядок</code> місця виклику, <code>Lmsgprefix</code> переносить префікс безпосередньо перед текст повідомлення, <code>LUTC</code> переводить час у UTC. Налаштувати стандартний журнал можна через <code>log.SetFlags</code>, <code>log.SetPrefix</code>, <code>log.SetOutput</code>.",
+      "У <code>log</code> є дві «небезпечні» родини. <code>log.Fatal</code>, <code>Fatalf</code>, <code>Fatalln</code> друкують повідомлення й викликають <code>os.Exit(1)</code>: <b>відкладені виклики (<code>defer</code>) не виконуються</b>, файли не закриваються, нічого не скидається. <code>log.Panic</code>, <code>Panicf</code>, <code>Panicln</code> друкують повідомлення й викликають <code>panic</code> із тим самим текстом, тож її можна перехопити через <code>recover</code>. Практичне правило: <code>Fatal</code> припустимий лише у <code>main</code> під час старту (немає конфігурації, не вдалося відкрити порт), а у функціях бібліотеки краще повернути <code>error</code>. Хто вирішив викликати <code>Fatal</code> у глибині програми, той вирішив за всіх, що додаток негайно помирає.",
+      "Недолік <code>log</code>: повідомлення це довільний текст. Щоб знайти всі записи про користувача 42 чи всі запити довші за секунду, доведеться розбирати рядки регулярними виразами. Тому з Go 1.21 є <code>log/slog</code>: запис складається з <b>часу, рівня, повідомлення й атрибутів</b> (пар ключ-значення). Створюється логер із <b>обробником</b> (handler), який вирішує формат: <code>slog.NewTextHandler</code> дає <code>time=... level=INFO msg=старт port=8080</code>, <code>slog.NewJSONHandler</code> дає по рядку JSON на запис. Виклики: <code>logger.Debug/Info/Warn/Error(msg, ключ, значення, ...)</code>. Ключі й значення йдуть парами; щоб уникнути помилки з непарним аргументом, є типізовані атрибути <code>slog.String</code>, <code>slog.Int</code>, <code>slog.Bool</code>, <code>slog.Duration</code>, <code>slog.Any</code>.",
+      "Налаштування обробника задає <code>&amp;slog.HandlerOptions{...}</code>. <code>Level</code> — мінімальний рівень (за замовчуванням <code>Info</code>, тож <code>Debug</code> не видно); якщо передати <code>*slog.LevelVar</code>, рівень можна змінювати під час роботи. <code>AddSource</code> додає місце виклику. <code>ReplaceAttr</code> — функція, що проходить по кожному атрибуту й може змінити його чи прибрати (повернути порожній <code>slog.Attr{}</code>). Саме через неї прибирають <code>time</code> у тестах і прикладах, де вивід має бути однаковим при кожному запуску: <code>if a.Key == slog.TimeKey &amp;&amp; len(groups) == 0 { return slog.Attr{} }</code>. Нижче всі приклади так і роблять, щоб показати лише суть.",
+      "Контекст і групи. <code>logger.With(\"req_id\", 7)</code> повертає новий логер, який додає ці атрибути до кожного запису: його створюють на початку обробки запиту й передають далі. <code>logger.WithGroup(\"user\")</code> або <code>slog.Group(\"db\", ...)</code> складають атрибути в групу: у тексті вони стають <code>user.name=ira</code>, у JSON вкладеним об'єктом. <code>slog.SetDefault(logger)</code> робить логер глобальним для <code>slog.Info(...)</code> і заодно спрямовує стандартний <code>log</code> через нього. Для значень із чутливими даними реалізуйте <code>LogValuer</code>. Пастка: значення, обчислення якого дороге, не готуйте заздалегідь, якщо рівень вимкнений; перевірте <code>logger.Enabled(ctx, slog.LevelDebug)</code>.",
+      "Ідіоми. У нових проєктах беріть <code>slog</code> замість <code>log</code>; логер передають як залежність (поле структури або параметр), а не звертаються до глобального. Повідомлення робіть сталими («запит завершено»), а змінні деталі виносьте в атрибути: тоді логи легко групувати. Помилки пишіть атрибутом <code>\"err\", err</code>. У сервісах для збору логів обирайте JSON-обробник, на консолі розробника текстовий. Дальші уроки використовують <code>log</code> і <code>slog</code> у прикладах із тестами, а далі в цій главі розберемо, як програма отримує аргументи й змінні середовища.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+)
+
+func risky(l *log.Logger) {
+	defer func() {
+		fmt.Println("перехоплено:", recover())
+	}()
+	l.Panicf("критична помилка %d", 7)
+}
+
+func main() {
+	l := log.New(os.Stdout, "[app] ", 0)
+	l.Println("старт")
+	l.Printf("порт %d", 8080)
+
+	l.SetPrefix("[db] ")
+	l.Print("з'єднано")
+	fmt.Println(l.Prefix(), l.Flags())
+
+	risky(l)
+
+	log.SetFlags(0)
+	log.SetOutput(os.Stdout)
+	log.SetPrefix("std: ")
+	log.Println("стандартний журнал")
+}
+`,
+      String.raw`package main
+
+import (
+	"errors"
+	"log/slog"
+	"os"
+	"time"
+)
+
+func noTime(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey && len(groups) == 0 {
+		return slog.Attr{}
+	}
+	return a
+}
+
+func main() {
+	h := slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: noTime})
+	logger := slog.New(h)
+
+	logger.Info("старт", "port", 8080, "debug", false)
+	logger.Debug("цього не видно: рівень Info")
+	logger.Warn("повільно", slog.Duration("took", 1500*time.Millisecond), slog.String("path", "/a b"))
+	logger.Error("збій", "err", errors.New("диск повний"))
+	logger.Info("диск майже повний", "free", 12.5)
+
+	slog.SetDefault(logger)
+	slog.Info("через пакет", "n", 1)
+}
+`,
+      String.raw`package main
+
+import (
+	"log/slog"
+	"os"
+)
+
+func noTime(groups []string, a slog.Attr) slog.Attr {
+	if a.Key == slog.TimeKey && len(groups) == 0 {
+		return slog.Attr{}
+	}
+	return a
+}
+
+func main() {
+	var lvl slog.LevelVar
+	lvl.Set(slog.LevelDebug)
+	opts := &slog.HandlerOptions{Level: &lvl, ReplaceAttr: noTime}
+
+	base := slog.New(slog.NewTextHandler(os.Stdout, opts))
+	req := base.With("req_id", 7)
+	req.Debug("початок")
+	req.WithGroup("user").Info("вхід", "name", "ira", "age", 30)
+	req.Info("база", slog.Group("db", slog.String("host", "h1"), slog.Int("n", 3)))
+
+	lvl.Set(slog.LevelWarn)
+	req.Info("приховано")
+	req.Warn("видно")
+
+	js := slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	js.Warn("json", "a", 1, slog.Group("g", "b", true))
+}
+`,
+      String.raw`// аварія: log.Fatal завершує програму з кодом 1, а defer не виконується
+package main
+
+import (
+	"fmt"
+	"log"
+	"os"
+)
+
+func main() {
+	defer fmt.Println("цей defer ніколи не виконається")
+	l := log.New(os.Stdout, "fatal: ", 0)
+	l.Println("перед Fatal")
+	l.Fatalf("не вдалося прочитати конфігурацію: %s", "немає файлу")
+	fmt.Println("сюди не дійдемо")
+}
+`,
+    ],
+    note: "log.New(w, префікс, 0) дає журнал без часу. Fatal викликає os.Exit(1) без defer, Panic можна перехопити recover. У slog повідомлення стале, змінне йде в атрибути (ключ, значення), With додає контекст до кожного запису, ReplaceAttr може прибрати time. Рівень за замовчуванням Info, тож Debug не видно.",
+    work: "Журнали сервісів у JSON для систем збору логів, логер із req_id на кожен запит, зміна рівня Debug/Info на льоту без перезапуску, текстові логи на консолі розробника, прибирання часу в тестах, щоб порівнювати вивід із зразком.",
+    tasks: [
+      "Чим log.Fatal відрізняється від log.Panic і чому виклик Fatal у функції бібліотеки вважають поганою практикою?",
+      "Для чого у slog потрібні обробник, атрибути й With, і як за допомогою ReplaceAttr прибрати час із запису?",
+    ],
+  },
+  {
+    t: "os, flag і path/filepath",
+    ch: "Стандартна бібліотека",
+    easy: "Програма — не острів: її запускають з командного рядка, передаючи аргументи, їй видають змінні середовища, вона працює з шляхами до файлів. Пакет os — це вікно в операційну систему, flag розбирає «пульт керування» (прапорці -n 3), а filepath склеює й розбирає шляхи так, щоб це працювало на будь-якій системі.",
+    p: [
+      "Утиліта без параметрів корисна один раз. Реальні програми потребують налаштувань: яку теку обробити, скільки потоків узяти, увімкнути докладний вивід. Їх передають трьома каналами: <b>аргументами командного рядка</b>, <b>змінними середовища</b> і <b>файлом конфігурації</b>. Стандартна бібліотека закриває перші два повністю: <code>os.Args</code>, <code>os.Getenv</code> і пакет <code>flag</code>. А шляхи до файлів вимагають окремої обережності, бо на Windows роздільник <code>\\</code>, а на Linux і macOS <code>/</code>; для цього є <code>path/filepath</code>.",
+      "Пакет <code>os</code> для аргументів: <code>os.Args</code> це <code>[]string</code>, де елемент 0 — шлях до самої програми, а <code>os.Args[1:]</code> — власне аргументи. Змінні середовища: <code>os.Getenv(\"KEY\")</code> повертає значення або порожній рядок, тож не відрізняє «не задана» від «порожня». Для цього є <code>v, ok := os.LookupEnv(\"KEY\")</code>. Також <code>os.Setenv</code>, <code>os.Unsetenv</code> і <code>os.ExpandEnv(\"привіт, $USER\")</code>. Припинити програму можна <code>os.Exit(code)</code>: код 0 означає успіх, будь-який інший — помилку (скрипти й CI дивляться саме на нього). Пастка: <code>os.Exit</code> завершує процес негайно, і <b>відкладені виклики не виконуються</b>.",
+      "Пакет <code>flag</code>. Вам потрібно оголосити прапорці, викликати <code>Parse</code>, і далі читати значення. Є два стилі: <code>n := flag.Int(\"n\", 1, \"кількість\")</code> повертає вказівник (читаємо <code>*n</code>), а <code>flag.IntVar(&amp;n, \"n\", 1, \"кількість\")</code> пише в вашу змінну. Є <code>String</code>, <code>Bool</code>, <code>Duration</code> (значення на кшталт <code>2s</code>), <code>Float64</code> та інші. Прийнятні форми: <code>-n 3</code>, <code>-n=3</code> і <code>--n=3</code>; булеві прапорці задають без значення (<code>-v</code>). Розбір <b>зупиняється на першому аргументі без дефіса</b>: усе після нього лишається позиційними аргументами, які повертає <code>flag.Args()</code> (їх кількість <code>flag.NArg()</code>). Тож <code>tool файл -v</code> розцінить <code>-v</code> як звичайне слово.",
+      "Глобальний набір (<code>flag.Parse()</code> читає <code>os.Args[1:]</code>) незручний для тестів, а в Playground аргументів узагалі немає. Тому створюйте власний набір: <code>fs := flag.NewFlagSet(\"tool\", flag.ContinueOnError)</code> і викликайте <code>fs.Parse(args)</code> із <b>вашого зрізу</b>. Тоді можна перевірити розбір у тесті чи в прикладі. Режим помилок: <code>ContinueOnError</code> повертає помилку, <code>ExitOnError</code> (поведінка глобального набору) викликає <code>os.Exit(2)</code>, <code>PanicOnError</code> панікує. Повідомлення про помилку й довідка друкуються у <code>fs.Output()</code> (за замовчуванням <code>stderr</code>); змінити це можна через <code>fs.SetOutput</code>. Прапорець <code>-h</code> дає <code>flag.ErrHelp</code>, а <code>fs.PrintDefaults()</code> друкує список прапорців.",
+      "Тепер шляхи. <code>filepath.Join(\"a\", \"b\", \"c.txt\")</code> склеює частини з правильним роздільником і заодно <b>очищає</b> результат (прибирає зайві <code>//</code>, <code>./</code>, обробляє <code>..</code>). Ніколи не складайте шлях через <code>+ \"/\" +</code>. Розбір: <code>Base</code> (останній елемент), <code>Dir</code> (усе, крім останнього), <code>Ext</code> (розширення разом із крапкою), <code>Split</code>, <code>Clean</code>, <code>IsAbs</code>, <code>Rel</code>. Шаблони імен: <code>filepath.Match(\"*.go\", \"main.go\")</code> повертає <code>(bool, error)</code>; <code>*</code> не перетинає роздільник, зірочки на кшталт <code>**</code> не підтримуються. Імена без розширення: <code>strings.TrimSuffix(name, filepath.Ext(name))</code>. Для URL і шляхів в архівах, де роздільник завжди <code>/</code>, є пакет <code>path</code>.",
+      "Про Playground. Усі приклади цього уроку не звертаються до диска: у Go Playground файлова система обмежена й ізольована (немає ваших файлів, запис не зберігається, аргументів і змінних середовища немає), тому аргументи ми підставляємо зрізом, змінні задаємо <code>os.Setenv</code> самі, а шляхи лише обробляємо як текст (<code>filepath</code> нічого не читає з диска, окрім <code>Abs</code>, <code>Glob</code> і <code>Walk</code>). Реальні операції з файлами (<code>os.ReadFile</code>, <code>os.WriteFile</code>, <code>os.MkdirAll</code>) працюють у вашому комп'ютері, а в наступному уроці побачимо, як тестувати такий код без диска.",
+      "Ідіоми. Структура утиліти: <code>func main() { os.Exit(run(os.Args[1:], os.Stdout)) }</code>, а уся робота в <code>run(args []string, out io.Writer) int</code>. Це дає перевіряємий код, працюючі <code>defer</code> усередині <code>run</code> і єдину точку виходу. Пріоритет налаштувань: значення за замовчуванням, потім змінна середовища, потім прапорець (прапорець сильніший). Секрети (паролі, токени) передавайте змінними середовища, а не прапорцями: прапорці видно в списку процесів. Для складних утиліт із підкомандами вдаються до бібліотек на кшталт <code>cobra</code>, але для більшості скриптів вистачає <code>flag</code>.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	fmt.Println("аргументів без назви програми:", len(os.Args[1:]))
+
+	os.Setenv("APP_MODE", "dev")
+	fmt.Println(os.Getenv("APP_MODE"))
+
+	v, ok := os.LookupEnv("APP_MODE")
+	fmt.Println(v, ok)
+	v, ok = os.LookupEnv("APP_NOT_SET_42")
+	fmt.Printf("%q %v\n", v, ok)
+	fmt.Printf("%q\n", os.Getenv("APP_NOT_SET_42"))
+
+	fmt.Println(os.ExpandEnv("режим: $APP_MODE, ${"${"}APP_MODE}x"))
+	os.Unsetenv("APP_MODE")
+	_, ok = os.LookupEnv("APP_MODE")
+	fmt.Println("після Unsetenv:", ok)
+}
+`,
+      String.raw`package main
+
+import (
+	"errors"
+	"flag"
+	"fmt"
+	"io"
+	"os"
+	"time"
+)
+
+func main() {
+	fs := flag.NewFlagSet("tool", flag.ContinueOnError)
+	fs.SetOutput(os.Stdout)
+	n := fs.Int("n", 1, "кількість")
+	name := fs.String("name", "світ", "ім'я")
+	v := fs.Bool("v", false, "докладно")
+	var d time.Duration
+	fs.DurationVar(&d, "timeout", time.Second, "тайм-аут")
+
+	err := fs.Parse([]string{"-n", "3", "-v", "--name=Іра", "-timeout", "2s", "файл1", "файл2"})
+	fmt.Println(*n, *name, *v, d, err)
+	fmt.Println(fs.Args(), fs.NArg())
+
+	fs2 := flag.NewFlagSet("t2", flag.ContinueOnError)
+	fs2.SetOutput(io.Discard)
+	v2 := fs2.Bool("v", false, "докладно")
+	fs2.Parse([]string{"файл", "-v"})
+	fmt.Println(*v2, fs2.Args())
+
+	fs3 := flag.NewFlagSet("t3", flag.ContinueOnError)
+	fs3.SetOutput(io.Discard)
+	fs3.Int("n", 1, "кількість")
+	fmt.Println(fs3.Parse([]string{"-n", "abc"}))
+	fmt.Println(fs3.Parse([]string{"-x"}))
+	fmt.Println(errors.Is(fs3.Parse([]string{"-h"}), flag.ErrHelp))
+
+	fs.PrintDefaults()
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"path"
+	"path/filepath"
+	"strings"
+)
+
+func main() {
+	p := filepath.Join("data", "in", "..", "out", "report.final.csv")
+	fmt.Println(p)
+	fmt.Println(filepath.Base(p), filepath.Dir(p), filepath.Ext(p))
+	fmt.Println(strings.TrimSuffix(filepath.Base(p), filepath.Ext(p)))
+	fmt.Println(filepath.Clean("a//b/./c/../d/"))
+
+	dir, file := filepath.Split("/usr/lib/go.txt")
+	fmt.Println(dir, file)
+	fmt.Println(filepath.IsAbs("/usr"), filepath.IsAbs("usr/lib"))
+	rel, err := filepath.Rel("/a/b", "/a/b/c/d")
+	fmt.Println(rel, err)
+
+	ok, _ := filepath.Match("*.go", "main.go")
+	fmt.Println(ok)
+	ok, _ = filepath.Match("data/*.csv", "data/a.csv")
+	fmt.Println(ok)
+	ok, _ = filepath.Match("*.go", "src/main.go")
+	fmt.Println(ok)
+	_, err = filepath.Match("[", "x")
+	fmt.Println(err)
+
+	fmt.Println(path.Join("https://site.ua", "a", "b"), path.Base("/x/y.html"))
+	fmt.Println(string(filepath.Separator))
+}
+`,
+      String.raw`package main
+
+import (
+	"flag"
+	"fmt"
+	"io"
+	"os"
+)
+
+func run(args []string, getenv func(string) string, out io.Writer) int {
+	fs := flag.NewFlagSet("greet", flag.ContinueOnError)
+	fs.SetOutput(out)
+	name := fs.String("name", getenv("USER_NAME"), "ім'я")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *name == "" {
+		fmt.Fprintln(out, "потрібне ім'я")
+		return 1
+	}
+	fmt.Fprintf(out, "Привіт, %s!\n", *name)
+	return 0
+}
+
+func main() {
+	env := map[string]string{"USER_NAME": "Тарас"}
+	get := func(k string) string { return env[k] }
+
+	fmt.Println(run(nil, get, os.Stdout))
+	fmt.Println(run([]string{"-name", "Іра"}, get, os.Stdout))
+	fmt.Println(run(nil, func(string) string { return "" }, os.Stdout))
+	fmt.Println(run([]string{"-x"}, get, io.Discard))
+
+	defer fmt.Println("цей defer не виконається через os.Exit")
+	os.Exit(run([]string{"-name", "Кінець"}, get, os.Stdout))
+}
+`,
+    ],
+    note: "os.Args[0] — назва програми, прапорці в os.Args[1:]. Getenv не відрізняє порожню змінну від відсутньої, для цього є LookupEnv. flag.NewFlagSet(...).Parse(args) працює зі зрізу, flag зупиняється на першому аргументі без дефіса. os.Exit не виконує defer. Шляхи складайте через filepath.Join, а не через +.",
+    work: "Консольні утиліти й скрипти розгортання (-config, -verbose), налаштування контейнерів через змінні середовища (PORT, DATABASE_URL), побудова вихідних імен файлів із вхідних, фільтрація файлів за шаблоном імені, тести CLI без запуску процесу завдяки run(args, out).",
+    tasks: [
+      "Чим os.LookupEnv відрізняється від os.Getenv і чому це важливо для змінної, яка може бути порожньою?",
+      "Навіщо в тестах і прикладах використовувати flag.NewFlagSet із Parse зі зрізу, і чому defer не спрацює після os.Exit?",
+    ],
+  },
+  {
+    t: "Файлова система: io/fs і testing/fstest",
+    ch: "Стандартна бібліотека",
+    adv: true,
+    easy: "Уявіть, що замість конкретної шафи з теками ви домовляєтеся про загальні правила: «відкрий папку, прочитай файл, перелічи вміст». Інтерфейс fs.FS — саме ці правила. Під ним може бути справжній диск, архів, вбудовані в програму файли чи просто мапа в пам'яті для тесту, а код, що читає файли, про це не знає.",
+    p: [
+      "Звичайна робота з файлами через <code>os.ReadFile</code>, <code>os.Open</code> прив'язує код до диска. Таку функцію важко перевірити: треба створювати файли, прибирати за собою, боротися з шляхами різних систем, а в середовищах на кшталт Playground диск узагалі обмежений. З Go 1.16 є пакет <code>io/fs</code>: невеликий інтерфейс <code>fs.FS</code> з єдиним методом <code>Open(name string) (fs.File, error)</code>, який описує <b>будь-яке</b> дерево файлів лише для читання. Функція, що приймає <code>fs.FS</code> замість шляху до теки, працює і з диском, і з вбудованими ресурсами, і з тестовими даними. Це та сама ідея, що й <code>io.Reader</code> для потоків: залежіть від маленького інтерфейсу, а не від конкретики.",
+      "Правила шляхів в <code>fs.FS</code> суворі й відрізняються від <code>os</code>: імена розділяються <b>тільки</b> прямим слешем <code>/</code> на будь-якій системі (навіть на Windows), корінь називається <code>\".\"</code>, шлях не може починатися зі слеша, містити <code>..</code>, <code>.</code> посередині чи порожні елементи. Перевіряє це функція <code>fs.ValidPath</code>. Тому для роботи з такими шляхами використовують пакет <code>path</code> (а не <code>path/filepath</code>). Недійсний шлях дає помилку <code>fs.ErrInvalid</code>, відсутній файл дає <code>fs.ErrNotExist</code>, і перевіряти їх слід через <code>errors.Is</code>.",
+      "Самі по собі інтерфейси <code>fs.File</code> (<code>Read</code>, <code>Stat</code>, <code>Close</code>) незручні, тому пакет дає готові функції-помічники, які працюють з будь-яким <code>fs.FS</code>: <code>fs.ReadFile(fsys, name)</code> повертає весь вміст, <code>fs.ReadDir(fsys, dir)</code> повертає вміст теки, відсортований за іменем (елементи типу <code>fs.DirEntry</code> із методами <code>Name</code>, <code>IsDir</code>, <code>Info</code>), <code>fs.Stat</code> дає розмір та інформацію, <code>fs.Glob(fsys, \"docs/*.md\")</code> шукає за шаблоном (правила як у <code>path.Match</code>, тобто зірочка не перетинає слеш), <code>fs.Sub(fsys, \"docs\")</code> повертає <b>піддерево</b>, шляхи в якому відраховуються від цієї теки, а <code>fs.WalkDir(fsys, \".\", fn)</code> обходить дерево.",
+      "Обхід <code>WalkDir</code>: функція <code>fn(path string, d fs.DirEntry, err error) error</code> викликається для кожного запису, спершу для теки, потім для її вмісту в лексичному порядку, тож вивід детермінований. Керувати обходом можна повернутими значеннями: <code>nil</code> іти далі, <code>fs.SkipDir</code> не заходити в цю теку (або, якщо виклик для файлу, пропустити решту теки), <code>fs.SkipAll</code> зупинити все (з Go 1.20), будь-яка інша помилка зупиняє обхід і повертається з <code>WalkDir</code>. Не забувайте першим рядком перевіряти <code>err</code> у функції обходу: якщо тека не читається, <code>d</code> може бути <code>nil</code>. Типова пастка: порівнювати <code>d.Name()</code> із шляхом; ім'я це лише останній елемент, шлях повний.",
+      "Для тестів існує <code>testing/fstest</code>. <code>fstest.MapFS</code> це <code>map[string]*fstest.MapFile</code>: ключ це шлях, значення містить <code>Data</code> (вміст), <code>Mode</code> та інші поля. Теки створювати не треба: вони виникають неявно з шляхів, наприклад <code>\"docs/a.md\"</code> породжує теку <code>docs</code>. Тож ваші тести описують файлову систему літералом у кілька рядків, без диска, і вони однакові на всіх системах. Ще <code>fstest.TestFS(fsys, очікувані...)</code> перевіряє, що ваша власна реалізація <code>fs.FS</code> поводиться за правилами, і повертає <code>error</code> зі списком проблем. Для справжнього диска є <code>os.DirFS(\"каталог\")</code>: він повертає <code>fs.FS</code>, прив'язаний до теки.",
+      "Вбудовування файлів у бінарник: пакет <code>embed</code> дозволяє написати директиву <code>//go:embed templates/*.html</code> над змінною типу <code>embed.FS</code> (або <code>string</code>, <code>[]byte</code> для одного файлу), і вміст файлів потрапляє просто в виконуваний файл. Значення <code>embed.FS</code> реалізує <code>fs.FS</code>, тож усе вище (<code>ReadFile</code>, <code>Glob</code>, <code>Sub</code>, <code>WalkDir</code>) працює з ним без змін. Це зручно для шаблонів, SQL-міграцій і статичних файлів сайту: програма розповсюджується одним файлом. Приклад четвертий лише демонструє синтаксис текстом: у Playground поруч немає файлів, тому <code>go:embed</code> там не запуститься. Директива дозволена лише в змінних рівня пакета, шлях відраховується від теки з вихідним файлом і не може містити <code>..</code>.",
+      "Ідіоми й обмеження. <code>fs.FS</code> лише для читання: щоб записувати, користуйтеся <code>os.WriteFile</code> чи власним інтерфейсом запису. Пишіть функції у вигляді <code>func load(fsys fs.FS, name string) (...)</code>, у <code>main</code> підставляйте <code>os.DirFS(\".\")</code> чи <code>embed.FS</code>, а в тестах <code>fstest.MapFS</code>. Для <code>Sub</code> пам'ятайте, що він не перевіряє існування теки одразу: помилка з'явиться під час першого читання. Далі в цій главі останній урок про <code>unicode</code> і <code>utf8</code>, а в наступній главі повернемося до тестів, де <code>MapFS</code> стане постійним помічником.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"testing/fstest"
+)
+
+func main() {
+	fsys := fstest.MapFS{
+		"readme.txt":     {Data: []byte("привіт")},
+		"docs/a.md":      {Data: []byte("# A")},
+		"docs/b.md":      {Data: []byte("# B\nрядок")},
+		"docs/img/x.png": {Data: []byte{1, 2, 3}},
+	}
+
+	data, err := fs.ReadFile(fsys, "readme.txt")
+	fmt.Println(string(data), err)
+
+	_, err = fs.ReadFile(fsys, "немає.txt")
+	fmt.Println(err, errors.Is(err, fs.ErrNotExist))
+
+	_, err = fs.ReadFile(fsys, "/readme.txt")
+	fmt.Println(errors.Is(err, fs.ErrInvalid), fs.ValidPath("a/../b"), fs.ValidPath("a/b"))
+
+	info, _ := fs.Stat(fsys, "docs/b.md")
+	fmt.Println(info.Name(), info.Size(), info.IsDir())
+
+	entries, _ := fs.ReadDir(fsys, "docs")
+	for _, e := range entries {
+		fmt.Println(e.Name(), e.IsDir())
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"io/fs"
+	"path"
+	"testing/fstest"
+)
+
+func main() {
+	fsys := fstest.MapFS{
+		"readme.txt":     {Data: []byte("привіт")},
+		"docs/a.md":      {Data: []byte("# A")},
+		"docs/b.md":      {Data: []byte("# B")},
+		"docs/img/x.png": {Data: []byte{1}},
+		"skip/c.md":      {Data: []byte("# C")},
+	}
+
+	fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() && d.Name() == "skip" {
+			return fs.SkipDir
+		}
+		if !d.IsDir() {
+			fmt.Println(p, path.Ext(p))
+		}
+		return nil
+	})
+
+	md, _ := fs.Glob(fsys, "docs/*.md")
+	fmt.Println(md)
+	deep, _ := fs.Glob(fsys, "*/*/*.png")
+	fmt.Println(deep)
+	none, _ := fs.Glob(fsys, "*.go")
+	fmt.Println(len(none))
+
+	count := 0
+	fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if !d.IsDir() {
+			count++
+		}
+		if count == 2 {
+			return fs.SkipAll
+		}
+		return nil
+	})
+	fmt.Println("зупинились на", count)
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"io/fs"
+	"strings"
+	"testing/fstest"
+)
+
+func countLines(fsys fs.FS, name string) (int, error) {
+	data, err := fs.ReadFile(fsys, name)
+	if err != nil {
+		return 0, err
+	}
+	return len(strings.Split(strings.TrimRight(string(data), "\n"), "\n")), nil
+}
+
+func totalSize(fsys fs.FS) (int64, error) {
+	var sum int64
+	err := fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		sum += info.Size()
+		return nil
+	})
+	return sum, err
+}
+
+func main() {
+	fsys := fstest.MapFS{
+		"docs/a.md": {Data: []byte("один\nдва\nтри\n")},
+		"docs/b.md": {Data: []byte("x")},
+		"top.txt":   {Data: []byte("abc")},
+	}
+	fmt.Println(countLines(fsys, "docs/a.md"))
+	fmt.Println(countLines(fsys, "docs/zzz.md"))
+	fmt.Println(totalSize(fsys))
+
+	sub, err := fs.Sub(fsys, "docs")
+	fmt.Println(err)
+	fmt.Println(countLines(sub, "a.md"))
+	names, _ := fs.Glob(sub, "*")
+	fmt.Println(names)
+	_, err = fs.ReadFile(sub, "top.txt")
+	fmt.Println(err != nil)
+
+	fmt.Println(fstest.TestFS(fsys, "docs/a.md", "top.txt"))
+}
+`,
+      String.raw`import (
+	"embed"
+	"fmt"
+	"io/fs"
+	"os"
+)
+
+//go:embed templates/*.html
+var templates embed.FS
+
+//go:embed version.txt
+var version string
+
+func main() {
+	page, _ := templates.ReadFile("templates/index.html")
+	fmt.Println(len(page), version)
+
+	names, _ := fs.Glob(templates, "templates/*.html")
+	fmt.Println(names)
+
+	disk := os.DirFS("config")
+	cfg, _ := fs.ReadFile(disk, "app.json")
+	fmt.Println(len(cfg))
+}
+`,
+    ],
+    note: "fs.FS лише читає, шляхи в ньому через / без початкового слеша і без .., корінь це \".\". Функції приймають fs.FS, а не шлях: тоді працюють з os.DirFS, embed.FS і fstest.MapFS у тестах. Помилки перевіряйте через errors.Is(err, fs.ErrNotExist). У WalkDir повертайте fs.SkipDir, щоб не заходити в теку.",
+    work: "Тести коду, що читає файли, без запису на диск (MapFS), вбудовані шаблони, SQL-міграції та статика сайту в одному бінарнику (embed), утиліти, що обходять проєкт (пошук файлів за шаблоном, підрахунок розмірів, пропуск vendor і node_modules), перемикання між диском і вбудованими ресурсами залежно від режиму запуску.",
+    tasks: [
+      "Чому функції краще приймати fs.FS, а не рядок із шляхом до теки, і чим шляхи в fs.FS відрізняються від шляхів в os?",
+      "Як за допомогою fstest.MapFS і fs.WalkDir перевірити обхід дерева без створення файлів і як із WalkDir пропустити цілу теку?",
+    ],
+  },
+  {
+    t: "unicode і unicode/utf8",
+    ch: "Стандартна бібліотека",
+    easy: "Кожна літера світу має в Unicode свій номер (кодову точку), а UTF-8 — це спосіб записати цей номер у байтах: латинська літера займає один байт, кирилична два, ієрогліф три. Пакети unicode й utf8 — словник і лінійка: перший відповідає на питання «що це за символ?», другий «скільки він займає й де кордони?».",
+    p: [
+      "Рядок у Go це байти, а не літери. Для англійського тексту різниці не видно, але досить додати кирилицю, і <code>len(\"Привіт\")</code> дає 12, а не 6. Далі <code>s[0]</code> повертає лише один байт (половину літери), <code>s[:3]</code> може розрізати символ навпіл. Якщо ви на цьому будуєте перевірки, обрізання чи розворот рядка, програма працюватиме з латинкою й ламатиметься на українських іменах. Урок про рядки, байти й руни вже вводив <code>rune</code> (це псевдонім <code>int32</code>, одна кодова точка); тут ми беремо інструменти стандартної бібліотеки для правильної роботи з ними.",
+      "Пакет <code>unicode</code> класифікує одну руну. Предикати: <code>IsLetter</code>, <code>IsDigit</code> (десяткові цифри різних писем), <code>IsNumber</code> (ширше: «½», «Ⅷ» теж), <code>IsSpace</code>, <code>IsUpper</code>, <code>IsLower</code>, <code>IsPunct</code>, <code>IsControl</code>, <code>IsPrint</code>. Перетворення: <code>unicode.ToUpper(r)</code>, <code>ToLower</code>, <code>ToTitle</code>; вони працюють з кирилицею, греко й латиною: <code>ToUpper('ї')</code> дає <code>'Ї'</code>. Належність до писемності: <code>unicode.Is(unicode.Cyrillic, r)</code> чи <code>unicode.In(r, unicode.Latin, unicode.Cyrillic)</code>; категорії <code>unicode.Letter</code>, <code>unicode.Mn</code> (комбіновані знаки) і так далі. Пам'ятайте відмінність від регулярних виразів: <code>unicode.IsLetter('б')</code> істинне, а <code>\\w</code> у <code>regexp</code> лише латиниця.",
+      "Пакет <code>unicode/utf8</code> працює з кодуванням. <code>utf8.RuneCountInString(s)</code> рахує руни (<code>len([]rune(s))</code> те саме, але виділяє пам'ять на копію, тому для підрахунку ліпший перший спосіб). <code>utf8.DecodeRuneInString(s)</code> повертає першу руну та її розмір у байтах, <code>DecodeLastRuneInString</code> останню. <code>utf8.RuneLen(r)</code> каже, скільки байтів займе руна, <code>utf8.ValidString(s)</code> перевіряє, що весь рядок коректний UTF-8, <code>EncodeRune</code> і <code>AppendRune</code> записують руну в байти. Для некоректних байтів декодування повертає спеціальну руну <code>utf8.RuneError</code> (U+FFFD, «�») із розміром 1, а <code>strings.ToValidUTF8(s, \"?\")</code> замінює такі місця.",
+      "Звичайний цикл <code>for i, r := range s</code> уже декодує UTF-8: <code>r</code> це руна, а <code>i</code> індекс <b>початкового байта</b>, тому індекси йдуть із пропусками (0, 2, 4 для кириличних літер). Це найпростіший і найшвидший спосіб пройти по літерах. Якщо потрібен прямий доступ за номером літери, перетворіть у <code>[]rune</code>, але платіть за копію. Типові задачі: <b>перша літера велика</b> (взяти першу руну через <code>DecodeRuneInString</code>, зробити <code>ToUpper</code>, додати решту рядка <code>s[size:]</code>; не <code>strings.ToUpper(s[:1])</code>, бо це різання посеред літери); <b>розворот</b> (через <code>[]rune</code>); <b>обрізання до n символів</b> (перетворити в руни або знайти байтовий зріз у циклі); <b>відфільтрувати символи</b> (<code>strings.Map</code> з функцією <code>func(rune) rune</code>, яка повертає від'ємне число, щоб видалити руну).",
+      "Регістр і порівняння. <code>strings.ToUpper</code>, <code>ToLower</code> і <code>EqualFold</code> уже розуміють Unicode, тож <code>strings.EqualFold(\"Привіт\", \"ПРИВІТ\")</code> істинне. Але повного універсального перетворення регістру вони не дають: деякі мови мають особливі правила (турецька «İ/ı», німецьке «ß»), а <code>unicode.ToUpper</code> перетворює руну один-до-одного. Для правильного заголовкового регістру й порівняння з урахуванням мови існує пакет <code>golang.org/x/text/cases</code> та <code>language</code>. Він розроблений командою Go, але лежить поза стандартною бібліотекою (потрібен <code>go get</code>), тому в Playground його немає.",
+      "Нормалізація: той самий видимий символ може мати кілька кодувань. Літера «й» це або одна руна U+0439, або «и» (U+0438) плюс комбінівний знак бреве (U+0306); «é» це U+00E9 або «e» плюс U+0301. На екрані однаково, а <code>==</code> каже «різні», <code>len</code> і <code>RuneCountInString</code> дають різні числа. Це складає проблему під час порівняння введеного імені з базою, пошуку й генерації слагів. Розв'язує її нормалізація: перетворення обох рядків до однієї форми (NFC для складених, NFD для розкладених), а робить це <code>golang.org/x/text/unicode/norm</code> (<code>norm.NFC.String(s)</code>). У стандартній бібліотеці нормалізації немає, але виявити комбінівні знаки можна через <code>unicode.Is(unicode.Mn, r)</code>, що ми й зробимо в четвертому прикладі. Окрема тема: те, що користувач бачить як «один символ» (графемний кластер, наприклад емодзі-сім'я), може складатись із багатьох рун, і підрахунок рун не дорівнює підрахунку видимих символів.",
+      "Ідіоми. Працюйте з рядком як з байтами, поки ви не торкаєтеся літер: порівняння, склеювання, пошук підрядка, <code>strings.Contains</code> спокійно проходять через UTF-8. Переходьте до рун (<code>range</code>, <code>utf8</code>, <code>unicode</code>), коли важить саме «символ»: довжина для користувача, обрізання, велика літера, класифікація. Валідуйте зовнішній ввід через <code>utf8.ValidString</code> до того, як класти його в базу чи JSON. Цим уроком закінчується глава про стандартну бібліотеку; далі тестування й якість коду.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"unicode"
+)
+
+func main() {
+	for _, r := range "Aб1 ,Ї_½٣" {
+		fmt.Printf("%c letter=%v digit=%v number=%v space=%v upper=%v punct=%v\n",
+			r, unicode.IsLetter(r), unicode.IsDigit(r), unicode.IsNumber(r),
+			unicode.IsSpace(r), unicode.IsUpper(r), unicode.IsPunct(r))
+	}
+
+	fmt.Println(string(unicode.ToUpper('ї')), string(unicode.ToLower('Є')), string(unicode.ToUpper('g')))
+	fmt.Println(unicode.Is(unicode.Cyrillic, 'ж'), unicode.Is(unicode.Cyrillic, 'j'))
+	fmt.Println(unicode.In('x', unicode.Latin, unicode.Cyrillic), unicode.In('世', unicode.Latin, unicode.Cyrillic))
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"strings"
+	"unicode/utf8"
+)
+
+func main() {
+	s := "Привіт, Go!"
+	fmt.Println(len(s), utf8.RuneCountInString(s), len([]rune(s)))
+
+	r, size := utf8.DecodeRuneInString(s)
+	fmt.Println(string(r), size)
+	r, size = utf8.DecodeLastRuneInString(s)
+	fmt.Println(string(r), size)
+	fmt.Println(utf8.RuneLen('П'), utf8.RuneLen('G'), utf8.RuneLen('世'))
+
+	for i, r := range "Дніпро" {
+		fmt.Print(i, ":", string(r), " ")
+	}
+	fmt.Println()
+
+	cut := s[:1]
+	fmt.Println(utf8.ValidString(s), utf8.ValidString(cut), len(cut))
+
+	bad := "a\xffb"
+	r, size = utf8.DecodeRuneInString(bad[1:])
+	fmt.Println(r == utf8.RuneError, size, utf8.RuneCountInString(bad))
+	fmt.Println(strings.ToValidUTF8(bad, "?"))
+
+	buf := make([]byte, 4)
+	n := utf8.EncodeRune(buf, 'ї')
+	fmt.Println(buf[:n], string(utf8.AppendRune(nil, 'Ж')))
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"strings"
+	"unicode"
+	"unicode/utf8"
+)
+
+func capitalize(s string) string {
+	r, size := utf8.DecodeRuneInString(s)
+	if r == utf8.RuneError {
+		return s
+	}
+	return string(unicode.ToUpper(r)) + s[size:]
+}
+
+func reverse(s string) string {
+	runes := []rune(s)
+	for i, j := 0, len(runes)-1; i < j; i, j = i+1, j-1 {
+		runes[i], runes[j] = runes[j], runes[i]
+	}
+	return string(runes)
+}
+
+func truncate(s string, n int) string {
+	if utf8.RuneCountInString(s) <= n {
+		return s
+	}
+	i := 0
+	for pos := range s {
+		if i == n {
+			return s[:pos]
+		}
+		i++
+	}
+	return s
+}
+
+func onlyLetters(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) {
+			return r
+		}
+		return -1
+	}, s)
+}
+
+func main() {
+	fmt.Println(capitalize("їжак"), capitalize("go"), capitalize("") == "")
+	fmt.Println(reverse("Привіт"))
+	fmt.Println(truncate("Дніпро — місто", 6), truncate("ab", 5))
+	fmt.Println(onlyLetters("Go 1.24: привіт!"))
+	fmt.Println(strings.EqualFold("Привіт", "ПРИВІТ"), strings.ToUpper("ґанок"))
+	fmt.Println(strings.ToUpper("привіт")[:1] == "П")
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"unicode"
+	"unicode/utf8"
+)
+
+func visible(s string) int {
+	n := 0
+	for _, r := range s {
+		if !unicode.Is(unicode.Mn, r) {
+			n++
+		}
+	}
+	return n
+}
+
+func main() {
+	composed := "\u00e9"
+	decomposed := "e\u0301"
+	fmt.Println(composed, decomposed)
+	fmt.Println(composed == decomposed, len(composed), len(decomposed))
+	fmt.Println(utf8.RuneCountInString(composed), utf8.RuneCountInString(decomposed))
+	fmt.Println(visible(composed), visible(decomposed))
+
+	y1 := "\u0439"
+	y2 := "\u0438\u0306"
+	fmt.Println(y1 == y2, visible(y1) == visible(y2))
+
+	for _, r := range decomposed {
+		fmt.Printf("U+%04X mark=%v\n", r, unicode.Is(unicode.Mn, r))
+	}
+}
+`,
+    ],
+    note: "len рахує байти, не літери: для символів беріть range, utf8.RuneCountInString чи []rune. Не різайте рядок через s[:n] посеред кирилиці. Велика перша літера: DecodeRuneInString + unicode.ToUpper + s[size:]. Один видимий символ може мати кілька кодувань; нормалізує їх golang.org/x/text/unicode/norm, якого немає в стандартній бібліотеці.",
+    work: "Валідація імен і заголовків, підрахунок довжини для користувача й обрізання прев'ю з багатобайтовим текстом, чистка введення (strings.Map), перевірка, що рядок із запиту є коректним UTF-8, генерація слагів із кирилиці, пошук, що не залежить від способу кодування літери.",
+    tasks: [
+      "Чому len(\"Привіт\") дорівнює 12 і чому s[:1] для такого рядка небезпечне? Яким способом коректно взяти першу літеру?",
+      "Чому однаково виглядають «й» (U+0439) і «и» з U+0306 та як з цим справляється нормалізація? Який пакет її виконує?",
+    ],
+  },
 ];
