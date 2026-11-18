@@ -55,7 +55,7 @@ export function lesson(k: string, n: number, data: LessonPayload): string {
   store.set("ic-last", { k, n });
   const crumbs = `<nav class="crumbs" aria-label="Де ви"><a href="/">Головна</a> / <a href="/courses">Курси</a> / <a href="/${c.cat}">${CATS[c.cat].title}</a> / <a href="/course/${k}">${c.name}</a> / Урок ${n}</nav>`;
   const meta = `<div class="meta"><span class="tag" style="background:${c.color};${darkText(k)}">${c.name}</span><span>Урок ${n} з ${c.L.length}</span><span>Глава: ${l.ch}</span></div>`;
-  const actions = `<div class="lesson-actions"><button class="btn small" data-toggle="${k}:${n}" aria-pressed="${d}">${d ? "Пройдено" : "Позначити пройденим"}</button></div>`;
+  const actions = `<div class="lesson-actions"><button class="btn small" data-toggle="${k}:${n}" aria-pressed="${d}">${d ? "Пройдено" : "Позначити пройденим"}</button><a class="btn small" href="/contact?topic=bug&amp;from=${encodeURIComponent(`/lesson/${k}/${n}`)}">Повідомити про помилку</a></div>`;
   const prose = `${l.easy ? `<div class="callout"><b>Простими словами.</b> ${l.easy}</div>` : ""}
         ${l.p.map((x) => `<p>${x}</p>`).join("")}
         <h2>Приклад коду</h2>

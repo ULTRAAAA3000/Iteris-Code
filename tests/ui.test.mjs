@@ -107,12 +107,14 @@ t("гість: список уроків курсу закритий", gateCours
 const plain = await page({ me: user, dash, hash: "#/lesson/php/8" });
 t("урок без завдання (після входу): старий макет із боковим меню", plain.html().includes("lesson-layout") && !plain.html().includes('class="ws"') && plain.calls.some((c) => c.url === "/api/lesson?k=php&n=8"));
 const logged = await page({ me: user, dash, hash: "#/lesson/php/8" });
+t("урок: є кнопка «Повідомити про помилку»", logged.html().includes("/contact?topic=bug&amp;from=%2Flesson%2Fphp%2F8"));
 logged.$("[data-toggle]").click();
 await sleep(30);
 t("урок: для користувача позначка синхронізується із сервером", logged.calls.some((c) => c.method === "POST" && c.url === "/api/progress" && c.body.lessonIds[0] === "php/8"));
 
 /* ---- екран із завданням ---- */
 let ws = await page({ me: user, dash, hash: "#/lesson/js/3" });
+t("урок із завданням: є кнопка «Повідомити про помилку» з темою і сторінкою", ws.html().includes("/contact?topic=bug&amp;from=%2Flesson%2Fjs%2F3"));
 t("завдання: одна колонка, спершу теорія, нижче постановка і редактор із заготовкою", ws.html().includes('class="ws"') && ws.html().includes("Навіщо це в роботі") && ws.$(".ws-left").compareDocumentPosition(ws.$("#task")) & 4 && !ws.$(".ws-left").contains(ws.$("#task")) && ws.$("#task").contains(ws.$("#editor")) && ws.$(".ws-plain").value.includes("user.address.city"));
 t("безкоштовне завдання: без пейволу, кнопка запуску активна", !ws.$(".paywall") && ws.$("#ws-run").disabled === false);
 await ws.run();
