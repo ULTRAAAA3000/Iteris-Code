@@ -1,0 +1,152 @@
+/* Курс Java: глави й уроки в порядку проходження. adv: true — урок лише для просунутого рівня, без нього базовий рівень лишається цілісним.
+   keep — id завдання зі старої версії курсу (11 уроків), яке переходить до цього уроку. Шаблон і слоти: Documentation/course-template.md.
+   Версія мови: Java 21 (LTS) і новіші; усі приклади компілюються з --release 21. Зі свіжіших версій згадуємо лише остаточні можливості:
+   var (10), текстові блоки (15), record (16), sealed (17), switch з образцами й віртуальні потоки (21), безіменні змінні _ (22),
+   спрощений запуск програми без класу (25). Прапор --enable-preview у запуску немає, тож preview-можливості в прикладах не вживаємо. */
+const ch = (id, name, lessons) => ({ id, name, lessons });
+const L = (t, adv = false, keep) => ({ t, adv, ...(keep ? { keep } : {}) });
+
+const CHAPTERS = [
+  ch("01", "Початок", [
+    L("Встановлення JDK і перший запуск", false, "java-hello-jdk"),
+    L("Перша програма: клас Main і System.out"),
+    L("Пакети, імпорти й організація файлів"),
+    L("Інструменти: javac, java і помилки компіляції"),
+  ]),
+  ch("02", "Основи мови", [
+    L("Змінні й примітивні типи"),
+    L("Числа: переповнення, ділення й точність"),
+    L("Константи: final і літерали"),
+    L("Рядки: String, методи й незмінність", false, "java-strings-slug"),
+    L("Перетворення типів: приведення й розбір рядків", false, "java-types-average"),
+    L("Форматований вивід: printf і String.format", false, "java-printf-total"),
+    L("Умови: if, else і тернарний оператор"),
+    L("Оператор switch: старий і сучасний", false, "java-fizzbuzz-switch"),
+    L("Цикли: for, while і do-while"),
+    L("break, continue і мітки", true),
+    L("Методи: параметри й результати"),
+    L("Перевантаження методів і varargs", false, "java-methods-overload"),
+    L("Рекурсія і стек викликів"),
+    L("Побітові оператори й системи числення", true),
+  ]),
+  ch("03", "Колекції", [
+    L("Масиви"),
+    L("Утиліти Arrays: sort, fill, copyOf, equals"),
+    L("ArrayList: основи й узагальнений синтаксис", false, "java-arrays-list"),
+    L("ArrayList: вставка, видалення й вартість операцій"),
+    L("LinkedList, ArrayDeque і черги", true),
+    L("Двовимірні масиви", true),
+    L("HashMap"),
+    L("HashMap: getOrDefault, merge і вкладені мапи"),
+    L("Множини: HashSet, LinkedHashSet і TreeSet"),
+    L("Сортування: Collections.sort і порядок елементів"),
+    L("Iterator і ConcurrentModificationException", true),
+    L("Практика: частотний словник", false, "java-wordcount-map"),
+  ]),
+  ch("04", "Типи користувача", [
+    L("Класи: поля, конструктори й методи", false, "java-product-class"),
+    L("Посилання, null і передача параметрів"),
+    L("Інкапсуляція: private, static і final-поля"),
+    L("Наслідування, абстрактні класи й поліморфізм"),
+    L("enum: перелічення з полями й методами"),
+    L("equals, hashCode і toString"),
+    L("record: прості незмінні типи"),
+    L("Незмінні об'єкти і шаблон Builder", true),
+    L("Пам'ять Java: стек, купа і збирач сміття", true),
+  ]),
+  ch("05", "Інтерфейси та generics", [
+    L("Інтерфейси", false, "java-shapes-interface"),
+    L("default- і static-методи інтерфейсів"),
+    L("Стандартні інтерфейси: Iterable і AutoCloseable"),
+    L("sealed-типи й switch з образцами"),
+    L("Comparable і Comparator"),
+    L("Функціональні інтерфейси й лямбди"),
+    L("Посилання на методи і композиція функцій", true),
+    L("Generics: класи й методи"),
+    L("Generics: обмеження extends і wildcards"),
+    L("Generics на практиці: Pair, Result і кеш", true),
+    L("Проєктування інтерфейсів і стирання типів", true),
+    L("Рефлексія: основи", true),
+  ]),
+  ch("06", "Помилки", [
+    L("Виняток як подія: try, catch і stack trace"),
+    L("Перевірювані й неперевірювані винятки: throws"),
+    L("Власні винятки", false, "java-exceptions-custom"),
+    L("Ланцюги причин: cause і suppressed", true),
+    L("try-with-resources і finally"),
+    L("Помилки програмування: NPE, assert і неперехоплені винятки"),
+    L("Стратегії обробки помилок: Optional і результат", true),
+  ]),
+  ch("07", "Паралелізм", [
+    L("Thread: створення, запуск і join"),
+    L("Спільний стан і data race"),
+    L("synchronized і volatile"),
+    L("ExecutorService і пул потоків"),
+    L("Callable і Future"),
+    L("CompletableFuture"),
+    L("Lock і ReentrantLock"),
+    L("Atomic-класи і CAS", true),
+    L("Конкурентні колекції"),
+    L("CountDownLatch, Semaphore і CyclicBarrier"),
+    L("BlockingQueue: виробник і споживач", true),
+    L("Deadlock, голодування і діагностика"),
+    L("Віртуальні потоки", true),
+    L("ScheduledExecutorService: відкладені й періодичні задачі"),
+    L("Модель пам'яті Java: happens-before", true),
+  ]),
+  ch("08", "Стандартна бібліотека", [
+    L("String, StringBuilder і текстові блоки"),
+    L("Scanner і читання тексту"),
+    L("java.time: дати й тривалості"),
+    L("Math, Random із seed і BigDecimal"),
+    L("Optional"),
+    L("Stream API: основи"),
+    L("Stream API: collect, groupingBy і flatMap"),
+    L("Регулярні вирази", true),
+    L("JSON вручну: побудова й екранування"),
+    L("JSON вручну: розбір рекурсивним спуском", true),
+    L("Файли: Path і Files", true),
+    L("Unicode, кодування і Locale", true),
+  ]),
+  ch("09", "Тестування й якість", [
+    L("Структура проєкту: пакети, Maven і Gradle"),
+    L("assert і власний мінімальний тестовий стенд"),
+    L("JUnit 5, заглушки й підміна залежностей"),
+    L("Бенчмарки: чому наївний замір бреше", true),
+    L("Випадкові тести з фіксованим seed", true),
+    L("Ідіоми Java і типові помилки"),
+  ]),
+  ch("10", "Мережа й сервіси", [
+    L("HTTP: запит, відповідь і статус-коди"),
+    L("Обробник запиту без сокетів"),
+    L("Маршрутизація: шлях, метод і параметри"),
+    L("JSON API: CRUD у пам'яті"),
+    L("Middleware: ланцюг обробників"),
+    L("HttpClient і тайм-аути"),
+    L("HttpServer із JDK", true),
+    L("Коректне завершення сервера", true),
+  ]),
+  ch("11", "Архітектура", [
+    L("Шари: controller, service, repository"),
+    L("Залежності через конструктор"),
+    L("Репозиторій у пам'яті з ConcurrentHashMap"),
+    L("Конфігурація: Properties і змінні середовища", true),
+    L("JDBC: як це працює", true),
+    L("Логування і спостережуваність", true),
+  ]),
+  ch("12", "Проєкти", [
+    L("Проєкт: аналіз тексту"),
+    L("Проєкт: REST API нотаток"),
+    L("Проєкт: конкурентний обробник"),
+    L("Проєкт: кеш із TTL і generics", true),
+    L("Проєкт: rate limiter і підсумок курсу", true),
+  ]),
+];
+
+let n = 0;
+export const JAVA_CHAPTERS = CHAPTERS.map((c) => {
+  const from = n + 1;
+  n += c.lessons.length;
+  return { id: c.id, name: c.name, from, to: n, lessons: c.lessons.map((l, i) => ({ n: from + i, ...l })) };
+});
+export const JAVA_OUTLINE = JAVA_CHAPTERS.flatMap((c) => c.lessons.map((l) => ({ ...l, ch: c.name })));
