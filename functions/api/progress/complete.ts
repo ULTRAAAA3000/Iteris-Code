@@ -5,7 +5,7 @@ import { verifyProof } from "../../../lib/proof.ts";
 import { bumpStreak, currentUser, effectiveStreak, isProActive, json, sameOrigin } from "../../../lib/session.ts";
 import { taskById } from "../../../content/tasks/index.ts";
 import { practiceById } from "../../../lib/practice.ts";
-import { projectById } from "../../../content/projects/index.ts";
+import { programProjectById, projectById } from "../../../content/projects/index.ts";
 import { isRemote } from "../../../src/tasks/types.ts";
 
 const MAX_CODE = 20000;
@@ -35,7 +35,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   // Віддалені завдання (Go тощо) запускає сам сервер: «пройдено» приймається лише з його підписом, прапорцю від браузера не вірити
   let passed = body.passed;
   const full = taskById(task.id);
-  if (full && isRemote(full)) passed = await verifyProof(env, body.proof, u.id, task.id, body.code);
+  if ((full && isRemote(full)) || programProjectById(task.id)) passed = await verifyProof(env, body.proof, u.id, task.id, body.code);
 
   const recent = await env.DB.prepare(
     "SELECT COUNT(*) AS c FROM task_submissions WHERE user_id = ?1 AND created_at > datetime('now', '-1 minute')"
