@@ -246,4 +246,265 @@ func main() {
       { on: "source", name: "Тіло читається декодером", has: "json.NewDecoder(r.Body)", hint: "json.NewDecoder(r.Body).Decode(&t)" },
     ],
   },
+  {
+    ...base, id: "go-middleware-chain", lesson: "go/96", xp: 35,
+    title: "Middleware: логування і ключ доступу",
+    context: "Логування й перевірка ключа живуть у middleware, щоб кожен обробник не повторював їх. Тут ви напишете два шари й побачите, як порядок ланцюжка впливає на лог.",
+    brief: [
+      "Допишіть <code>auth</code>: якщо заголовок <code>X-API-Key</code> не дорівнює <code>secret</code>, відповідайте <code>http.Error(w, \"потрібен ключ\", http.StatusUnauthorized)</code> і не викликайте <code>next</code>.",
+      "Допишіть <code>logging</code>: підставте обгортку <code>statusWriter</code> (вона запам'ятовує статус у <code>WriteHeader</code>, початково 200), викличте <code>next</code> і виведіть <code>METHOD path -> статус</code>. Ланцюжок у <code>main</code> уже складено: <code>logging</code> зовнішній, щоб бачити й 401.",
+    ],
+    starter: raw`package main
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+)
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func logging(next http.Handler) http.Handler {
+	return next
+}
+
+func auth(next http.Handler) http.Handler {
+	return next
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ok", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "ok")
+	})
+	h := logging(auth(mux))
+
+	for _, q := range []struct{ path, key string }{{"/ok", "secret"}, {"/missing", "secret"}, {"/ok", ""}} {
+		req := httptest.NewRequest("GET", q.path, nil)
+		if q.key != "" {
+			req.Header.Set("X-API-Key", q.key)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		fmt.Println("тіло:", strings.TrimSpace(rec.Body.String()))
+	}
+}
+`,
+    checks: [
+      { on: "stdout", name: "Успішний запит залогований зі статусом 200", has: "GET /ok -> 200\nтіло: ok", hint: "Лог друкується після next.ServeHTTP, коли статус уже відомий" },
+      { on: "stdout", name: "Статус 404 від мультиплексора теж видно", has: "GET /missing -> 404", hint: "Передайте в next обгортку sw, а не оригінальний w" },
+      { on: "stdout", name: "Без ключа 401 і в логу, і в тілі", has: "GET /ok -> 401\nтіло: потрібен ключ", hint: "У auth після http.Error обов'язково return" },
+      { on: "source", name: "Статус перехоплюється у WriteHeader", has: "WriteHeader(", hint: "func (s *statusWriter) WriteHeader(code int) { s.status = code; ... }" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "GET /ok -> 200\nтіло: ok\nGET /missing -> 404\nтіло: 404 page not found\nGET /ok -> 401\nтіло: потрібен ключ" },
+    ],
+  },
+  {
+    ...base, id: "go-http-client-fake", lesson: "go/97", xp: 35,
+    title: "Клієнт: статус, Body і контекст",
+    context: "Клієнтський код має перевіряти статус і закривати тіло. Мережі в пісочниці немає, тому сервер підмінено фейковим RoundTripper: так тестують клієнтів і у справжніх проєктах.",
+    brief: [
+      "Допишіть <code>fetch(ctx, c, url)</code>: створіть запит через <code>http.NewRequestWithContext</code>, виконайте <code>c.Do</code>, закрийте тіло через <code>defer resp.Body.Close()</code>.",
+      "Якщо статус не <code>200</code>, поверніть помилку <code>fmt.Errorf(\"статус %d\", resp.StatusCode)</code>. Інакше прочитайте тіло через <code>io.ReadAll</code> і поверніть його рядком.",
+    ],
+    starter: raw`package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+)
+
+type fakeTransport struct{}
+
+func (fakeTransport) RoundTrip(r *http.Request) (*http.Response, error) {
+	code, body := 200, "Hello"
+	switch r.URL.Path {
+	case "/missing":
+		code, body = 404, "немає"
+	case "/boom":
+		code, body = 500, "збій"
+	}
+	return &http.Response{StatusCode: code, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header), Request: r}, nil
+}
+
+func fetch(ctx context.Context, c *http.Client, url string) (string, error) {
+	return "", nil
+}
+
+func main() {
+	client := &http.Client{Transport: fakeTransport{}, Timeout: 2 * time.Second}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+
+	for _, path := range []string{"/ok", "/missing", "/boom"} {
+		body, err := fetch(ctx, client, "http://api.test"+path)
+		if err != nil {
+			fmt.Println("помилка:", err)
+			continue
+		}
+		fmt.Println("ok:", body)
+	}
+}
+`,
+    checks: [
+      { on: "stdout", name: "Успішна відповідь повертає тіло", has: "ok: Hello", hint: "Після перевірки статусу прочитайте resp.Body через io.ReadAll" },
+      { on: "stdout", name: "404 перетворено на помилку", has: "помилка: статус 404", hint: "Для Go 404 не помилка транспорту: перевірте resp.StatusCode самі" },
+      { on: "stdout", name: "500 перетворено на помилку", has: "помилка: статус 500", hint: "fmt.Errorf(\"статус %d\", resp.StatusCode)" },
+      { on: "source", name: "Тіло закривається", has: "Body.Close()", hint: "defer resp.Body.Close() одразу після перевірки err" },
+      { on: "source", name: "Запит створено з контекстом", has: "NewRequestWithContext(", hint: "http.NewRequestWithContext(ctx, http.MethodGet, url, nil)" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "ok: Hello\nпомилка: статус 404\nпомилка: статус 500" },
+    ],
+  },
+  {
+    ...base, id: "go-context-timeout", lesson: "go/98", xp: 40,
+    title: "Контекст запиту: id і тайм-аут",
+    context: "Обробник має обмежувати свій час і знати id запиту, що прийшов через middleware. Усе це несе контекст: значення з типізованим ключем і скасування за строком.",
+    brief: [
+      "Допишіть <code>requestID(ctx)</code>: дістаньте значення за ключем <code>idKey</code> через <code>ctx.Value</code> і приведіть до <code>string</code> (з <code>, _</code>). Допишіть <code>slowQuery(ctx, d)</code>: <code>select</code> на <code>time.After(d)</code> (повернути <code>nil</code>) і <code>ctx.Done()</code> (повернути <code>ctx.Err()</code>).",
+      "У <code>search</code> створіть <code>context.WithTimeout(r.Context(), 30*time.Millisecond)</code> із <code>defer cancel()</code>. Якщо <code>slowQuery</code> повернув помилку, відповідайте <code>http.Error(w, id+\" час вичерпано\", http.StatusGatewayTimeout)</code>, інакше напишіть <code>&lt;id&gt; готово</code>.",
+    ],
+    starter: raw`package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"sync/atomic"
+	"time"
+)
+
+type ctxKey int
+
+const idKey ctxKey = 0
+
+func withID(next http.Handler) http.Handler {
+	var n atomic.Int64
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := fmt.Sprintf("req-%d", n.Add(1))
+		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), idKey, id)))
+	})
+}
+
+func requestID(ctx context.Context) string {
+	return ""
+}
+
+func slowQuery(ctx context.Context, d time.Duration) error {
+	return nil
+}
+
+func search(w http.ResponseWriter, r *http.Request) {
+	ms, _ := strconv.Atoi(r.URL.Query().Get("ms"))
+	_ = ms
+	fmt.Fprint(w, "готово")
+}
+
+func main() {
+	h := withID(http.HandlerFunc(search))
+	for _, url := range []string{"/search?ms=5", "/search?ms=500"} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", url, nil))
+		fmt.Println(rec.Code, strings.TrimSpace(rec.Body.String()))
+	}
+}
+`,
+    checks: [
+      { on: "stdout", name: "Швидкий запит успішний, id з контексту", has: "200 req-1 готово", hint: "id дістається через ctx.Value(idKey).(string) і додається у відповідь" },
+      { on: "stdout", name: "Повільний запит дає 504", has: "504 req-2 час вичерпано", hint: "slowQuery має повернути ctx.Err(), коли спрацював таймер контексту" },
+      { on: "source", name: "Ліміт часу через WithTimeout", has: "WithTimeout(", hint: "ctx, cancel := context.WithTimeout(r.Context(), 30*time.Millisecond); defer cancel()" },
+      { on: "source", name: "Очікування скасування через ctx.Done()", has: "ctx.Done()", hint: "select { case <-time.After(d): ... case <-ctx.Done(): ... }" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "200 req-1 готово\n504 req-2 час вичерпано" },
+    ],
+  },
+  {
+    ...base, id: "go-graceful-shutdown", lesson: "go/99", xp: 45,
+    title: "Коректна зупинка сервера",
+    context: "Сервіс має зупинятися по сигналу, дати запитам завершитись і примусово закритися, якщо вони зависли. Логіка винесена в функцію над інтерфейсом, тож її можна перевірити з моком без мережі.",
+    brief: [
+      "Допишіть <code>run(ctx, srv, grace)</code>: запустіть <code>srv.ListenAndServe()</code> у горутині з результатом у буферизований канал. Дочекайтесь <code>ctx.Done()</code> або помилки з каналу, виведіть <code>зупинка</code>.",
+      "Викличте <code>srv.Shutdown</code> із <i>новим</i> контекстом <code>context.WithTimeout(context.Background(), grace)</code>. Якщо він повернув помилку, викличте <code>srv.Close()</code> і поверніть цю помилку. Інакше дочекайтесь результату горутини: <code>http.ErrServerClosed</code> означає успіх (поверніть <code>nil</code>).",
+    ],
+    starter: raw`package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"sync"
+	"time"
+)
+
+type Server interface {
+	ListenAndServe() error
+	Shutdown(ctx context.Context) error
+	Close() error
+}
+
+type fake struct {
+	name string
+	slow bool
+	stop chan struct{}
+	once sync.Once
+}
+
+func newFake(name string, slow bool) *fake {
+	return &fake{name: name, slow: slow, stop: make(chan struct{})}
+}
+
+func (f *fake) ListenAndServe() error {
+	<-f.stop
+	return http.ErrServerClosed
+}
+
+func (f *fake) Shutdown(ctx context.Context) error {
+	if f.slow {
+		<-ctx.Done()
+		return ctx.Err()
+	}
+	f.once.Do(func() { close(f.stop) })
+	return nil
+}
+
+func (f *fake) Close() error {
+	fmt.Println(f.name, "Close")
+	f.once.Do(func() { close(f.stop) })
+	return nil
+}
+
+func run(ctx context.Context, srv Server, grace time.Duration) error {
+	return nil
+}
+
+func main() {
+	signalled, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	for _, srv := range []*fake{newFake("швидкий", false), newFake("завислий", true)} {
+		err := run(signalled, srv, 20*time.Millisecond)
+		if err != nil {
+			fmt.Println(srv.name, "підсумок:", err)
+		} else {
+			fmt.Println(srv.name, "підсумок: ok")
+		}
+	}
+}
+`,
+    checks: [
+      { on: "stdout", name: "Швидкий сервер зупиняється без помилки", has: "зупинка\nшвидкий підсумок: ok", hint: "Після успішного Shutdown дочекайтесь помилки з каналу й порівняйте її з http.ErrServerClosed" },
+      { on: "stdout", name: "Завислий викликає Close і дає тайм-аут", has: "завислий Close\nзавислий підсумок: context deadline exceeded", hint: "Якщо Shutdown повернув помилку, викличте srv.Close() і поверніть її" },
+      { on: "source", name: "Shutdown із тайм-аутом", has: "WithTimeout(", hint: "context.WithTimeout(context.Background(), grace) для Shutdown" },
+      { on: "source", name: "Нормальна зупинка не вважається помилкою", has: "http.ErrServerClosed", hint: "ListenAndServe після Shutdown повертає http.ErrServerClosed" },
+      { on: "stdout", name: "Нічого зайвого у виводі", equals: "зупинка\nшвидкий підсумок: ok\nзупинка\nзавислий Close\nзавислий підсумок: context deadline exceeded" },
+    ],
+  },
 ];

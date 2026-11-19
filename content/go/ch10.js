@@ -611,4 +611,621 @@ func main() {
       "Чому мапу задач у сховищі треба захищати м'ютексом і для чого перед відповіддю сортувати записи списку?",
     ],
   },
+  {
+    t: "Middleware",
+    ch: "Мережа й сервіси",
+    easy: "Middleware — це охоронець і секретар на вході до кабінету: кожен відвідувач спершу проходить повз них (перевірка перепустки, запис у журнал), і лише потім потрапляє до самого обробника. Обробник про це навіть не знає.",
+    p: [
+      "У реальному сервісі майже кожен ендпоінт має потребувати одного й того самого: записати запит у лог, перевірити токен, не впасти від паніки, виміряти час. Якщо копіювати ці кроки в кожен обробник, код розростається, а одна забута перевірка авторизації стає діркою в безпеці. Тому спільну роботу виносять у <b>middleware</b>: функцію, що приймає обробник і повертає новий обробник, який «обгортає» старий. Сигнатура завжди одна: <code>func(next http.Handler) http.Handler</code>.",
+      "Модель у голові: обробник — це цибулина, а middleware — її шари. Запит входить через зовнішній шар, кожен шар може щось зробити <i>до</i> виклику <code>next.ServeHTTP(w, r)</code>, а потім щось <i>після</i> нього, коли відповідь уже сформована. Шар також може не викликати <code>next</code> узагалі, якщо запит треба відхилити (наприклад, повернути 401). Усередині міддлвер зазвичай повертає <code>http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { ... })</code>, замикання якого захоплює <code>next</code>. Це той самий прийом замикань, що ви вже знаєте, застосований до обробників.",
+      "Кілька шарів складають у ланцюжок. Рукописний варіант <code>logging(recovery(auth(mux)))</code> читається зсередини назовні, тому багато хто пише маленьку функцію <code>chain(h, mws...)</code>, яка обходить слайс від кінця до початку, щоб <b>перший у списку став зовнішнім</b>. Порядок суттєвий: логування має стояти зовні, щоб бачити й відмови авторизації; <code>recovery</code> стоїть поруч, щоб ловити паніку всіх внутрішніх шарів; авторизація стоїть перед обробником, щоб чужі запити до нього не доходили. Помилка в порядку (наприклад, <code>recovery</code> всередині <code>auth</code>) означає, що паніка в <code>auth</code> нікому не відома.",
+      "Перші дві стандартні задачі. <b>Recovery</b>: у <code>defer</code> викликаємо <code>recover()</code>, і якщо повернулося не <code>nil</code>, пишемо в лог і відповідаємо 500 через <code>http.Error</code>. Без цього паніка в обробнику не валить усю програму (сервер сам ловить її для кожного з'єднання), але клієнт отримує обірване з'єднання замість чесної відповіді. <b>Авторизація</b>: читаємо <code>r.Header.Get(\"Authorization\")</code>, порівнюємо з очікуваним і при невідповідності відповідаємо 401 та робимо <code>return</code> без виклику <code>next</code>. Забутий <code>return</code> після <code>http.Error</code> призведе до того, що захищений обробник усе одно виконається.",
+      "Складніше з логуванням статусу: <code>ResponseWriter</code> не має методу «який статус ви вже відправили». Тому middleware підставляє власну обгортку: структуру, що <b>вбудовує</b> <code>http.ResponseWriter</code> і перевизначає <code>WriteHeader</code>, щоб запам'ятати код. Початкове значення ставимо 200, бо обробник, який одразу пише тіло, нічого про статус не каже, і сервер відправить 200. Обгортку передаємо далі замість оригінального <code>w</code>. Пастка: вбудовування інтерфейсу ховає додаткові можливості (<code>http.Flusher</code>, <code>http.Hijacker</code>) оригінального писача; для простих API це не страшно, а для потокових відповідей використовують <code>http.NewResponseController(w)</code>, який уміє пробиратися крізь обгортки.",
+      "Ідіоми. Параметризований middleware (наприклад, потрібний ключ) пишуть як функцію, що повертає middleware: <code>func requireKey(key string) func(http.Handler) http.Handler</code>. Тип <code>type Middleware func(http.Handler) http.Handler</code> робить підписи короткими. Тестують middleware так само, як обробники: загортають заглушку й дивляться на результат у <code>httptest.NewRecorder</code>. Нагадаємо: значення, які міддлвер хоче передати вглиб (наприклад, id запиту), кладуть у контекст запиту, про це в уроці про <code>context</code>. Наступна тема: Go як клієнт, тобто HTTP-запити назовні.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+)
+
+func logging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("->", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+		fmt.Println("<-", r.URL.Path)
+	})
+}
+
+func main() {
+	hello := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("обробник")
+		fmt.Fprint(w, "hello")
+	})
+
+	rec := httptest.NewRecorder()
+	logging(hello).ServeHTTP(rec, httptest.NewRequest("GET", "/hello", nil))
+	fmt.Println(rec.Code, rec.Body.String())
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+)
+
+type Middleware func(http.Handler) http.Handler
+
+func tag(name string) Middleware {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			fmt.Println("до", name)
+			next.ServeHTTP(w, r)
+			fmt.Println("після", name)
+		})
+	}
+}
+
+func chain(h http.Handler, mws ...Middleware) http.Handler {
+	for i := len(mws) - 1; i >= 0; i-- {
+		h = mws[i](h)
+	}
+	return h
+}
+
+func main() {
+	final := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		fmt.Println("обробник")
+	})
+	h := chain(final, tag("A"), tag("B"))
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/", nil))
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+)
+
+type statusWriter struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusWriter) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func logging(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sw := &statusWriter{ResponseWriter: w, status: http.StatusOK}
+		next.ServeHTTP(sw, r)
+		fmt.Println(r.Method, r.URL.Path, sw.status)
+	})
+}
+
+func recovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if v := recover(); v != nil {
+				fmt.Println("паніка:", v)
+				http.Error(w, "внутрішня помилка", http.StatusInternalServerError)
+			}
+		}()
+		next.ServeHTTP(w, r)
+	})
+}
+
+func auth(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer secret" {
+			http.Error(w, "потрібна авторизація", http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ok", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, "ok")
+	})
+	mux.HandleFunc("/boom", func(w http.ResponseWriter, r *http.Request) {
+		panic("збій")
+	})
+	h := logging(recovery(auth(mux)))
+
+	for _, path := range []string{"/ok", "/boom"} {
+		req := httptest.NewRequest("GET", path, nil)
+		req.Header.Set("Authorization", "Bearer secret")
+		h.ServeHTTP(httptest.NewRecorder(), req)
+	}
+	h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", "/ok", nil))
+}
+`,
+    ],
+    note: "Middleware це <code>func(http.Handler) http.Handler</code>. Перший у ланцюжку стає зовнішнім, відхилення запиту означає <code>return</code> без <code>next</code>, а статус читають через власну обгортку <code>ResponseWriter</code>.",
+    work: "Логування запитів, метрики, автентифікація, CORS, обмеження частоти, ідентифікатор запиту й відновлення після паніки — усе це middleware. Популярні бібліотеки (chi, gorilla, otelhttp) постачають готові шари тієї самої форми, тож ваші власні вільно змішуються з чужими.",
+    tasks: [
+      "Чому в ланцюжку <code>logging(recovery(auth(mux)))</code> запит із відсутнім токеном усе одно потрапляє в лог зі статусом 401?",
+      "Навіщо обгортці <code>statusWriter</code> початковий статус 200 і що станеться, якщо його не задати?",
+    ],
+  },
+  {
+    t: "HTTP-клієнт і тайм-аути",
+    ch: "Мережа й сервіси",
+    easy: "Коли ваша програма сама дзвонить іншому сервісу, вона — клієнт, і їй потрібні терпіння та правила. Тайм-аут — це «якщо за дві секунди не відповіли, кладу слухавку»; перевірка статусу — це «а чи справді відповіли те, що я просив».",
+    p: [
+      "Сервіси постійно викликають інші сервіси: платіжний шлюз, пошту, сусідній мікросервіс. Для цього в <code>net/http</code> є <code>http.Client</code>. Найпростіше — <code>http.Get(url)</code>, але він користується глобальним <code>http.DefaultClient</code>, у якого <b>тайм-ауту немає взагалі</b>. Якщо віддалений сервер завис, ваша горутина висітиме вічно, і так за кілька хвилин вичерпуються ресурси цілого сервісу. Перше правило: ніколи не працюйте з клієнтом без тайм-ауту. Створіть власний: <code>client := &amp;http.Client{Timeout: 5 * time.Second}</code>. Цей тайм-аут охоплює весь запит від з'єднання до прочитаного тіла.",
+      "Другий спосіб обмежити час (і гнучкіший) — контекст. Запит створюють через <code>http.NewRequestWithContext(ctx, method, url, body)</code> і виконують через <code>client.Do(req)</code>. Коли контекст закінчується (<code>WithTimeout</code> вичерпано або викликано <code>cancel</code>), запит перривається, а <code>Do</code> повертає помилку, яка загортає <code>context.DeadlineExceeded</code> чи <code>context.Canceled</code>; перевіряти її можна через <code>errors.Is</code>. Тайм-аут клієнта й контекст можна поєднувати: спрацює той, що раніше. У серверному коді контекст запиту передають далі, про це в окремому уроці.",
+      "Три обов'язкові звички після <code>Do</code> чи <code>Get</code>. <b>Перша</b>: якщо <code>err != nil</code>, відповіді немає, і <code>resp</code> чіпати не можна. <b>Друга</b>: якщо помилки немає, <code>resp.Body</code> треба <b>закрити</b>: <code>defer resp.Body.Close()</code> одразу після перевірки помилки. Незакрите тіло тримає з'єднання, і пул з'єднань поступово вичерпується. Бажано ще й дочитати тіло до кінця, тоді з'єднання повернеться в пул для повторного використання. <b>Третя</b>: перевіряйте <code>resp.StatusCode</code>. Для Go відповідь 404 чи 500 — <i>не помилка</i>: транспорт спрацював, сервер відповів. Помилку з нього робите ви, наприклад <code>fmt.Errorf(\"статус %d\", resp.StatusCode)</code>.",
+      "За спиною клієнта працює <code>http.Transport</code>: він тримає пул з'єднань, виконує TLS-рукостискання, дотримується налаштувань. Його поля керують дрібнішими тайм-аутами: <code>TLSHandshakeTimeout</code>, <code>ResponseHeaderTimeout</code>, <code>IdleConnTimeout</code>, а також розмірами пулу (<code>MaxIdleConns</code>, <code>MaxIdleConnsPerHost</code>). Практичне правило: створіть <b>один</b> клієнт на програму й використовуйте його скрізь, бо клієнт безпечний для одночасного використання, а пул з'єднань працює, лише якщо ним користуються повторно. Створювати новий клієнт на кожен запит означає втрачати пул і створювати зайве навантаження.",
+      "Як тестувати клієнтський код у середовищі без мережі? Поле <code>Transport</code> має тип інтерфейсу <code>http.RoundTripper</code> з єдиним методом <code>RoundTrip(*http.Request) (*http.Response, error)</code>. Підставивши власну <b>фейкову</b> реалізацію, ви повністю контролюєте відповіді: код, тіло, помилку, затримку. Для цього зручний адаптер у стилі <code>HandlerFunc</code>: <code>type roundTripFunc func(*http.Request) (*http.Response, error)</code> із методом <code>RoundTrip</code>. Альтернатива — <code>httptest.NewServer</code>: справжній локальний сервер, який відповідає на справжні запити. Локально через <code>go run</code> він працює, а в Playground мережа, зокрема й локальна, може бути недоступна, тому в уроках основою беремо фейковий <code>RoundTripper</code>, а справжній запит показуємо лише з маркером «лише компіляція».",
+      "Типові пастки зведені: <code>http.Get</code> без тайм-ауту; забутий <code>Body.Close()</code>; прочитане тіло без перевірки статусу (ви розбираєте сторінку помилки як JSON); повтор запитів на 4xx замість лише на тимчасових збоях (5xx, мережеві помилки) і з паузою між спробами; використання <code>resp</code> при <code>err != nil</code>. Для JSON-відповіді зручно <code>json.NewDecoder(resp.Body).Decode(&amp;v)</code>. Наступний урок про контекст у серверному коді, а потім про коректне завершення сервера. Усе це складається в надійний сервіс, який не залежить від примх сусідів.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+)
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func reply(r *http.Request, code int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: code,
+		Body:       io.NopCloser(strings.NewReader(body)),
+		Header:     make(http.Header),
+		Request:    r,
+	}
+}
+
+func main() {
+	client := &http.Client{
+		Timeout: 2 * time.Second,
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			if r.URL.Path == "/ping" {
+				return reply(r, 200, "pong"), nil
+			}
+			return reply(r, 404, "немає"), nil
+		}),
+	}
+
+	for _, path := range []string{"/ping", "/nope"} {
+		resp, err := client.Get("http://api.test" + path)
+		if err != nil {
+			fmt.Println("помилка:", err)
+			continue
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		fmt.Println(resp.StatusCode, string(body))
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
+	"time"
+)
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func main() {
+	hang := roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		<-r.Context().Done()
+		return nil, r.Context().Err()
+	})
+	client := &http.Client{Transport: hang}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://api.test/slow", nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+
+	_, err = client.Do(req)
+	var ue *url.Error
+	fmt.Println(errors.Is(err, context.DeadlineExceeded))
+	fmt.Println(errors.As(err, &ue), ue.Timeout())
+}
+`,
+      String.raw`package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+)
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func fetch(c *http.Client, url string) (string, error) {
+	resp, err := c.Get(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("статус %d", resp.StatusCode)
+	}
+	b, err := io.ReadAll(resp.Body)
+	return string(b), err
+}
+
+func fetchRetry(c *http.Client, url string, tries int) (string, error) {
+	var err error
+	for i := 1; i <= tries; i++ {
+		var s string
+		if s, err = fetch(c, url); err == nil {
+			return s, nil
+		}
+		fmt.Println("спроба", i, "невдала:", err)
+	}
+	return "", err
+}
+
+func main() {
+	calls := 0
+	c := &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+		calls++
+		code, body := 503, ""
+		if calls == 3 {
+			code, body = 200, "готово"
+		}
+		return &http.Response{StatusCode: code, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header), Request: r}, nil
+	})}
+
+	s, err := fetchRetry(c, "http://api.test/job", 5)
+	fmt.Println(s, err)
+}
+`,
+      String.raw`// лише компіляція: справжній запит у мережу, у Playground її немає
+package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+)
+
+func main() {
+	tr := &http.Transport{
+		MaxIdleConns:          20,
+		MaxIdleConnsPerHost:   4,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ResponseHeaderTimeout: 5 * time.Second,
+	}
+	client := &http.Client{Transport: tr, Timeout: 10 * time.Second}
+
+	resp, err := client.Get("https://example.com")
+	if err != nil {
+		fmt.Println("помилка:", err)
+		return
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	fmt.Println(resp.StatusCode, len(body))
+}
+`,
+    ],
+    note: "Клієнт без тайм-ауту може висіти вічно; після <code>Do</code> закривайте <code>Body</code> і самі перевіряйте <code>StatusCode</code>, бо 404 чи 500 для Go не помилка. Тестуйте клієнт фейковим <code>RoundTripper</code>.",
+    work: "Кожна інтеграція (платежі, пошта, зовнішні API) — це HTTP-клієнт із тайм-аутом, перевіркою статусу й повторами для тимчасових збоїв. Фейковий <code>RoundTripper</code> або <code>httptest.NewServer</code> дозволяє перевірити всі гілки, включно з 500 і зависанням, без жодного реального виклику.",
+    tasks: [
+      "Чому 404 від сервера не потрапляє в <code>err</code> після <code>client.Get</code>, і де тоді її виявляти?",
+      "Що станеться з пулом з'єднань, якщо не викликати <code>resp.Body.Close()</code>, і чому не варто створювати новий <code>http.Client</code> на кожен запит?",
+    ],
+  },
+  {
+    t: "context у запитах",
+    ch: "Мережа й сервіси",
+    adv: true,
+    easy: "Контекст запиту — це ланцюжок «відбою» й «бирок»: якщо клієнт пішов або вичерпався час, сигнал доходить до всіх, хто ще працює на цей запит (база, зовнішній виклик), а ще на ньому можна прикріпити бирку, як-от номер запиту.",
+    p: [
+      "Запит користувача проходить кілька шарів: обробник, сервіс, база даних, виклик іншого API. Якщо клієнт закрив вкладку, а ми продовжуємо виконувати важкий запит до бази, ми марно спалюємо ресурси; якщо ж зовнішній сервіс завис, обробник теж висітиме. Рішення Go: <code>context.Context</code>, що супроводжує запит скрізь, куди він іде. Про сам пакет <code>context</code> ви вже знаєте з глави про конкурентність; тут побачимо, як він живе всередині HTTP-сервера.",
+      "Кожен <code>*http.Request</code> має контекст: <code>r.Context()</code>. Сервер сам його скасовує у трьох випадках: клієнт розірвав з'єднання, запит HTTP/2 скасовано, а також коли <code>ServeHTTP</code> повернувся. Отже, довгий обробник має періодично дивитися на <code>ctx.Done()</code> або передавати <code>ctx</code> у виклики, що це вміють. Правило сигнатур: <code>ctx</code> завжди <b>перший параметр</b> функції, його не зберігають у структурах, а передають по ланцюжку: <code>func (s *Service) Find(ctx context.Context, id int) (Task, error)</code>. Тоді скасування «просочується» крізь усі шари само.",
+      "Свій час на запит обмежують через <code>ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)</code>. Контекст-нащадок скасується або через два секунди, або раніше, якщо скасовано батька (клієнт пішов). Завжди викликайте <code>defer cancel()</code>, інакше таймер і ресурси висітимуть до кінця строку. Передавайте <code>ctx</code> у базу (<code>db.QueryContext(ctx, ...)</code>) і в HTTP-клієнт (<code>http.NewRequestWithContext(ctx, ...)</code>): тоді перерваний запит перериває й нижні виклики. Відповідь на втрату часу зазвичай <b>504 Gateway Timeout</b> (або 503), а на розрив клієнта відповідати нікому, тож просто виходять.",
+      "Як відрізнити причину? <code>ctx.Err()</code> повертає <code>context.Canceled</code> (скасували: клієнт пішов, чи ви викликали <code>cancel</code>) або <code>context.DeadlineExceeded</code> (минув строк). Перевіряйте через <code>errors.Is(err, context.DeadlineExceeded)</code>, бо помилки з нижніх шарів зазвичай загорнуті. Практична схема: слабкий виклик повертає помилку, обробник її мапить: <code>DeadlineExceeded</code> дає 504 із повідомленням, <code>Canceled</code> дає лог без відповіді, решта дає 500. Не робіть довгих <code>time.Sleep</code> у коді, який має зупинятися: замість нього <code>select</code> на <code>time.After(d)</code> і <code>ctx.Done()</code>.",
+      "Контекст ще й носить <b>значення</b>, прив'язані до запиту: ідентифікатор запиту, користувача, дані трасування. <code>context.WithValue(parent, key, val)</code> повертає новий контекст, а <code>ctx.Value(key)</code> дістає значення (як <code>any</code>, тож потрібне перетворення типу з <code>, ok</code>). Ключ <b>ніколи не робіть рядком чи іншим вбудованим типом</b>: різні пакети можуть випадково використати той самий рядок і затерти значення один одного. Створіть власний неекспортований тип <code>type ctxKey int</code> і константу цього типу: ключі різних типів не збігаються, навіть якщо значення однакові. Дістають значення через маленьку функцію-аксесор <code>requestID(ctx)</code>, щоб решта коду не знала про ключ.",
+      "Що класти в контекст, а що ні. У значення йде лише <i>дані рівня запиту</i>, що перетинають API (id запиту, автентифікований користувач, трасування). Не кладіть туди залежності на кшталт бази даних чи логера, необов'язкові параметри функцій і взагалі будь-що, без чого функція не може працювати: такі речі мають бути явними аргументами, інакше код стає непрозорим. Пастки: забутий <code>cancel</code> (витік), використання <code>r.Context()</code> у фоновій горутині, яка має пережити запит (її скасують разом із запитом, тож беріть <code>context.WithoutCancel(r.Context())</code>, Go 1.21), та передавання <code>nil</code> замість контексту (використовуйте <code>context.Background()</code> або <code>context.TODO()</code>). Далі: як коректно зупинити сервер, не обірвавши запитів, що виконуються.",
+    ],
+    code: [
+      String.raw`package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"time"
+)
+
+func slowQuery(ctx context.Context, d time.Duration) error {
+	select {
+	case <-time.After(d):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func handler(w http.ResponseWriter, r *http.Request) {
+	if err := slowQuery(r.Context(), 10*time.Millisecond); err != nil {
+		fmt.Println("перервано:", err)
+		return
+	}
+	fmt.Fprint(w, "готово")
+}
+
+func main() {
+	gone, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	for _, ctx := range []context.Context{context.Background(), gone} {
+		req := httptest.NewRequest("GET", "/", nil).WithContext(ctx)
+		rec := httptest.NewRecorder()
+		handler(rec, req)
+		fmt.Printf("%d %q\n", rec.Code, rec.Body.String())
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
+	"strings"
+	"time"
+)
+
+func slowQuery(ctx context.Context, d time.Duration) error {
+	select {
+	case <-time.After(d):
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func search(w http.ResponseWriter, r *http.Request) {
+	ms, _ := strconv.Atoi(r.URL.Query().Get("ms"))
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Millisecond)
+	defer cancel()
+
+	err := slowQuery(ctx, time.Duration(ms)*time.Millisecond)
+	switch {
+	case errors.Is(err, context.DeadlineExceeded):
+		http.Error(w, "час вичерпано", http.StatusGatewayTimeout)
+	case err != nil:
+		return
+	default:
+		fmt.Fprint(w, "знайдено")
+	}
+}
+
+func main() {
+	for _, url := range []string{"/search?ms=5", "/search?ms=500"} {
+		rec := httptest.NewRecorder()
+		search(rec, httptest.NewRequest("GET", url, nil))
+		fmt.Println(url, rec.Code, strings.TrimSpace(rec.Body.String()))
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"sync/atomic"
+)
+
+type ctxKey int
+
+const requestIDKey ctxKey = 0
+
+func withRequestID(next http.Handler) http.Handler {
+	var n atomic.Int64
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := fmt.Sprintf("req-%d", n.Add(1))
+		ctx := context.WithValue(r.Context(), requestIDKey, id)
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+func requestID(ctx context.Context) string {
+	id, _ := ctx.Value(requestIDKey).(string)
+	return id
+}
+
+func service(ctx context.Context, op string) {
+	fmt.Println(requestID(ctx), op)
+}
+
+func main() {
+	h := withRequestID(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		service(r.Context(), r.URL.Path)
+	}))
+	for _, path := range []string{"/a", "/b"} {
+		h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest("GET", path, nil))
+	}
+	fmt.Printf("без значення: %q\n", requestID(context.Background()))
+}
+`,
+    ],
+    note: "<code>r.Context()</code> скасовується, коли клієнт пішов. Передавайте <code>ctx</code> першим аргументом униз, обмежуйте час через <code>WithTimeout</code> із <code>defer cancel()</code>, а ключі значень робіть власним неекспортованим типом.",
+    work: "У продакшені так обривають зайву роботу при розриві з'єднання, виставляють бюджет часу на запит і прокидають id запиту в усі логи та трасування. Драйвери баз даних, gRPC і HTTP-клієнти приймають <code>ctx</code> саме для цього.",
+    tasks: [
+      "Хто й коли скасовує <code>r.Context()</code>, і чому <code>defer cancel()</code> після <code>WithTimeout</code> обов'язковий?",
+      "Чому ключ для <code>context.WithValue</code> має бути власним типом, а не рядком, і що не варто класти в контекст?",
+    ],
+  },
+  {
+    t: "Коректне завершення сервера",
+    ch: "Мережа й сервіси",
+    adv: true,
+    easy: "Коректне завершення — це закриття магазину: нових покупців уже не пускають, але тих, хто стоїть біля каси, обслуговують до кінця, а якщо вони надто затримуються, двері зрештою замикають.",
+    p: [
+      "Сервіс не працює вічно: його перезапускають під час оновлення, масштабують, зупиняють оркестратором (Kubernetes шле процесові сигнал SIGTERM). Якщо просто вбити процес, усі запити, що виконувалися, обриваються: користувач бачить помилку, платіж «завис» напівдорозі, файл дописаний частково. Тому сервер зупиняють <b>коректно</b> (graceful shutdown): припиняють приймати нові з'єднання, дають поточним запитам завершитись, і лише тоді виходять.",
+      "Для цього є метод <code>(*http.Server).Shutdown(ctx)</code>. Він закриває слухачі (нові з'єднання не приймаються), закриває бездіяльні з'єднання й чекає, поки активні запити завершаться. Контекст задає <b>межу очікування</b>: якщо запити не встигли, <code>Shutdown</code> повертає <code>ctx.Err()</code>. Тоді залишається викликати <code>srv.Close()</code>, що обриває решту примусово. Є ще одна тонкість: <code>ListenAndServe</code> після виклику <code>Shutdown</code> одразу повертає <code>http.ErrServerClosed</code>. Це <b>нормальний</b> результат, а не помилка, тому його відфільтровують: <code>if !errors.Is(err, http.ErrServerClosed) { log.Fatal(err) }</code>.",
+      "Звідки взяти момент «час зупинятись»? З сигналів ОС. Функція <code>signal.NotifyContext(parent, syscall.SIGINT, syscall.SIGTERM)</code> повертає контекст, який скасовується, коли надійде один зі сигналів (Ctrl+C у терміналі шле SIGINT, оркестратор шле SIGTERM). Типова схема <code>main</code>: створити такий контекст, запустити <code>ListenAndServe</code> в окремій горутині, у головній горутині чекати <code>&lt;-ctx.Done()</code>, потім викликати <code>Shutdown</code> із <i>новим</i> контекстом із тайм-аутом. Новий потрібен тому, що перший уже скасований, і <code>Shutdown</code> зі скасованим контекстом піде геть без очікування.",
+      "Окремо про налаштування <code>http.Server</code>: за замовчуванням тайм-аутів немає, тому повільні або зловмисні клієнти можуть тримати з'єднання вічно. Мінімум: <code>ReadHeaderTimeout</code> (час на заголовки; захищає від повільних атак на кшталт Slowloris), <code>ReadTimeout</code> (на весь запит), <code>WriteTimeout</code> (на відповідь), <code>IdleTimeout</code> (на очікування наступного запиту в keep-alive). Також <code>MaxHeaderBytes</code> обмежує розмір заголовків. Значення залежать від сервісу: для API це секунди, для завантаження великих файлів їх підбирають окремо. Ці параметри разом із <code>Shutdown</code> перетворюють іграшковий <code>http.ListenAndServe</code> на сервер, який можна випускати в продакшен.",
+      "Як це перевірити, коли в Playground порт не слухається? Спершу покажемо реальні API без мережі: на <code>http.Server</code>, що ніколи не стартував, <code>Shutdown</code> повертає <code>nil</code>, а наступний <code>ListenAndServe</code> одразу дає <code>ErrServerClosed</code> без відкриття порту. Далі логіку «чекаємо сигнал, зупиняємо в межах часу» виносять у функцію, що приймає <b>інтерфейс</b> із методами <code>ListenAndServe</code>, <code>Shutdown</code>, <code>Close</code>. Тоді в тесті підставляють мок, що поводиться як сервер, і детерміновано перевіряють обидва сценарії: усе встигло завершитись і запит завис. Це той самий прийом, що й фейковий <code>RoundTripper</code> для клієнта: залежність від мережі ховаємо за інтерфейсом.",
+      "Пастки. Перша: викликати <code>Shutdown</code> зі скасованим контекстом, тож він не чекає нікого. Друга: забути, що <code>Shutdown</code> <b>не</b> завершує довгі з'єднання на кшталт WebSocket (їх треба закрити самому, зареєструвавши функцію через <code>srv.RegisterOnShutdown</code>). Третя: завершити <code>main</code>, не дочекавшись результату <code>ListenAndServe</code>, і втратити його помилку. Четверта: фонові горутини, що пишуть у базу, потрібно зупиняти теж, зазвичай тим самим контекстом чи <code>WaitGroup</code>. Загальний порядок зупинки: перестати приймати запити, дочекатись активних, зупинити фонову роботу, закрити базу й інші ресурси. Далі в курсі йде архітектура: як розкласти такий сервіс на шари.",
+    ],
+    code: [
+      String.raw`// лише компіляція: сервер слухає порт і чекає сигнал ОС
+package main
+
+import (
+	"context"
+	"errors"
+	"log"
+	"net/http"
+	"os/signal"
+	"syscall"
+	"time"
+)
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("ok"))
+	})
+
+	srv := &http.Server{
+		Addr:              ":8080",
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			log.Fatal(err)
+		}
+	}()
+
+	<-ctx.Done()
+	stop()
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Println("примусове завершення:", err)
+		srv.Close()
+	}
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+)
+
+func main() {
+	srv := &http.Server{Addr: ":0"}
+
+	fmt.Println("Shutdown:", srv.Shutdown(context.Background()))
+
+	err := srv.ListenAndServe()
+	fmt.Println("ListenAndServe:", err)
+	fmt.Println("це ErrServerClosed:", errors.Is(err, http.ErrServerClosed))
+}
+`,
+      String.raw`package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+
+type fakeServer struct {
+	inflight sync.WaitGroup
+}
+
+func (s *fakeServer) Shutdown(ctx context.Context) error {
+	done := make(chan struct{})
+	go func() {
+		s.inflight.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func main() {
+	finishing := &fakeServer{}
+	finishing.inflight.Add(1)
+	go finishing.inflight.Done()
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	fmt.Println("запит завершився, Shutdown:", finishing.Shutdown(ctx))
+	cancel()
+
+	stuck := &fakeServer{}
+	stuck.inflight.Add(1)
+
+	ctx, cancel = context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	fmt.Println("запит завис, Shutdown:", stuck.Shutdown(ctx))
+}
+`,
+    ],
+    note: "Порядок зупинки: сигнал, потім <code>Shutdown</code> із <i>новим</i> контекстом із тайм-аутом, а якщо не встигли, то <code>Close</code>. <code>http.ErrServerClosed</code> від <code>ListenAndServe</code> не є помилкою.",
+    work: "Усі контейнерні розгортання (Kubernetes, Docker, systemd) шлють SIGTERM і чекають, поки процес вийде сам. Без graceful shutdown кожне оновлення версії обриває запити користувачів. Тайм-аути сервера водночас є базовим захистом від повільних клієнтів.",
+    tasks: [
+      "Чому <code>Shutdown</code> після отримання сигналу викликають із новим контекстом, а не з тим, що повернув <code>signal.NotifyContext</code>?",
+      "Що означає значення <code>http.ErrServerClosed</code>, і що робити, якщо <code>Shutdown</code> не вклався в тайм-аут?",
+    ],
+  },
 ];
