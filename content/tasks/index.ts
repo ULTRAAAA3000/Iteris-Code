@@ -1,7 +1,7 @@
 import { BASH_TASKS } from "./bash.ts";
 import { CPP_TASKS } from "./cpp.ts";
 import { CSS_TASKS } from "./css.ts";
-import { GO_TASKS } from "./go.ts";
+import { GO_TASKS } from "./go/index.ts";
 import { HTML_TASKS } from "./html.ts";
 import { JAVA_TASKS } from "./java.ts";
 import { JS_TASKS } from "./js.ts";

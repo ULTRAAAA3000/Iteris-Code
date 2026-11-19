@@ -1,10 +1,11 @@
 // Шлях (лінійка уроків): курс → глави → вузли-уроки. Без блокувань (D6): будь-який урок відкривається, є лише підказка «ви тут».
 // Між уроками показуємо вузли практики там, де вже є завдання (етап 3 додасть нові).
-import { C, CATS, taskOf, projectOf } from "./data.ts";
-import { isDone, isTaskPassed, progress } from "./progress.ts";
+import { C, CATS, levelTotal, taskOf, projectOf } from "./data.ts";
+import { levelLessons, levelProgress, levelSwitch } from "./levels.ts";
+import { isDone, isTaskPassed } from "./progress.ts";
 import { escA, pad, store } from "./util.ts";
 import { LEVEL_TEXT, startPoint, type OnboardingState } from "./onboarding.ts";
-import { chaptersOf, currentLesson, startLesson, type Level } from "./xp.ts";
+import { chaptersOf, startLesson, type Level } from "./xp.ts";
 
 export interface PathCtx { onboarding: OnboardingState | null | undefined; loggedIn: boolean }
 
@@ -19,21 +20,23 @@ export function pickCourse(k: string | undefined, ctx: PathCtx): string {
 }
 
 export function renderPath(k: string | undefined, ctx: PathCtx): string {
-  const key = pickCourse(k, ctx), c = C[key], total = c.L.length;
+  const key = pickCourse(k, ctx), c = C[key], total = levelTotal(key), vis = levelLessons(key);
   const level: Level | null = ctx.onboarding?.level ?? null;
   const start = level ? startLesson(c.L, level) : 1;
-  const cur = currentLesson(total, start, (n) => isDone(key, n));
-  const p = progress(key), pct = Math.round((p / total) * 100);
+  const cur = vis.find((n) => n >= start && !isDone(key, n)) ?? vis.find((n) => !isDone(key, n)) ?? 0;
+  const p = levelProgress(key), pct = Math.round((p / total) * 100);
   const mine = ctx.onboarding?.courses ?? [];
   const tabs = [...mine, ...Object.keys(C).filter((x) => !mine.includes(x))]
     .map((x) => `<a class="path-tab" href="/path/${x}"${x === key ? ' aria-current="page"' : ""}>${mine.includes(x) ? "★ " : ""}${escA(C[x].name)}</a>`).join("");
 
   const nodes = chaptersOf(c.L).map((ch) => {
-    const isStart = level !== null && ch.from === start, size = ch.to - ch.from + 1;
+    const inCh = vis.filter((n) => n >= ch.from && n <= ch.to), size = inCh.length;
+    if (!size) return "";   // у базовому рівні в главі можуть лишитись самі просунуті уроки
+    const isStart = level !== null && ch.from === start;
     let got = 0;
-    for (let n = ch.from; n <= ch.to; n++) if (isDone(key, n)) got++;
+    for (const n of inCh) if (isDone(key, n)) got++;
     let html = `<li class="path-chap${isStart ? " start" : ""}${got === size ? " complete" : ""}">Глава: ${escA(ch.name)}${isStart ? `<span class="flag">Ваш старт</span>` : ""}<span class="chap-cnt" aria-label="Пройдено ${got} з ${size}">${got === size ? "✓ " : ""}${got}/${size}</span></li>`;
-    for (let n = ch.from; n <= ch.to; n++) {
+    for (const n of inCh) {
       const l = c.L[n - 1], d = isDone(key, n), isCur = n === cur;
       const state = d ? "done" : isCur ? "current" : n < start ? "before" : "todo";
       const label = `Урок ${n}: ${l.t}. ${d ? "Пройдено" : isCur ? "Поточний урок" : "Доступний"}`;
@@ -59,6 +62,7 @@ export function renderPath(k: string | undefined, ctx: PathCtx): string {
       <span><b>${p}</b> з ${total}</span>
       ${cur ? `<a class="btn primary small" href="/lesson/${key}/${cur}">${p ? "Продовжити" : "Почати курс"}</a>` : `<span class="s-ok">Курс пройдено 🎉</span>`}
     </div>
+    ${levelSwitch(key)}
     <ol class="path" aria-label="Шлях курсу ${escA(c.name)}">${nodes}</ol>`;
 }
 

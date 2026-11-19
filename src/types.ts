@@ -10,16 +10,18 @@ export interface Lesson {
   work?: string;
   tasks: string[];
   ch?: string;
+  /** Просунутий урок (лише для рівня «Просунутий») */
+  adv?: boolean;
 }
 
 /** Урок у списку курсу (відповідь /api/courses): без тексту, лише назва, глава й id завдання */
-export interface OutlineLesson { t: string; ch?: string; task?: string; project?: string }
+export interface OutlineLesson { t: string; ch?: string; task?: string; project?: string; /** Просунутий урок: показується лише на просунутому рівні курсу */ adv?: boolean }
 /** Короткий опис завдання для списків і кабінету (повний текст приходить разом з уроком) */
 export interface TaskMeta { id: string; title: string; xp: number; course: string; lesson: string }
 /** GET /api/courses (лише після входу): структура всіх курсів і список завдань */
 /** Короткий опис проєкту за ТЗ (повний проєкт приходить з /api/project) */
 export interface ProjectMeta { id: string; title: string; xp: number; course: string; lesson: string }
-export interface Outline { courses: Record<string, OutlineLesson[]>; tasks: TaskMeta[]; projects: ProjectMeta[] }
+export interface Outline { courses: Record<string, OutlineLesson[]>; tasks: TaskMeta[]; projects: ProjectMeta[]; /** Обраний користувачем рівень курсів ('base' | 'adv'); немає запису: базовий */ levels?: Record<string, "base" | "adv"> }
 /** GET /api/lesson?k=js&n=3 (лише після входу): повний урок і його завдання, якщо воно є */
 export interface LessonPayload { lesson: Lesson; task: Task | null }
 
