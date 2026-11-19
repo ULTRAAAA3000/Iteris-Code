@@ -317,3 +317,14 @@
 .goal-pick .btn.on{background:var(--pen);color:var(--pen-ink);box-shadow:3px 3px 0 var(--ink)}
 .onb-goals{display:flex;flex-wrap:wrap;gap:8px}
 @media (prefers-reduced-motion:reduce){.goal-dots i.on{animation:none!important}}
+
+/* Перемикач рівня курсу: Базовий / Просунутий */
+.lv-switch{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0 4px;max-width:520px}
+.lv-opt{font:inherit;text-align:left;cursor:pointer;display:grid;gap:2px;padding:10px 12px;border:2px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink)}
+.lv-opt b{font-size:1rem}.lv-opt span{font-size:.8rem;color:var(--muted,inherit);opacity:.8}
+.lv-opt[aria-checked="true"]{border-color:var(--ink);box-shadow:0 3px 0 var(--ink)}
+.lv-opt:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.lv-note{margin:4px 0 12px;font-size:.85rem}
+.lv-tag{display:inline-block;margin-left:8px;padding:1px 8px;border:1.5px solid var(--ink);border-radius:999px;font-size:.72rem;font-weight:700;vertical-align:middle}
+.pj-out{max-height:180px;overflow:auto;margin:8px 0}
+@media (max-width:520px){.lv-switch{grid-template-columns:1fr}}

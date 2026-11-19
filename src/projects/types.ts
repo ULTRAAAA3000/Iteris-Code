@@ -30,3 +30,21 @@ export interface Project {
   premium: boolean;
   xp: number;
 }
+
+/** Проєкт за ТЗ мовою з серверним запуском (Go). Перевірки (harness) живуть лише на сервері, у браузер вони не потрапляють */
+export interface ProgramProject {
+  kind: "program";
+  id: string;
+  lang: "python" | "java" | "go";
+  lesson: string;
+  course: string;
+  title: string;
+  context: string;
+  brief: string[];
+  contract: string[];
+  requirements: readonly { id: string; text: string; hint: string }[];
+  starter: string;
+  premium: boolean;
+  xp: number;
+}
+export const isProgram = (p: Project | ProgramProject): p is ProgramProject => (p as ProgramProject).kind === "program";
