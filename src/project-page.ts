@@ -13,6 +13,8 @@ import { runRemote } from "./runner/remote.ts";
 import { toast, ui } from "./ui.ts";
 import { esc, escA, pl, store } from "./util.ts";
 
+const PFILE = { python: "main.py", java: "Main.java", go: "main.go" } as const;
+
 export function projectHTML(p: Project | ProgramProject): string {
   const c = C[p.course], [lk, ln] = p.lesson.split("/");
   const badge = p.premium ? `<span class="plan pro">Pro</span>` : `<span class="plan free">Безкоштовно</span>`;
@@ -35,7 +37,7 @@ export function projectHTML(p: Project | ProgramProject): string {
     </article>
     <section class="ws-right" aria-label="Редактор проєкту">
       <div class="ws-bar">
-        <span class="ws-tab">${isProgram(p) ? "main.go" : "index.html"}</span>
+        <span class="ws-tab">${isProgram(p) ? PFILE[p.lang] : "index.html"}</span>
         <span class="ws-spacer"></span>
         <button class="btn small" data-pj="reset">Скинути</button>
         <button class="btn primary small" data-pj="run" id="pj-run">▶ Перевірити проєкт</button>
@@ -96,7 +98,7 @@ export async function mountProject(p: Project | ProgramProject): Promise<void> {
   ui.authListeners.add(refresh);
 
   const draft = store.get<string>(draftKey, p.starter);
-  const editor: CodeEditor = await createEditor(host, { value: draft, language: isProgram(p) ? "go" : "html" });
+  const editor: CodeEditor = await createEditor(host, { value: draft, language: isProgram(p) ? p.lang : "html" });
   if (active !== me || !host.isConnected) { editor.dispose(); return; }  // користувач уже перейшов на іншу сторінку
   me.dispose = () => { ui.authListeners.delete(refresh); editor.dispose(); };
   if (frame) frame.srcdoc = draft;   // одразу показуємо поточну сторінку (без перевірки)

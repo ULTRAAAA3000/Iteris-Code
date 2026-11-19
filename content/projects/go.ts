@@ -581,7 +581,7 @@ func (s *Store) Count() (pending, done int) {
   {
     id: "go-texttools",
     lang: "go",
-    lesson: "go/74",
+    lesson: "go/30",
     title: "Інструменти тексту",
     xp: 70,
     context:

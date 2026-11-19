@@ -328,3 +328,14 @@
 .lv-tag{display:inline-block;margin-left:8px;padding:1px 8px;border:1.5px solid var(--ink);border-radius:999px;font-size:.72rem;font-weight:700;vertical-align:middle}
 .pj-out{max-height:180px;overflow:auto;margin:8px 0}
 @media (max-width:520px){.lv-switch{grid-template-columns:1fr}}
+
+/* Проєкт за ТЗ у шляху й списку курсу: виділений блок між уроками */
+.path-proj{list-style:none;margin:0 0 46px;position:relative;z-index:1}
+.path-proj a{display:flex;gap:12px;align-items:center;max-width:460px;margin:0 auto;padding:12px 16px;border:3px solid var(--ink);border-radius:16px;background:var(--hl);color:var(--hl-ink);text-decoration:none;box-shadow:0 4px 0 var(--ink)}
+.path-proj a:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.pp-ico{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:2px solid currentColor;font-weight:800}
+.pp-txt{display:grid;gap:2px}.pp-txt span{font-size:.85rem}
+.path-proj.done a{background:var(--ok);color:var(--paper)}
+.proj-row{display:flex;gap:10px;align-items:center;margin:6px 0 10px;padding:10px 12px;border:2px dashed var(--ink);border-radius:12px;background:var(--hl);color:var(--hl-ink);list-style:none}
+.proj-row .t{color:inherit;flex:1}
+.proj-row.done{background:var(--ok);color:var(--paper)}

@@ -26,7 +26,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   let out;
   try {
-    out = await RUNNERS[p.lang as "go"].run(buildProgram(p.harness, body.code));
+    out = await RUNNERS[p.lang].run(buildProgram(p.harness, body.code));
   } catch (e) {
     if (e instanceof RunnerUnavailable) { console.error("runner unavailable", p.lang, e.message); return json({ error: "runner_unavailable" }, 503); }
     throw e;
