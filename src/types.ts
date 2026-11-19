@@ -10,6 +10,8 @@ export interface Lesson {
   work?: string;
   tasks: string[];
   ch?: string;
+  /** Лише для просунутого рівня (курс Go) */
+  adv?: boolean;
 }
 
 /** Урок у списку курсу (відповідь /api/courses): без тексту, лише назва, глава й id завдання */

@@ -70,16 +70,25 @@ if (!only) {
   const { GO_TASKS } = await import("../content/tasks/go/index.ts");
   const { LESSONS } = await import("../content/lessons.js");
   const { TASKS } = await import("../content/tasks/index.ts");
-  await test("курс Go: 110 уроків, з них 80 базових і 30 просунутих", () => {
-    assert.equal(GO_LESSONS.length, 110);
-    assert.equal(GO_LESSONS.filter((l) => !l.adv).length, 80);
-    assert.equal(LESSONS.go.length, 110);
+  // Поки курс пишеться по главах (GO_PARTIAL=1), на сайті лише готові уроки: усі вони підключені, а завдань рівно стільки ж, скільки уроків.
+  // Коли курс закінчено, перевірка вимагає повних 110 уроків (80 базових і 30 просунутих).
+  const partial = process.env.GO_PARTIAL === "1";
+  await test(partial ? "курс Go (поетапно): уроки сайту збігаються з уроками глав" : "курс Go: 110 уроків, з них 80 базових і 30 просунутих", () => {
+    if (!partial) {
+      assert.equal(GO_LESSONS.length, 110);
+      assert.equal(GO_LESSONS.filter((l) => !l.adv).length, 80);
+    } else {
+      assert.ok(GO_LESSONS.length > 0 && GO_LESSONS.length <= 110);
+    }
+    assert.equal(LESSONS.go.length, GO_LESSONS.length);
     assert.deepEqual(LESSONS.go.map((l) => l.t), GO_LESSONS.map((l) => l.t));
   });
-  await test("завдання Go підключені до платформи, id унікальні", () => {
-    assert.equal(GO_TASKS.length, 110);
-    assert.equal(TASKS.filter((t) => t.course === "go").length, 110);
+  await test("завдання Go підключені до платформи, id унікальні, по одному на урок", () => {
+    assert.equal(GO_TASKS.length, GO_LESSONS.length);
+    if (!partial) assert.equal(GO_TASKS.length, 110);
+    assert.equal(TASKS.filter((t) => t.course === "go").length, GO_TASKS.length);
     assert.equal(new Set(TASKS.map((t) => t.id)).size, TASKS.length);
+    TASKS.filter((t) => t.course === "go").forEach((t, i) => assert.equal(t.lesson, `go/${i + 1}`, "завдання йдуть у порядку уроків"));
   });
 }
 

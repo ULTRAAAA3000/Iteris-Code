@@ -1,3 +1,5 @@
+import { GO_LESSONS } from "./go/index.js";
+
 /* Iteris Code — уроки. Кожен урок: t (назва), p (абзаци), code (блоки коду), note (важливе), tasks (завдання) */
 const LESSONS = {
 python: [
@@ -195,89 +197,9 @@ load();`],
   note: "Слово <code>await</code> можна використовувати лише всередині функції, оголошеної як <code>async</code>.",
   tasks: ["Виведіть у консоль кількість публічних репозиторіїв будь-якого користувача GitHub.", "Додайте обробку помилки на випадок, якщо мережі немає."] }
 );
-LESSONS.go = [
-{ t: "Перша програма на Go",
-  p: ["Go — проста й швидка мова від Google, яку люблять за зрозумілий синтаксис і вбудовану підтримку паралельності. Кожна програма належить до пакета: виконувані програми живуть у пакеті <code>main</code>.", "Бібліотеки підключає <code>import</code>, а виводить текст пакет <code>fmt</code>. Запуск: команда <code>go run main.go</code>."],
-  code: [String.raw`package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("Привіт, світе!")
-	fmt.Println("2 + 3 =", 2+3)
-}`],
-  note: "Якщо підключити пакет і не використати його, Go не скомпілює програму. Це свідоме правило мови.",
-  tasks: ["Виведіть своє ім'я та вік двома рядками.", "Обчисліть і виведіть значення виразу (8 + 4) * 3."] },
-{ t: "Змінні та типи",
-  p: ["Змінну оголошують через <code>var</code> із типом або коротким записом <code>:=</code>, який сам визначає тип. Короткий запис працює лише всередині функцій.", "Основні типи: <code>int</code>, <code>float64</code>, <code>string</code>, <code>bool</code>. Тип змінної змінити не можна."],
-  code: [String.raw`package main
-
-import "fmt"
-
-func main() {
-	var age int = 16
-	name := "Олена"
-	height := 1.75
-	isStudent := true
-
-	fmt.Println(name, age, height, isStudent)
-	fmt.Printf("%T %T %T\n", age, name, height)
-}`],
-  note: "Невикористана змінна теж викликає помилку компіляції. Для тимчасового значення використовують <code>_</code>.",
-  tasks: ["Збережіть у змінних два числа й виведіть їхню суму та різницю.", "Виведіть тип змінної, створеної записом <code>x := 3.0</code>."] },
-{ t: "Умови, цикли та функції",
-  p: ["У Go є лише один цикл — <code>for</code>, але він замінює і while. Умови в <code>if</code> пишуть без круглих дужок.", "Функція може повертати кілька значень одразу. Так прийнято повертати результат разом із ознакою успіху або помилкою."],
-  code: [String.raw`package main
-
-import "fmt"
-
-func divide(a, b int) (int, bool) {
-	if b == 0 {
-		return 0, false
-	}
-	return a / b, true
-}
-
-func main() {
-	for i := 1; i <= 3; i++ {
-		fmt.Println("Крок", i)
-	}
-	if res, ok := divide(10, 2); ok {
-		fmt.Println("Результат:", res)
-	} else {
-		fmt.Println("Ділення на нуль")
-	}
-}`],
-  note: "Відкриваючу фігурну дужку потрібно ставити в тому ж рядку, що й <code>if</code>, <code>for</code> або <code>func</code>.",
-  tasks: ["Виведіть парні числа від 1 до 20.", "Напишіть функцію, що повертає суму й добуток двох чисел."] },
-{ t: "Горутини та канали",
-  p: ["Горутина — легкий потік виконання. Щоб запустити функцію паралельно, перед її викликом пишуть слово <code>go</code>.", "Горутини обмінюються даними через канали. <code>sync.WaitGroup</code> дозволяє дочекатися, поки всі горутини закінчать роботу."],
-  code: [String.raw`package main
-
-import (
-	"fmt"
-	"sync"
-)
-
-func main() {
-	var wg sync.WaitGroup
-	ch := make(chan int, 3)
-	for i := 1; i <= 3; i++ {
-		wg.Add(1)
-		go func(n int) {
-			defer wg.Done()
-			ch <- n * n
-		}(i)
-	}
-	wg.Wait()
-	close(ch)
-	for v := range ch {
-		fmt.Println(v)
-	}
-}`],
-  note: "Порядок виведення може відрізнятися між запусками: горутини виконуються паралельно й незалежно.",
-  tasks: ["Запустіть три горутини, кожна з яких надсилає в канал своє число.", "Підсумуйте всі значення з каналу після завершення горутин."] }
-];
+// Курс Go: 110 уроків у 12 главах, тексти по главах у content/go/ (план у content/go/chapters.js, інструкція в Documentation/go-course-authoring.md).
+// Поки написано не всі глави: у списку лише готові уроки, номери наскрізні й стабільні.
+LESSONS.go = GO_LESSONS;
 LESSONS.ts = [
 { t: "Від JavaScript до TypeScript",
   p: ["TypeScript — це JavaScript із типами. Будь-який код на JavaScript уже є правильним TypeScript, а типи додаються зверху й перевіряються до запуску програми.", "Типи записують після імені через двокрапку. Компілятор <code>tsc</code> знаходить помилки ще до виконання і перетворює файл <code>.ts</code> на звичайний <code>.js</code>."],
@@ -398,6 +320,12 @@ public class Main {
   tasks: ["Знайдіть найбільше число в масиві.", "Виведіть таблицю множення на 6."] }
 ];
 
+/** Глави курсу за полем ch уроків: [[назва, номер першого уроку глави], ...] */
+function chaptersOf(list) {
+  const out = [];
+  list.forEach((l, i) => { if (!out.length || out[out.length - 1][0] !== l.ch) out.push([l.ch, i]); });
+  return out;
+}
 const CHAPTERS = {
   python: [["Основи", 0], ["Керування програмою", 2], ["Рядки, списки, функції", 4]],
   cpp: [["Основи", 0], ["Керування програмою", 2]],
@@ -406,7 +334,7 @@ const CHAPTERS = {
   css: [["Основи стилів", 0], ["Макет", 1]],
   js: [["Основи", 0], ["Дані та браузер", 2], ["Асинхронність", 4]],
   sql: [["Вибірка даних", 0], ["Підсумки й зв'язки", 2]],
-  go: [["Основи", 0], ["Керування й функції", 2], ["Паралельність", 3]],
+  go: chaptersOf(GO_LESSONS),
   ts: [["Типи", 0], ["Структури даних", 2], ["Узагальнення", 3]],
   java: [["Основи", 0], ["Керування програмою", 2]]
 };
@@ -779,23 +707,6 @@ Object.assign(CHAPTERS, {
   const T = t => { if (!byTitle[t]) throw new Error("Немає уроку: " + t); return byTitle[t]; };
   LESSONS[key] = [T("Командний рядок: файли та папки"), T("Перегляд тексту, пошук і конвеєри"), N.find, N.env, T("Права доступу та перші скрипти"), N.logic, N.proc, N.net];
   CHAPTERS[key] = [["Файли й текст", 0], ["Середовище та скрипти", 3], ["Система й мережа", 6]];
-  CHAPTERS[key].forEach(([name, from], i, a) => {
-    const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[key].length;
-    for (let j = from; j < to; j++) LESSONS[key][j].ch = name;
-  });
-})();
-
-/* ===== GO ===== */
-(function () {
-  const key = "go";
-  const N = {"setup": {"t": "Встановлення Go і модулі", "p": ["Завантажте Go з go.dev/dl і встановіть. Перевірте командою <code>go version</code>. Кожен проєкт — це модуль зі своїм файлом <code>go.mod</code>, який створює команда <code>go mod init</code>.", "Основні команди: <code>go run</code> запускає програму, <code>go build</code> створює виконуваний файл, <code>go fmt</code> автоматично форматує код, <code>go test</code> запускає тести, а <code>go get</code> додає залежність. Форматування в Go єдине для всіх, тож суперечок про стиль не буває."], "code": ["go version\nmkdir hello && cd hello\ngo mod init example.com/hello\n\n# main.go\npackage main\n\nimport \"fmt\"\n\nfunc main() {\n\tfmt.Println(\"Привіт, Go!\")\n}\n\ngo run .\ngo build -o hello\ngo fmt ./..."], "note": "Для зручності встановіть у VS Code розширення Go: воно підказує код і форматує файл під час збереження.", "easy": "Go — це мова з вбудованим набором інструментів: компілятор, форматувальник і тести входять у комплект, нічого додатково налаштовувати не треба.", "work": "Go популярний у бекенді, хмарних сервісах та DevOps (Docker і Kubernetes написані на ньому). Одна з причин — простий результат: програма збирається в єдиний файл, який легко розгорнути.", "tasks": ["Встановіть Go, створіть модуль і запустіть програму.", "Зберіть програму командою go build і запустіть отриманий файл."]}, "slices": {"t": "Масиви та слайси", "p": ["Масив у Go має фіксовану довжину, тому на практиці майже завжди використовують <b>слайс</b> — гнучкий «вікно» над масивом змінної довжини. Слайс створюють літералом <code>[]int{1, 2, 3}</code>, додають елементи функцією <code>append</code>, а довжину дає <code>len</code>.", "Зріз <code>s[1:3]</code> бере частину слайса, але не копіює дані: обидва слайси дивляться на ті самі елементи. Перебирають слайс циклом <code>for range</code>."], "code": ["package main\n\nimport \"fmt\"\n\nfunc main() {\n\tnums := []int{5, 2, 9}\n\tnums = append(nums, 7)\n\tfmt.Println(nums, len(nums), nums[0])\n\n\tpart := nums[1:3]\n\tfmt.Println(part)\n\n\tfor i, n := range nums {\n\t\tfmt.Println(i, n)\n\t}\n\n\twords := make([]string, 0, 10)\n\twords = append(words, \"go\", \"slice\")\n\tfmt.Println(words)\n}"], "note": "Функція <code>append</code> повертає новий слайс, тому результат завжди присвоюють змінній: <code>nums = append(nums, x)</code>.", "easy": "Слайс — це гнучка стрічка з номерами: її можна подовжити, а зріз — це не копія, а віконце на ту саму стрічку.", "work": "Слайси в Go постійно: списки записів із бази, результати обробки, відповіді API. Розуміння, що зрізи ділять пам'ять, допомагає уникати прихованих помилок.", "tasks": ["Створіть слайс чисел і знайдіть їхню суму.", "Відфільтруйте з нього лише парні числа в новий слайс."]}, "structs": {"t": "Мапи та структури", "p": ["Мапа <code>map[string]int</code> зберігає пари ключ-значення. Доступ до відсутнього ключа повертає нульове значення, тому наявність перевіряють формою <code>v, ok := m[key]</code>. Видаляють ключ функцією <code>delete</code>.", "Структура <code>struct</code> об'єднує кілька полів в один тип і описує сутність: користувача, товар. Поля з великої літери доступні з інших пакетів, а з малої — лише всередині."], "code": ["package main\n\nimport \"fmt\"\n\ntype User struct {\n\tID    int\n\tName  string\n\tEmail string\n}\n\nfunc main() {\n\tstock := map[string]int{\"apples\": 5, \"pears\": 0}\n\tstock[\"plums\"] = 12\n\tif n, ok := stock[\"kiwi\"]; !ok {\n\t\tfmt.Println(\"kiwi немає, n =\", n)\n\t}\n\tdelete(stock, \"pears\")\n\n\tu := User{ID: 1, Name: \"Олена\"}\n\tu.Email = \"o@x.ua\"\n\tfmt.Printf(\"%+v\\n\", u)\n\n\tusers := []User{u, {ID: 2, Name: \"Артем\"}}\n\tfmt.Println(len(users))\n}"], "note": "Порядок перебору мапи в Go випадковий. Якщо потрібен порядок, збирайте ключі в слайс і сортуйте.", "easy": "Мапа — це словник із швидким пошуком за ключем, а структура — анкета з іменованими полями.", "work": "Дані з JSON перетворюються на структури, а підрахунки та групування роблять через мапи. Практично кожна програма на Go описує свою модель даних структурами.", "tasks": ["Порахуйте, скільки разів кожне слово зустрічається в реченні.", "Опишіть структуру Product і створіть слайс із трьох товарів."]}, "methods": {"t": "Методи та інтерфейси", "p": ["Метод — це функція, прив'язана до типу. Одержувач вказується перед назвою: <code>func (u User) Greet()</code>. Якщо метод має змінювати дані, одержувач беруть як вказівник: <code>func (u *User)</code>.", "Інтерфейс описує набір методів. Будь-який тип, що має ці методи, автоматично задовольняє інтерфейс, і ключового слова «implements» немає. Завдяки цьому код легко підміняти й тестувати."], "code": ["package main\n\nimport \"fmt\"\n\ntype Shape interface {\n\tArea() float64\n}\n\ntype Rect struct{ W, H float64 }\ntype Circle struct{ R float64 }\n\nfunc (r Rect) Area() float64   { return r.W * r.H }\nfunc (c Circle) Area() float64 { return 3.14159 * c.R * c.R }\n\ntype Counter struct{ n int }\n\nfunc (c *Counter) Inc() { c.n++ }\n\nfunc main() {\n\tshapes := []Shape{Rect{2, 3}, Circle{1}}\n\tfor _, s := range shapes {\n\t\tfmt.Printf(\"%.2f\\n\", s.Area())\n\t}\n\tvar c Counter\n\tc.Inc()\n\tfmt.Println(c.n)\n}"], "note": "Інтерфейси в Go прийнято робити маленькими: один-два методи. Вони зручніші в користуванні, ніж великі.", "easy": "Інтерфейс — це розетка: не важливо, який прилад ви вставляєте, якщо вилка підходить. Go перевіряє «вилку» автоматично.", "work": "Інтерфейси дозволяють писати код, який працює з різними реалізаціями: база даних справжня й тестова, логер у консоль і у файл. Це основа тестованої архітектури в Go.", "tasks": ["Опишіть інтерфейс Animal з методом Speak і дві структури, що його реалізують.", "Додайте метод із вказівником, що змінює поле структури."]}, "errors": {"t": "Обробка помилок, defer та panic", "p": ["У Go немає винятків. Функції, що можуть не вдатись, повертають помилку останнім значенням, а виклик перевіряє її: <code>if err != nil</code>. Створити помилку можна функцією <code>errors.New</code>, а обгорнути з контекстом — через <code>fmt.Errorf</code> із <code>%w</code>.", "Ключове слово <code>defer</code> відкладає виклик до виходу з функції: зручно для закриття файлів. Паніка (<code>panic</code>) зарезервована для нестерпних помилок програмування, а звичайні помилки повертають."], "code": ["package main\n\nimport (\n\t\"errors\"\n\t\"fmt\"\n\t\"os\"\n)\n\nvar ErrEmpty = errors.New(\"порожнє ім'я\")\n\nfunc greet(name string) (string, error) {\n\tif name == \"\" {\n\t\treturn \"\", ErrEmpty\n\t}\n\treturn \"Привіт, \" + name, nil\n}\n\nfunc readFile(path string) error {\n\tf, err := os.Open(path)\n\tif err != nil {\n\t\treturn fmt.Errorf(\"не вдалося відкрити %s: %w\", path, err)\n\t}\n\tdefer f.Close()\n\treturn nil\n}\n\nfunc main() {\n\tif _, err := greet(\"\"); errors.Is(err, ErrEmpty) {\n\t\tfmt.Println(\"помилка:\", err)\n\t}\n\tfmt.Println(readFile(\"missing.txt\"))\n}"], "note": "Ніколи не ігноруйте помилку через <code>_</code>, якщо вона може вказувати на реальну проблему.", "easy": "Помилка в Go — це звичайне значення, яке функція повертає разом з результатом. Ви самі вирішуєте, що з нею робити, ніщо не «вилітає» мимо вас.", "work": "Повторення <code>if err != nil</code> — візитна картка Go-коду. Уміння додавати контекст до помилки (<code>%w</code>) вирізняє чистий код і суттєво прискорює налагодження в продакшені.", "tasks": ["Напишіть функцію ділення, що повертає помилку при діленні на нуль.", "Обгорніть помилку відкриття файлу з додатковим контекстом."]}, "http": {"t": "HTTP-сервер і JSON", "p": ["У стандартній бібліотеці Go є пакет <code>net/http</code>, і для простого веб-сервісу сторонні фреймворки не потрібні. Обробник — це функція, що отримує відповідь і запит. Реєструють його через <code>http.HandleFunc</code>, а запускають сервер викликом <code>http.ListenAndServe</code>.", "Для роботи з JSON пакет <code>encoding/json</code> перетворює структури на текст і назад. Назви полів у JSON задають тегами: <code>`json:\"name\"`</code>."], "code": ["package main\n\nimport (\n\t\"encoding/json\"\n\t\"net/http\"\n)\n\ntype Task struct {\n\tID    int    `json:\"id\"`\n\tTitle string `json:\"title\"`\n\tDone  bool   `json:\"done\"`\n}\n\nvar tasks = []Task{{1, \"Вивчити Go\", false}}\n\nfunc listTasks(w http.ResponseWriter, r *http.Request) {\n\tw.Header().Set(\"Content-Type\", \"application/json\")\n\tjson.NewEncoder(w).Encode(tasks)\n}\n\nfunc addTask(w http.ResponseWriter, r *http.Request) {\n\tvar t Task\n\tif err := json.NewDecoder(r.Body).Decode(&t); err != nil {\n\t\thttp.Error(w, \"некоректний JSON\", http.StatusBadRequest)\n\t\treturn\n\t}\n\tt.ID = len(tasks) + 1\n\ttasks = append(tasks, t)\n\tw.WriteHeader(http.StatusCreated)\n\tjson.NewEncoder(w).Encode(t)\n}\n\nfunc main() {\n\thttp.HandleFunc(\"/tasks\", func(w http.ResponseWriter, r *http.Request) {\n\t\tif r.Method == http.MethodPost {\n\t\t\taddTask(w, r)\n\t\t\treturn\n\t\t}\n\t\tlistTasks(w, r)\n\t})\n\thttp.ListenAndServe(\":8080\", nil)\n}"], "note": "Спільні дані, до яких звертаються кілька запитів одночасно (як слайс у прикладі), у справжньому сервісі захищають мютексом або беруть базу даних.", "easy": "Сервер у Go — це функція-обробник, яка отримує запит і пише відповідь. Решту (багатозадачність) робить сама мова: кожен запит іде в окремій горутині.", "work": "Невеликі REST API на Go — типове завдання на вакансіях бекенд-розробників. Побудований власноруч сервіс із кількома ендпоінтами — хороший пункт у портфоліо.", "tasks": ["Запустіть сервер і перевірте його через curl.", "Додайте ендпоінт, що повертає одну задачу за її id."]}, "testing": {"t": "Пакети та тестування", "p": ["Код розділяють на пакети: кожна папка — окремий пакет, а імпорт працює за шляхом модуля. Експортовані імена починаються з великої літери. Тести пишуть у файлах із суфіксом <code>_test.go</code> функціями виду <code>TestНазва</code>, які приймають <code>*testing.T</code>.", "Табличні тести перевіряють функцію на багатьох наборах даних у циклі. Команда <code>go test ./...</code> запускає всі тести проєкту, а прапорець <code>-cover</code> показує покриття."], "code": ["// calc/calc.go\npackage calc\n\nimport \"errors\"\n\nfunc Divide(a, b int) (int, error) {\n\tif b == 0 {\n\t\treturn 0, errors.New(\"ділення на нуль\")\n\t}\n\treturn a / b, nil\n}\n\n// calc/calc_test.go\npackage calc\n\nimport \"testing\"\n\nfunc TestDivide(t *testing.T) {\n\ttests := []struct {\n\t\tname    string\n\t\ta, b    int\n\t\twant    int\n\t\twantErr bool\n\t}{\n\t\t{\"ділення\", 10, 2, 5, false},\n\t\t{\"нуль\", 1, 0, 0, true},\n\t}\n\tfor _, tt := range tests {\n\t\tt.Run(tt.name, func(t *testing.T) {\n\t\t\tgot, err := Divide(tt.a, tt.b)\n\t\t\tif (err != nil) != tt.wantErr || got != tt.want {\n\t\t\t\tt.Errorf(\"отримано %d, %v\", got, err)\n\t\t\t}\n\t\t})\n\t}\n}\n\n// термінал\ngo test ./...\ngo test -cover ./..."], "note": "Тестовий файл лежить в тій самій папці, що й код, і має той самий пакет. Тому він бачить навіть неекспортовані функції.", "easy": "Табличний тест — це перелік «що подали і що очікуємо», який функція проходить рядок за рядком.", "work": "У Go-командах код без тестів майже не приймають, а табличні тести — стандарт. Умієте писати їх — ви говорите з командою однією мовою.", "tasks": ["Напишіть табличний тест для функції, що перевіряє парність числа.", "Запустіть go test -cover і подивіться покриття."]}};
-  const easyOld = {"Перша програма на Go": "Програма на Go — це пакет main із функцією main. fmt — набір готових інструментів для виводу тексту.", "Змінні та типи": "Змінна в Go — коробка з наперед визначеним типом вмісту: у коробку для числа слово вже не покласти.", "Умови, цикли та функції": "Go має один цикл — for, який вміє бути і лічильником, і while. Функція може повернути одразу кілька значень.", "Горутини та канали": "Горутина — легкий помічник, що працює паралельно. Канал — труба, якою помічники передають дані одне одному."};
-  const workOld = {"Перша програма на Go": "Структура пакетів і функція main — основа кожного Go-проєкту. Форматування <code>go fmt</code> виконують автоматично, щоб уся команда писала однаково.", "Змінні та типи": "Короткий запис <code>:=</code> — найпоширеніший у Go-коді. Строга типізація й помилка про невикористану змінну допомагають ловити баги до запуску.", "Умови, цикли та функції": "Повернення результату разом із помилкою — стандартний підхід у Go. Ви побачите його у кожній бібліотеці.", "Горутини та канали": "Паралельність — головна причина, чому компанії обирають Go для високонавантажених сервісів. Базове розуміння горутин потрібне на кожному співбесіді з Go."};
-  const byTitle = {};
-  LESSONS[key].forEach(l => { byTitle[l.t] = l; l.easy = easyOld[l.t]; l.work = workOld[l.t]; });
-  const T = t => { if (!byTitle[t]) throw new Error("Немає уроку: " + t); return byTitle[t]; };
-  LESSONS[key] = [N.setup, T("Перша програма на Go"), T("Змінні та типи"), T("Умови, цикли та функції"), N.slices, N.structs, N.methods, N.errors, T("Горутини та канали"), N.http, N.testing];
-  CHAPTERS[key] = [["Початок", 0], ["Основи", 2], ["Дані та типи", 4], ["Надійність і паралельність", 7], ["Практика", 9]];
   CHAPTERS[key].forEach(([name, from], i, a) => {
     const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[key].length;
     for (let j = from; j < to; j++) LESSONS[key][j].ch = name;
