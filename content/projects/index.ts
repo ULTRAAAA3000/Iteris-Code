@@ -1,6 +1,11 @@
 // Проєкти за ТЗ: закритий контент (D17). Потрапляє лише в серверний код, браузер отримує проєкт після входу через /api/project.
 import type { Project } from "../../src/projects/types.ts";
 import type { Task } from "../../src/tasks/types.ts";
+import type { ProgramProject as ProgramDraft } from "./program-types.ts";
+import { PROJECTS as GO_PROJECTS } from "./go.ts";
+import { PROJECTS as PY_PROJECTS } from "./python.ts";
+import { PROJECTS as JAVA_PROJECTS } from "./java.ts";
+import type { ProgramProject } from "../../src/projects/types.ts";
 
 export type { Project, Requirement } from "../../src/projects/types.ts";
 
@@ -152,8 +157,13 @@ return (a === start + 1 && b === start && c === start) || "Очікувалос�
   },
 ];
 
-export const projectById = (id: string): Project | undefined => PROJECTS.find((p) => p.id === id);
-export const projectForLesson = (lessonId: string): Project | undefined => PROJECTS.find((p) => p.lesson === lessonId);
+/** Проєкти за ТЗ із серверним запуском (Go): з harness, лише для сервера */
+export const PROGRAM_PROJECTS: readonly (ProgramProject & { harness: string })[] = ([...PY_PROJECTS, ...JAVA_PROJECTS, ...GO_PROJECTS] as readonly ProgramDraft[]).map((p) => ({ ...p, kind: "program" as const, course: p.lang, premium: false }));
+/** Усі проєкти: веб (перевірки в браузері) і програмні (запуск на сервері) */
+export const ALL_PROJECTS: readonly (Project | ProgramProject)[] = [...PROJECTS, ...PROGRAM_PROJECTS];
+export const projectById = (id: string): Project | (ProgramProject & { harness: string }) | undefined => PROJECTS.find((p) => p.id === id) ?? PROGRAM_PROJECTS.find((p) => p.id === id);
+export const programProjectById = (id: string) => PROGRAM_PROJECTS.find((p) => p.id === id);
+export const projectForLesson = (lessonId: string): Project | ProgramProject | undefined => ALL_PROJECTS.find((p) => p.lesson === lessonId);
 
 /** Усе, за що нараховується XP як за практику: завдання з тестами й проєкти за ТЗ */
 export type Practice = Pick<Task, "id" | "lesson" | "course" | "title" | "premium" | "xp">;

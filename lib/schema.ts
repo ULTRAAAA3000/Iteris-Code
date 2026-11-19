@@ -40,6 +40,9 @@ const TABLES: string[] = [
   `CREATE TABLE IF NOT EXISTS user_goals (
     user_id TEXT PRIMARY KEY, daily_goal INTEGER NOT NULL, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`,
+  `CREATE TABLE IF NOT EXISTS user_course_levels (
+    user_id TEXT NOT NULL, course TEXT NOT NULL, level TEXT NOT NULL, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, course), FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE)`,
   `CREATE TABLE IF NOT EXISTS support_messages (
     id TEXT PRIMARY KEY, user_id TEXT, name TEXT, email TEXT NOT NULL, topic TEXT NOT NULL, message TEXT NOT NULL, meta TEXT,
     emailed INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`,

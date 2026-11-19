@@ -13,16 +13,16 @@ export interface RemoteOutcome extends RunOutcome {
   proof?: string;
 }
 
-interface Reply { passed?: boolean; results?: RunOutcome["results"]; stdout?: string; stderr?: string; error?: string | null; timedOut?: boolean; proof?: string }
+interface Reply { passed?: boolean; results?: RunOutcome["results"] | { id: string; ok: boolean; msg: string }[]; stdout?: string; stderr?: string; error?: string | null; timedOut?: boolean; proof?: string }
 
 const fail = (error: string): RemoteOutcome => ({ results: [], stdout: "", stderr: "", passed: false, error });
 
-export async function runRemote(taskId: string, code: string, timeoutMs = 25000, url = "/api/run"): Promise<RemoteOutcome> {
+export async function runRemote(taskId: string, code: string, timeoutMs = 25000, url = "/api/run", idKey = "taskId"): Promise<RemoteOutcome> {
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId, code }), signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({ [idKey]: taskId, code }), signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     return fail("Немає зв'язку з сервером запуску. Перевірте інтернет і спробуйте ще раз.");
@@ -33,5 +33,5 @@ export async function runRemote(taskId: string, code: string, timeoutMs = 25000,
   if (res.status === 503) return fail("Сервіс запуску тимчасово недоступний. Спробуйте за хвилину.");
   if (res.status === 402) return fail("Це завдання входить до підписки Pro");
   if (!res.ok) return fail("Не вдалося запустити код (помилка " + res.status + "). Спробуйте ще раз.");
-  return { results: data.results ?? [], stdout: data.stdout ?? "", stderr: data.stderr ?? "", passed: !!data.passed, error: data.error ?? undefined, timedOut: !!data.timedOut, proof: data.proof };
+  return { results: (data.results ?? []) as RunOutcome["results"], stdout: data.stdout ?? "", stderr: data.stderr ?? "", passed: !!data.passed, error: data.error ?? undefined, timedOut: !!data.timedOut, proof: data.proof };
 }
