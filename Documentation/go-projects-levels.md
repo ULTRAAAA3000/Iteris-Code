@@ -11,15 +11,23 @@
 - Хранение: таблица `user_course_levels(user_id, course, level)` (миграция `0014_course_levels.sql`, также в `schema.sql` и `lib/schema.ts`). Нет строки: базовый. Читается вместе со структурой курсов (`GET /api/courses` → `levels`), меняется `POST /api/level { course, level }`. Уровни допустимы только для курсов, где есть уроки с `adv` (сейчас Go).
 - Клиент: `src/data.ts` (`levelOf`, `inLevel`, `levelTotal`), `src/levels.ts` (переключатель, `levelProgress`, `nextInLevel`).
 
-## 2. Три проекта по ТЗ
+## 2. Девять проектов по ТЗ (Python, Java, Go)
 
-| Проект | Урок (базовый) | Темы |
+Проекты разнесены по курсу по мере подготовленности человека и показаны выделенным жёлтым блоком: на «Моём пути» отдельный узел «★ Проект по ТЗ» после урока-якоря, в списке курса пунктирная строка под уроком, в самом уроке карточка.
+
+| Проект | Урок | Темы |
 |---|---|---|
-| `go-tasks` «Список задач в памяти» | go/54 «Обгортання помилок: %w, errors.Is і errors.As» | структуры, методы, мапы, errors.Is |
-| `go-pipeline` «Конвейер обработки» | go/72 «Таймери, Ticker і тайм-аути» | горутины, каналы, WaitGroup, таймауты |
-| `go-texttools` «Инструменты текста» | go/74 «Пакет strings і strings.Builder» | strings, руны, сортировка, мапы |
+| `py-gradebook` «Журнал оценок» | python/10 | словари, функции, ValueError |
+| `py-inventory` «Склад» | python/16 | lambda-сортировка, comprehensions, json |
+| `py-bank` «Банковский счёт» | python/18 | классы, исключения, property |
+| `java-wordstat` «Статистика текста» | java/8 | String, HashMap |
+| `java-shapes` «Фигуры» | java/10 | интерфейсы, наследование, полиморфизм |
+| `java-library` «Библиотека» | java/11 | классы, коллекции, свои исключения |
+| `go-texttools` «Инструменты текста» | go/30 | strings, руны, сортировка, мапы |
+| `go-tasks` «Список задач в памяти» | go/54 | структуры, методы, мапы, errors.Is |
+| `go-pipeline` «Конвейер обработки» | go/72 | горутины, каналы, WaitGroup, таймауты |
 
-Все три стоят на базовых уроках, поэтому доступны на любом уровне. У каждого 8–9 требований R1–Rn с подсказками, контракт (имена и сигнатуры), заготовка и эталонное решение.
+Все якоря Go базовые, поэтому проекты доступны на любом уровне. У каждого 8–9 требований R1–Rn с подсказками, контракт, заготовка и эталонное решение.
 
 ## 3. Как проверяется проект
 
@@ -33,10 +41,10 @@
 
 ## 4. Тесты
 
-- `tests/go-projects.test.mjs` запускает реальным `go`: эталон проходит все требования (код 0), заготовка компилируется и не проходит ни одного, harness не читает ввод/файлы/сеть, проекты стоят на базовых уроках.
+- `tests/program-projects.test.mjs` запускает реальными `python3`, `javac`/`java`, `go`: эталон проходит все требования (код 0), заготовка компилируется и не проходит ни одного, harness не читает ввод/файлы/сеть, проекты стоят на базовых уроках.
 - `tests/go-levels.test.mjs`: `/api/project` без harness, `/api/project-run` (Go Playground подменён), `proof` и XP в `complete`, `adv` и `levels` в `/api/courses`, `/api/level`.
 
 ## 5. Как добавить проект или перенести на другой язык
 
-- Go: добавить объект в `content/projects/go.ts` (тип `content/projects/program-types.ts`), эталон в `tests/solutions/go-projects.mjs`, запустить `node tests/go-projects.test.mjs`.
+- Добавить объект в `content/projects/<язык>.ts` (тип `content/projects/program-types.ts`), эталон в `tests/solutions/<язык>-projects.mjs`, запустить `node tests/program-projects.test.mjs`.
 - Другой язык: добавить его в `ProgramLang`, подключить runner в `/api/project-run` (сейчас `RUNNERS[p.lang]`), проверить, что уроки-якоря базовые. Для уровней у курса нужны уроки с `adv: true`.

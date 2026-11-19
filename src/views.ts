@@ -2,7 +2,7 @@
 import { C, CATS, darkText, inLevel, levelTotal, projectOf } from "./data.ts";
 import { levelLessons, levelProgress, levelSwitch, nextInLevel, prevInLevel } from "./levels.ts";
 import { badge } from "./pages.ts";
-import { done, isDone, progress } from "./progress.ts";
+import { done, isDone, isTaskPassed, progress } from "./progress.ts";
 import type { LessonPayload } from "./types.ts";
 import { count, esc, escA, pad, store, W } from "./util.ts";
 import { workspaceHTML } from "./workspace.ts";
@@ -19,6 +19,14 @@ export const loadingCard = (): string => `<div class="card dash-guest" aria-busy
 export function loadError(retry: string): string {
   return `<div class="card dash-guest"><h1>Не вдалося завантажити уроки</h1>
     <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${retry}">Спробувати ще раз</button></div>`;
+}
+
+/** Рядок проєкту за ТЗ у списку курсу: виділений, одразу після уроку, до якого прив'язаний */
+function projectRow(k: string, n: number): string {
+  const p = projectOf(k, n);
+  if (!p) return "";
+  const pd = isTaskPassed(p.id);
+  return `<li class="proj-row${pd ? " done" : ""}"><span class="n" aria-hidden="true">★</span><a class="t" href="/project/${escA(p.id)}"><b>Проєкт за ТЗ:</b> ${escA(p.title.replace(/^Проєкт:\s*/, ""))}</a><span class="lv-tag">${pd ? "виконано" : "до " + p.xp + " XP"}</span></li>`;
 }
 
 export function course(k: string): string {
@@ -41,7 +49,7 @@ export function course(k: string): string {
       <span class="n">${pad(n)}</span>
       <a class="t" href="/lesson/${k}/${n}">${l.t}</a>${l.adv ? `<span class="lv-tag">просунутий</span>` : ""}
       <span class="row-actions"><button class="icon-btn" data-toggle="${k}:${n}" aria-pressed="${d}" aria-label="Позначити урок ${n} пройденим">${d ? "Пройдено" : "Готово"}</button></span>
-    </li>`; }).join("")}
+    </li>${projectRow(k, n)}`; }).join("")}
   </ol>
   ${c.next ? `<div class="callout"><b>Далі: ${C[c.next].name}.</b> Коли освоїте JavaScript, додайте до нього типи. <a href="/course/${c.next}">Перейти до курсу ${C[c.next].name}</a></div>` : ""}`;
 }

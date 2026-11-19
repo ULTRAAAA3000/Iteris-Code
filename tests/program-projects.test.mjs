@@ -1,4 +1,4 @@
-// Проєкти за ТЗ для Go: структура + справжній запуск еталонів і заготовок локальним go (еталон проходить усі вимоги, заготовка компілюється й не проходить жодної).
+// Проєкти за ТЗ для Python, Java і Go: структура + справжній запуск еталонів і заготовок локальними python3, javac/java, go (немає інструмента: мова пропускається).
 // Запуск: node tests/go-projects.test.mjs   (потрібен go у PATH; без нього тест пропускається)
 import { LESSONS } from "../content/lessons.js";
 import assert from "node:assert/strict";
@@ -9,7 +9,7 @@ import { join } from "node:path";
 import { FILE, assemble } from "../content/projects/program-types.ts";
 
 const only = process.argv[2];
-const LANGS = ["go"].filter((l) => !only || l === only);
+const LANGS = ["python", "java", "go"].filter((l) => !only || l === only);
 const tool = (c) => spawnSync("which", [c]).status === 0;
 
 function run(lang, program) {
@@ -33,6 +33,7 @@ const verdicts = (out) => { const m = {}; for (const l of out.split("\n")) { con
 let n = 0;
 const test = (name, fn) => { fn(); n++; console.log("ok  -", name); };
 
+const tool2 = (l) => (l === "python" ? "python3" : l === "java" ? "javac" : "go");
 for (const lang of LANGS) {
   const defPath = new URL(`../content/projects/${lang}.ts`, import.meta.url);
   if (!existsSync(defPath)) { console.log(`(${lang}: чернеток ще немає, пропуск)`); continue; }

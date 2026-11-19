@@ -50,8 +50,8 @@ const ck = await login("go-a");
 await test("Go: 110 уроків, 30 просунутих, 80 базових; проєкти стоять лише на базових уроках", () => {
   assert.equal(LESSONS.go.length, 110);
   assert.equal(LESSONS.go.filter((l) => l.adv).length, 30);
-  assert.equal(PROGRAM_PROJECTS.length, 3);
-  for (const p of PROGRAM_PROJECTS) { const [, num] = p.lesson.split("/"); assert.ok(!LESSONS.go[+num - 1].adv, p.id); assert.equal(projectForLesson(p.lesson)?.id, p.id); }
+  assert.equal(PROGRAM_PROJECTS.length, 9); assert.equal(PROGRAM_PROJECTS.filter((p) => p.lang === "go").length, 3);
+  for (const p of PROGRAM_PROJECTS.filter((p) => p.lang === "go")) { const [, num] = p.lesson.split("/"); assert.ok(!LESSONS.go[+num - 1].adv, p.id); assert.equal(projectForLesson(p.lesson)?.id, p.id); }
 });
 
 await test("/api/project: гостю 401, користувачу умови без harness і без перевірок-коду", async () => {
