@@ -1,6 +1,6 @@
 // Публічні сторінки сайту (доступні без входу): головна-лендинг, каталог курсів, «Як це працює», «Про проєкт», напрями й довідник мови.
 // Модуль чистий (без DOM, мережі й входу): той самий HTML малює браузер, а збірка заздалегідь створює з нього готові сторінки для пошуковиків.
-import { C, CATS, darkText, publicLessonTotal } from "./data.ts";
+import { C, CATS, darkText, landingKeys, publicLessonTotal } from "./data.ts";
 import { REF } from "./data/reference/index.ts";
 import { contactHtml } from "./contact.ts";
 import { demoHtml } from "./demo.ts";
@@ -38,6 +38,10 @@ const crumbsHtml = (items: readonly (readonly [string, string])[]): string =>
 const nCourses = Object.keys(C).length;
 const nLessons = publicLessonTotal();
 const LANGS = Object.values(C).map((c) => c.name);
+const landing = landingKeys();
+const nLanding = landing.length;
+const LANDING_LANGS = landing.map((k) => C[k].name);
+const nLandingLessons = landing.reduce((s, k) => s + C[k].lessons, 0);
 
 /** Кнопка-заклик: гостю відкриває вхід, користувачу веде в кабінет */
 const cta = (loggedIn: boolean, text = "Зареєструйся і вчись безкоштовно"): string =>
@@ -59,7 +63,7 @@ export const homeHtml = (loggedIn: boolean): string => `
   <section class="hero" aria-labelledby="h1">
     <div>
       <h1 id="h1">Вчися програмувати. Безкоштовно.</h1>
-      <p class="lead">Уроки українською: читаєш, пишеш код у терміналі й одразу бачиш перевірку. ${nCourses} мов, ${nLessons} уроків, без встановлення програм.</p>
+      <p class="lead">Уроки українською: читаєш, пишеш код у терміналі й одразу бачиш перевірку. ${nLanding} мов, ${nLandingLessons} уроків, без встановлення програм.</p>
       <div class="actions">${cta(loggedIn)}<a class="btn" href="/courses">Дивитись курси</a></div>
       <p class="lp-note">Довідник по мовах відкритий усім, без входу.</p>
     </div>
@@ -142,13 +146,13 @@ print("Привіт,", name + "!")</pre>
   </section>
 
   <section aria-labelledby="langs">
-    <h2 class="section-title" id="langs">${nCourses} мов і технологій</h2>
+    <h2 class="section-title" id="langs">${nLanding} мов і технологій</h2>
     <p class="section-sub">Оберіть мову, щоб відкрити довідник. Уроки й завдання чекають у кабінеті.</p>
     <div class="ruled">
       ${Object.entries(CATS).map(([key, c]) => `
       <div class="dir">
         <div><h3><a href="/${key}">${c.title}</a></h3><p>${c.desc}</p></div>
-        <div class="chips">${c.courses.map(chip).join("")}</div>
+        <div class="chips">${c.courses.filter((k) => !C[k].landingHidden).map(chip).join("")}</div>
       </div>`).join("")}
     </div>
   </section>
@@ -232,7 +236,7 @@ const aboutHtml = (loggedIn: boolean): string => `
       <li><b>Простота.</b> Короткі пояснення, зрозумілі аналогії, код блоками.</li>
     </ul>
     <h2>Що всередині</h2>
-    <p>${count(nCourses, W.course)}: ${LANGS.join(", ")}. Разом ${count(nLessons, W.lesson)}, розбитих на глави, і довідник по кожній мові. Сайт працює на телефоні.</p>
+    <p>${count(nLanding, W.course)}: ${LANDING_LANGS.join(", ")}. Разом ${count(nLandingLessons, W.lesson)}, розбитих на глави, і довідник по кожній мові. Сайт працює на телефоні.</p>
     <h2>Технології</h2>
     <p>Сайт написаний на TypeScript і працює на Cloudflare.</p>
   </div>
@@ -288,7 +292,7 @@ export function publicPages(): PageDef[] {
     {
       path: "/", kind: "home", active: "home", crumbs: [], faq: FAQ, html: homeHtml,
       title: `${BRAND}: вчися програмувати безкоштовно українською`,
-      desc: trim(`Безкоштовні уроки програмування українською: ${LANGS.slice(0, 8).join(", ")} та інші. Читай урок, пиши код у терміналі, отримуй перевірку й XP.`),
+      desc: trim(`Безкоштовні уроки програмування українською: ${LANDING_LANGS.slice(0, 8).join(", ")} та інші. Читай урок, пиши код у терміналі, отримуй перевірку й XP.`),
     },
     {
       path: "/courses", kind: "catalog", active: "courses", crumbs: [["Курси", "/courses"]], html: catalogHtml,

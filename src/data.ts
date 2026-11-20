@@ -3,7 +3,7 @@ import type { Outline, OutlineLesson, ProjectMeta, TaskMeta } from "./types.ts";
 
 export interface Category { title: string; desc: string; courses: string[] }
 /** lessons: кількість уроків (число публічне, тексти закриті); тест content.test.mjs звіряє його з content/lessons.js */
-export interface CourseMeta { lessons: number; /** Кількість базових уроків, якщо в курсі є рівні */ base?: number; name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
+export interface CourseMeta { lessons: number; /** Курс не показується на головній сторінці (лишається в каталозі й кабінеті) */ landingHidden?: boolean; /** Кількість базових уроків, якщо в курсі є рівні */ base?: number; name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
 export interface Course extends CourseMeta { L: OutlineLesson[] }
 
 export const CATS: Record<string, Category> = {
@@ -16,7 +16,7 @@ export const CATS: Record<string, Category> = {
 const META: Record<string, CourseMeta> = {
   python: { lessons: 20, name: "Python", badge: "Py", color: "#C99700", cat: "program", desc: "Проста мова для старту: змінні, розгалуження та цикли." },
   cpp: { lessons: 10, name: "C++", badge: "C+", color: "#00599C", cat: "program", desc: "Швидка компільована мова: типи, ввід-вивід, умови та цикли." },
-  pascal: { lessons: 8, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
+  pascal: { lessons: 8, landingHidden: true, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
   html: { lessons: 12, name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: структура, текст, списки, таблиці та форми." },
   css: { lessons: 13, name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
   js: { lessons: 22, name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви, DOM і запити до сервера.", next: "ts" },
@@ -68,3 +68,5 @@ export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c
 export const publicLessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.lessons, 0);
 
 export const darkText = (k: string): string => (k === "python" || k === "js" ? "color:#14213D" : "");
+/** Курси для головної сторінки: без прихованих */
+export const landingKeys = (): string[] => Object.keys(C).filter((k) => !C[k].landingHidden);
