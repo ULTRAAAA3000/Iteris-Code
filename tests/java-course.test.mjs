@@ -63,7 +63,8 @@ for (const { c, lessons, tasks, solutions } of loaded) {
   await test(`глава ${c.id} «${c.name}»: уроки відповідають плану й мають змістовну структуру`, () => {
     if (partial) assert.ok(lessons.length <= c.lessons.length, "уроків більше, ніж у плані");
     else assert.equal(lessons.length, c.lessons.length, `має бути ${c.lessons.length} уроків, є ${lessons.length}`);
-    lessons.forEach((l, i) => {
+    const problems = [];
+    lessons.forEach((l, i) => { try {
       const o = c.lessons[i], at = `java/${o.n} «${o.t}»`;
       assert.equal(l.t, o.t, `${at}: назва не збігається з планом`);
       assert.equal(l.ch, c.name, `${at}: глава`);
@@ -83,7 +84,8 @@ for (const { c, lessons, tasks, solutions } of loaded) {
       assert.ok(total >= 450 && total <= 1000, `${at}: ${total} слів теорії, норма 450–950`);
       l.code.forEach((x, j) => { if (mode(x) !== "fragment") { const bad = nonAsciiInCode(x); assert.ok(!bad, `${at} приклад ${j + 1}: кирилиця поза коментарем (текст у виводі лише ASCII): «${bad}»`); } });
       if (!l.code.some((x) => mode(x) === "compile-error" || mode(x) === "crash")) console.warn(`попередження: java/${o.n} «${o.t}» не показує жодного збою (маркер «// не компілюється:» або «// аварія:»), а там, де в теми є пастки, він потрібен`);
-    });
+    } catch (e) { problems.push(e.message); } });
+    assert.equal(problems.length, 0, "\n" + problems.join("\n"));
   });
 
   await test(`глава ${c.id}: по одному завданню на урок, з еталоном і коректними перевірками`, () => {
