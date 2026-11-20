@@ -7,11 +7,15 @@ import { isTaskPassed, markTaskPassed } from "./progress.ts";
 import { runProjectCheck } from "./projects/client.ts";
 import { scoreReport } from "./projects/sandbox.ts";
 import type { Score } from "./projects/sandbox.ts";
-import type { Project } from "./projects/types.ts";
+import { isProgram } from "./projects/types.ts";
+import type { ProgramProject, Project } from "./projects/types.ts";
+import { runRemote } from "./runner/remote.ts";
 import { toast, ui } from "./ui.ts";
 import { esc, escA, pl, store } from "./util.ts";
 
-export function projectHTML(p: Project): string {
+const PFILE = { python: "main.py", java: "Main.java", go: "main.go" } as const;
+
+export function projectHTML(p: Project | ProgramProject): string {
   const c = C[p.course], [lk, ln] = p.lesson.split("/");
   const badge = p.premium ? `<span class="plan pro">Pro</span>` : `<span class="plan free">Безкоштовно</span>`;
   return `<div class="crumbs"><a href="/">Головна</a> / <a href="/course/${escA(p.course)}">${escA(c.name)}</a> / Проєкт</div>
@@ -22,9 +26,9 @@ export function projectHTML(p: Project): string {
       <div class="prose">
         <div class="callout"><b>Навіщо це в роботі.</b> ${p.context}</div>
         ${p.brief.map((x) => `<p>${x}</p>`).join("")}
-        <h2>Макет</h2>
-        <pre class="code" aria-label="Макет сторінки">${esc(p.mockup)}</pre>
-        <h2>Договір по елементах</h2>
+        ${isProgram(p) ? "" : `<h2>Макет</h2>
+        <pre class="code" aria-label="Макет сторінки">${esc(p.mockup)}</pre>`}
+        <h2>${isProgram(p) ? "Договір: імена й сигнатури" : "Договір по елементах"}</h2>
         <ul>${p.contract.map((x) => `<li>${x}</li>`).join("")}</ul>
         <h2>Вимоги</h2>
         <ol class="pj-reqs" id="pj-reqs">${p.requirements.map((r) => `<li data-req="${escA(r.id)}"><span class="pj-st" aria-hidden="true">○</span><div><b>${escA(r.id)}.</b> ${r.text}</div></li>`).join("")}</ol>
@@ -33,16 +37,16 @@ export function projectHTML(p: Project): string {
     </article>
     <section class="ws-right" aria-label="Редактор проєкту">
       <div class="ws-bar">
-        <span class="ws-tab">index.html</span>
+        <span class="ws-tab">${isProgram(p) ? PFILE[p.lang] : "index.html"}</span>
         <span class="ws-spacer"></span>
         <button class="btn small" data-pj="reset">Скинути</button>
         <button class="btn primary small" data-pj="run" id="pj-run">▶ Перевірити проєкт</button>
       </div>
       <div id="pj-lock"></div>
       <div id="editor" class="ws-editor"></div>
-      <div id="pj-report" class="pj-report" aria-live="polite">Натисніть «Перевірити проєкт» (Ctrl+Enter): ми запустимо вашу сторінку й перевіримо кожну вимогу.</div>
-      <h2 class="pj-prev-h">Ваша сторінка</h2>
-      <iframe id="pj-frame" class="pj-frame" title="Попередній перегляд вашої сторінки" sandbox="allow-scripts"></iframe>
+      <div id="pj-report" class="pj-report" aria-live="polite">Натисніть «Перевірити проєкт» (Ctrl+Enter): ми запустимо ${isProgram(p) ? "вашу програму" : "вашу сторінку"} й перевіримо кожну вимогу.</div>
+      ${isProgram(p) ? `<pre id="pj-out" class="code pj-out" aria-label="Вивід вашої програми" hidden></pre>` : `<h2 class="pj-prev-h">Ваша сторінка</h2>
+      <iframe id="pj-frame" class="pj-frame" title="Попередній перегляд вашої сторінки" sandbox="allow-scripts"></iframe>`}
     </section>
   </div>`;
 }
@@ -68,14 +72,14 @@ function showScore(s: Score): void {
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="${s.total}" aria-valuenow="${s.passed}" aria-label="Виконано вимог"><i style="width:${pct}%"></i></div></div><ul class="pj-reqs pj-res" aria-label="Результат по вимогах">${s.items.map((i) => `<li class="${i.ok ? "ok" : "bad"}"><span class="pj-st" aria-hidden="true">${i.ok ? "✓" : "✗"}</span><div><b>${escA(i.req.id)}.</b> ${i.req.text}${i.ok ? "" : `<div class="pj-hint">${esc(i.req.hint + (i.msg ? " Що знайшла перевірка: " + i.msg : ""))}</div>`}</div></li>`).join("")}</ul><div id="pj-win"></div>`;
 }
 
-export async function mountProject(p: Project): Promise<void> {
+export async function mountProject(p: Project | ProgramProject): Promise<void> {
   disposeProject();
   const host = document.getElementById("editor");
   const runBtn = document.getElementById("pj-run") as HTMLButtonElement | null;
   const lock = document.getElementById("pj-lock");
   const frame = document.getElementById("pj-frame") as HTMLIFrameElement | null;
   const area = document.querySelector(".pj");
-  if (!host || !runBtn || !lock || !frame || !area) return;
+  if (!host || !runBtn || !lock || !area || (!frame && !isProgram(p))) return;
 
   const draftKey = "ic-code:" + p.id;
   const me = { dispose: () => {} };
@@ -94,10 +98,10 @@ export async function mountProject(p: Project): Promise<void> {
   ui.authListeners.add(refresh);
 
   const draft = store.get<string>(draftKey, p.starter);
-  const editor: CodeEditor = await createEditor(host, { value: draft, language: "html" });
+  const editor: CodeEditor = await createEditor(host, { value: draft, language: isProgram(p) ? p.lang : "html" });
   if (active !== me || !host.isConnected) { editor.dispose(); return; }  // користувач уже перейшов на іншу сторінку
   me.dispose = () => { ui.authListeners.delete(refresh); editor.dispose(); };
-  frame.srcdoc = draft;   // одразу показуємо поточну сторінку (без перевірки)
+  if (frame) frame.srcdoc = draft;   // одразу показуємо поточну сторінку (без перевірки)
 
   let timer: number | undefined;
   editor.onChange(() => {
@@ -105,12 +109,12 @@ export async function mountProject(p: Project): Promise<void> {
     timer = window.setTimeout(() => store.set(draftKey, editor.getValue()), 400);
   });
 
-  const onSolved = async (code: string): Promise<void> => {
+  const onSolved = async (code: string, proof?: string): Promise<void> => {
     markTaskPassed(p.id);
     const user = getUser();
     let msg = "Увійдіть, щоб зберегти прогрес і серію занять.";
     if (user) {
-      const r = await completeTask(p.id, code);
+      const r = await completeTask(p.id, code, proof);
       if (r.status === 402) { toast("Цей проєкт входить до підписки Pro"); return; }
       if (r.ok) msg = r.firstSolve ? `+${r.xp ?? 0} XP · 🔥 ${r.streak} ${pl(r.streak ?? 0, "день", "дні", "днів")} поспіль` : "Ви вже виконували цей проєкт, XP не нараховується повторно.";
       else msg = "Проєкт виконано, але зберегти результат не вдалося. Спробуйте ще раз.";
@@ -126,12 +130,30 @@ export async function mountProject(p: Project): Promise<void> {
     running = true;
     runBtn.disabled = true; runBtn.textContent = "Перевіряємо…";
     const code = editor.getValue();
-    const report = await runProjectCheck(frame, p, code);
+    if (isProgram(p)) {
+      const r = await runRemote(p.id, code, 45000, "/api/project-run", "projectId");
+      running = false;
+      runBtn.textContent = "▶ Перевірити проєкт";
+      refresh();
+      if (!runBtn.isConnected) return;
+      const got = new Map((r.results as unknown as { id: string; ok: boolean; msg: string }[]).map((x) => [x.id, x]));
+      const items = p.requirements.map((q) => ({ req: { ...q, check: "" }, ok: !!got.get(q.id)?.ok, msg: got.get(q.id)?.msg ?? "" }));
+      const passedN = items.filter((i) => i.ok).length;
+      showScore({ passed: passedN, total: items.length, all: r.passed && passedN === items.length, items });
+      const rep = document.getElementById("pj-report");
+      if (r.error) rep?.insertAdjacentHTML("afterbegin", `<p class="t-fail" role="alert">${esc(r.error)}</p>`);
+      else if (r.stderr.trim() && !r.passed) rep?.insertAdjacentHTML("beforeend", `<pre class="code pj-out" aria-label="Повідомлення про помилку">${esc(r.stderr.trim())}</pre>`);
+      const out = document.getElementById("pj-out") as HTMLElement | null;
+      if (out) { out.hidden = !r.stdout.trim(); out.textContent = r.stdout; }
+      if (r.passed && passedN === items.length) await onSolved(code, r.proof);
+      return;
+    }
+    const report = await runProjectCheck(frame!, p, code);
     running = false;
     runBtn.textContent = "▶ Перевірити проєкт";
     refresh();
     if (!runBtn.isConnected) return;
-    const s = scoreReport(p, report);
+    const s = scoreReport(p as Project, report);
     showScore(s);
     if (report.error) {
       const rep = document.getElementById("pj-report");
@@ -147,7 +169,7 @@ export async function mountProject(p: Project): Promise<void> {
     else if (b.dataset.pj === "reset") {
       editor.setValue(p.starter);
       store.set(draftKey, p.starter);
-      frame.srcdoc = p.starter;
+      if (frame) frame.srcdoc = p.starter;
       document.querySelectorAll<HTMLElement>("#pj-reqs li").forEach((li) => { li.className = ""; (li.querySelector(".pj-st") as HTMLElement).textContent = "○"; });
       const rep = document.getElementById("pj-report");
       if (rep) rep.textContent = "Код скинуто до початкового.";

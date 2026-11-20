@@ -149,7 +149,7 @@ await test("/api/courses: у структурі є список проєктів
   const c = await login("pj6");
   assert.equal((await call(coursesApi, req("/api/courses"))).status, 401);
   const r = await call(coursesApi, req("/api/courses", { cookie: c }));
-  assert.deepEqual(r.data.projects, [{ id: "js-todo", title: "Проєкт: список справ", xp: 60, course: "js", lesson: "js/17" }]);
+  assert.deepEqual(r.data.projects.filter((p) => p.course === "js"), [{ id: "js-todo", title: "Проєкт: список справ", xp: 60, course: "js", lesson: "js/17" }]);
   assert.equal(r.data.courses.js[16].project, "js-todo");
   assert.equal(r.data.courses.js[15].project, undefined);
   assert.ok(!JSON.stringify(r.data).includes("task-input"), "структура курсів не містить умов і перевірок проєкту");
