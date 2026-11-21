@@ -37,7 +37,7 @@ const CHAPTERS = [
     L("Сортування: sort, компаратор і localeCompare"),
     L("Практика: частотний словник"),
     L("Object.keys, entries і fromEntries: типи ключів", true),
-    L("Variadic tuple types: розгортання кортежів", true),
+    L("Матриці й багатовимірні масиви", true),
     L("noUncheckedIndexedAccess і безпечний доступ до елементів", true),
   ]),
   ch("04", "Типи користувача", [
