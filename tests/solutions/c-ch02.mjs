@@ -270,4 +270,29 @@ int main(void) {
     return 0;
 }
 `,
+  "c-recursion-power": raw`#include <stdio.h>
+
+long long power(long long base, int exp);
+int sum_digits(int n);
+
+int main(void) {
+    printf("power: %lld\n", power(2, 10));
+    printf("digits: %d\n", sum_digits(12345));
+    return 0;
+}
+
+long long power(long long base, int exp) {
+    if (exp == 0) {
+        return 1;
+    }
+    return base * power(base, exp - 1);
+}
+
+int sum_digits(int n) {
+    if (n < 10) {
+        return n;
+    }
+    return n % 10 + sum_digits(n / 10);
+}
+`,
 };

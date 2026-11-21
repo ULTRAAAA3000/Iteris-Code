@@ -376,4 +376,39 @@ int main(void) {
       { on: "source", name: "Лічильник оголошено як static int", matches: "static\\s+int\\s+\\w+\\s*=\\s*0", hint: "static int n = 0; усередині next_ticket." },
     ],
   },
+  {
+    ...base, id: "c-recursion-power", lesson: "c/19", xp: 30,
+    title: "Рекурсивні power і sum_digits",
+    context: "Рекурсивне мислення, з базою і кроком, потрібне для обходу дерев, парсерів і розділяй-і-володарюй. Звичайні функції на кшталт степеня й суми цифр це найкращий тренажер.",
+    brief: [
+      "У заготовці <code>power</code> і <code>sum_digits</code> повертають 0. Зробіть обидві рекурсивними. <code>long long power(long long base, int exp)</code>: база <code>exp == 0</code> дає 1, крок <code>base * power(base, exp - 1)</code>.",
+      "<code>int sum_digits(int n)</code>: для <code>n &lt; 10</code> повертає <code>n</code>, інакше <code>n % 10 + sum_digits(n / 10)</code>. Програма має вивести <code>power: 1024</code> і <code>digits: 15</code>.",
+    ],
+    starter: raw`#include <stdio.h>
+
+long long power(long long base, int exp);
+int sum_digits(int n);
+
+int main(void) {
+    printf("power: %lld\n", power(2, 10));
+    printf("digits: %d\n", sum_digits(12345));
+    return 0;
+}
+
+long long power(long long base, int exp) {
+    return 0;
+}
+
+int sum_digits(int n) {
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "2 у степені 10 дорівнює 1024", has: "power: 1024", hint: "База: exp == 0 повертає 1. Крок: base * power(base, exp - 1)." },
+      { on: "stdout", name: "Сума цифр 12345 дорівнює 15", has: "digits: 15", hint: "Для n < 10 поверніть n, інакше n % 10 + sum_digits(n / 10)." },
+      { on: "stdout", name: "Обидва рядки без зайвого", equals: "power: 1024\ndigits: 15", hint: "main змінювати не потрібно." },
+      { on: "source", name: "power викликає сама себе", matches: "return[^;]*\\bpower\\s*\\(", hint: "Усередині power має бути return із викликом power." },
+      { on: "source", name: "sum_digits викликає сама себе", matches: "return[^;]*\\bsum_digits\\s*\\(", hint: "Усередині sum_digits має бути return із викликом sum_digits." },
+    ],
+  },
 ];
