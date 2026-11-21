@@ -345,5 +345,309 @@ int main() {
       "Чому <code>\"a\" + \"b\"</code> не компілюється, а <code>std::string(\"a\") + \"b\"</code> працює?",
     ],
   },
-// @@NEXT
+  {
+    t: "Ввід і вивід: cin, cout і форматування",
+    ch: "Основи мови",
+    easy: "Потік схожий на трубу: через <code>cout</code> дані виливаються назовні, а через <code>cin</code> вливаються всередину програми. Оператор показує напрямок течії, а маніпулятори налаштовують ширину й точність струменя.",
+    p: [
+      "Програма корисна, коли вміє отримувати дані й показувати результат. У C++ для цього є потоки: <code>std::cout</code> виводить, <code>std::cin</code> читає з клавіатури. Обидва живуть у заголовку <code>&lt;iostream&gt;</code>. Потік не зберігає дані, він лише переносить їх у потрібному напрямку, тому весь вивід і ввід у мові працюють за одним і тим самим принципом.",
+      "Оператор <code>&lt;&lt;</code> штовхає значення в потік виводу, а <code>&gt;&gt;</code> витягує значення з потоку вводу. Стрілки завжди вказують напрямок руху даних: у <code>cout</code> значення входять, з <code>cin</code> виходять. Операції можна нанизувати в ланцюжок: <code>std::cout &lt;&lt; a &lt;&lt; \" \" &lt;&lt; b;</code>. Кінець рядка пишуть як <code>\"\\n\"</code> або <code>std::endl</code>; другий ще й скидає буфер, тож у циклах з великим виводом він повільніший.",
+      "Форматуванням керують маніпулятори із заголовка <code>&lt;iomanip&gt;</code>. <code>std::setw(n)</code> задає ширину наступного поля, <code>std::left</code> і <code>std::right</code> вирівнюють його, <code>std::fixed</code> разом із <code>std::setprecision(n)</code> фіксує кількість знаків після коми. Ширина діє лише на одне наступне значення, а решта налаштувань діє, доки ви їх не змінили. Для таблиць вирівнюйте колонки латиницею й цифрами: кирилиця займає в байтах більше місця, тож <code>setw</code> її не вирівняє.",
+      "Читання з <code>cin</code> працює так само, як читання з будь-якого потоку, тому в навчальних програмах без клавіатури ми підставляємо замість нього <code>std::istringstream</code> із заголовка <code>&lt;sstream&gt;</code>. Це потік над готовим рядком: <code>std::istringstream in(\"12 7\"); int a, b; in &gt;&gt; a &gt;&gt; b;</code>. Оператор <code>&gt;&gt;</code> пропускає пробіли й переноси та зчитує рівно стільки тексту, скільки потрібно для типу змінної. Усе, що ви навчитеся робити з таким потоком, без змін працює й для <code>cin</code>.",
+      "Перша пастка: вхід може не збігтися з очікуванням. Якщо в потоці лежить <code>abc</code>, а ви просите <code>int</code>, потік переходить у стан помилки, змінна отримує 0, а всі наступні читання мовчки нічого не роблять. Тому результат читання перевіряють: вираз <code>in &gt;&gt; n</code> у умові дає <code>true</code>, лише коли зчитування вдалося. Друга пастка: переплутані стрілки. Запис <code>std::cout &gt;&gt; x</code> не збереться взагалі, і це добре: компілятор ловить помилку напрямку.",
+      "Для рядків із пробілами оператор <code>&gt;&gt;</code> не годиться, бо зупиняється на першому пробілі. Тут працює <code>std::getline(in, line)</code>: вона читає до кінця рядка й повертає потік, тож цикл <code>while (std::getline(in, line))</code> проходить усі рядки, доки вони є. Типова ідіома: прочитати рядок цілком, а потім розібрати його другим <code>istringstream</code>. Так можна обробляти кожен рядок окремо, не боячись, що помилка в одному зіпсує решту.",
+      "Тепер ви вмієте показувати й приймати дані. Але дані з потоку часто приходять текстом, і їх треба перетворювати між типами: число в рядок, рядок у число, дробове в ціле. Наступний урок про те, як робити це явно й безпечно: <code>static_cast</code>, <code>stoi</code> і <code>to_string</code>.",
+    ],
+    code: [
+      String.raw`#include <iostream>
+#include <string>
+
+int main() {
+    std::string name = "Olena";
+    int age = 25;
+    std::cout << "Name: " << name << ", age: " << age << "\n";
+    std::cout << "A" << "B" << 1 << 2.5 << '!' << std::endl;
+    return 0;
+}
+`,
+      String.raw`#include <iomanip>
+#include <iostream>
+
+int main() {
+    std::cout << std::left << std::setw(8) << "item"
+              << std::right << std::setw(5) << "qty" << std::setw(9) << "price" << "\n";
+    std::cout << std::left << std::setw(8) << "apple"
+              << std::right << std::setw(5) << 3
+              << std::setw(9) << std::fixed << std::setprecision(2) << 12.5 << "\n";
+    std::cout << std::left << std::setw(8) << "pear"
+              << std::right << std::setw(5) << 12
+              << std::setw(9) << 7.0 << "\n";
+    return 0;
+}
+`,
+      String.raw`#include <iostream>
+#include <sstream>
+
+int main() {
+    std::istringstream in("12 7 3.5 abc");
+    int a = 0;
+    int b = 0;
+    double c = 0;
+    in >> a >> b >> c;
+    std::cout << a + b << " " << c << "\n";
+    int bad = -1;
+    if (in >> bad) {
+        std::cout << "number: " << bad << "\n";
+    } else {
+        std::cout << "not a number\n";
+    }
+    return 0;
+}
+`,
+      String.raw`// не компілюється: cout приймає дані оператором <<, а не >>
+#include <iostream>
+
+int main() {
+    int x = 5;
+    std::cout >> x;
+    return 0;
+}
+`,
+      String.raw`#include <iostream>
+#include <sstream>
+#include <string>
+
+int main() {
+    std::istringstream input("Olena 25\nTaras Petrenko 31\nIryna 19\n");
+    std::string line;
+    int total = 0;
+    int count = 0;
+    while (std::getline(input, line)) {
+        std::size_t space = line.rfind(' ');
+        std::string name = line.substr(0, space);
+        std::istringstream rest(line.substr(space + 1));
+        int age = 0;
+        if (!(rest >> age)) {
+            continue;
+        }
+        std::cout << name << " -> " << age << "\n";
+        total += age;
+        ++count;
+    }
+    std::cout << "average: " << total / count << "\n";
+    return 0;
+}
+`,
+    ],
+    note: "Стрілки показують напрямок: <code>&lt;&lt;</code> у <code>cout</code>, <code>&gt;&gt;</code> з <code>cin</code>. Результат читання завжди перевіряйте: <code>if (in &gt;&gt; n)</code>. Для рядка з пробілами беріть <code>std::getline</code>, а не <code>&gt;&gt;</code>.",
+    work: "Консольні утиліти, розбір рядків журналу, конфігурацій і CSV: усе це читання тексту потоком і форматований вивід. Звичка перевіряти успіх читання рятує від мовчазних нулів, які потім псують підсумки.",
+    tasks: [
+      "Чому після невдалого <code>in &gt;&gt; n</code> наступні читання з цього потоку теж нічого не дають і як це помітити в коді?",
+      "Чим <code>std::getline(in, line)</code> відрізняється від <code>in &gt;&gt; word</code> і коли потрібна саме вона?",
+    ],
+  },
+  {
+    t: "Перетворення типів: static_cast, stoi і to_string",
+    ch: "Основи мови",
+    easy: "Перетворення типу схоже на переливання води з однієї посудини в іншу: вміст той самий, форма інша. Іноді вода переливається без втрат, а іноді частина розплескується, тому переливати треба свідомо.",
+    p: [
+      "У C++ значення одного типу часто потрібно подати як інше: порахувати середнє з двох цілих, показати число в тексті, розібрати введений рядок як число. Деякі перетворення компілятор робить сам, але вони тихі й іноді небезпечні. Правильна звичка така: перетворення пишемо явно, щоб було видно, де і навіщо воно відбувається.",
+      "Для сумісних типів існує <code>static_cast&lt;Тип&gt;(значення)</code>. Запис <code>static_cast&lt;double&gt;(sum) / count</code> робить ділення дробовим: спершу <code>sum</code> стає <code>double</code>, а потім ділиться на ціле, яке теж піднімається до <code>double</code>. Перетворення дробового в ціле відкидає дробову частину без округлення: <code>static_cast&lt;int&gt;(3.9)</code> дорівнює 3. Так само символ перетворюється на код, а код на символ.",
+      "Стара форма <code>(int)x</code> або <code>int(x)</code> теж працює, але її важко знайти пошуком і вона вміє забагато. <code>static_cast</code> видно в коді, він перевіряється компілятором і дозволяє лише розумні перетворення. Тому в сучасному C++ його і вживають, коли треба явно змінити тип числа.",
+      "Між числами і текстом працюють готові функції з <code>&lt;string&gt;</code>. <code>std::to_string(n)</code> перетворює число на рядок, і це зручно для складання повідомлень: <code>\"Total: \" + std::to_string(n)</code>. Зворотний шлях: <code>std::stoi</code> розбирає рядок як <code>int</code>, <code>std::stod</code> як <code>double</code>. Вони читають число з початку рядка і зупиняються на першому символі, який не підходить, тож <code>stoi(\"42abc\")</code> дає 42.",
+      "Перша пастка: <code>stoi</code> не повертає код помилки. Якщо на початку рядка немає числа, він кидає виняток <code>std::invalid_argument</code>, а якщо число завелике, то <code>std::out_of_range</code>. Необроблений виняток негайно завершує програму. Тому введений користувачем текст розбирають усередині <code>try</code> і <code>catch</code>: у catch можна повідомити про помилку або взяти значення за замовчуванням. Докладно винятки розглянемо в окремій главі, а зараз потрібен лише цей шаблон.",
+      "Друга пастка: компілятор не перетворює число на рядок сам. Запис <code>std::string s = 42;</code> не збереться, і правильний шлях тут <code>std::to_string(42)</code>. Ще одна тонкість: <code>to_string</code> для дробових чисел завжди пише шість знаків після коми, тож <code>to_string(2.5)</code> дає <code>2.500000</code>. Якщо потрібен гарний формат, використайте потік і маніпулятори з попереднього уроку.",
+      "Ідіома проста: явне перетворення через <code>static_cast</code> для чисел, <code>stoi</code> і <code>stod</code> для тексту в число з <code>try/catch</code>, <code>to_string</code> для числа в текст. Далі вміння працювати з даними треба поєднати з рішеннями: програма має обирати гілку залежно від значень. Це тема наступного уроку про <code>if</code>, <code>else</code> і <code>switch</code>.",
+    ],
+    code: [
+      String.raw`#include <iostream>
+
+int main() {
+    int sum = 7;
+    int count = 2;
+    std::cout << sum / count << "\n";
+    std::cout << static_cast<double>(sum) / count << "\n";
+    std::cout << static_cast<int>(3.9) << " " << static_cast<int>(-3.9) << "\n";
+    char letter = 'A';
+    std::cout << static_cast<int>(letter) << " " << static_cast<char>(letter + 2) << "\n";
+    return 0;
+}
+`,
+      String.raw`#include <iostream>
+#include <string>
+
+int main() {
+    int items = 5;
+    std::string message = "Items: " + std::to_string(items);
+    std::cout << message << "\n";
+    std::cout << std::to_string(2.5) << "\n";
+    std::string both = std::to_string(1) + std::to_string(2);
+    std::cout << both << " " << both.size() << "\n";
+    return 0;
+}
+`,
+      String.raw`#include <iostream>
+#include <string>
+
+int main() {
+    std::cout << std::stoi("42") + 1 << "\n";
+    std::cout << std::stod("3.5") * 2 << "\n";
+    std::size_t pos = 0;
+    int n = std::stoi("42abc", &pos);
+    std::cout << n << " " << pos << "\n";
+    return 0;
+}
+`,
+      String.raw`// не компілюється: число не перетворюється на std::string само
+#include <iostream>
+#include <string>
+
+int main() {
+    std::string s = 42;
+    std::cout << s << "\n";
+    return 0;
+}
+`,
+      String.raw`// аварія: stoi кидає std::invalid_argument, а виняток ніхто не ловить
+#include <iostream>
+#include <string>
+
+int main() {
+    std::cout << std::stoi("12") << std::endl;
+    std::cout << std::stoi("abc") << std::endl;
+    return 0;
+}
+`,
+    ],
+    note: "Для явної зміни типу числа пишіть <code>static_cast&lt;Тип&gt;(x)</code>. <code>stoi</code> і <code>stod</code> кидають виняток на поганому тексті, тож розбирайте чужий ввід у <code>try/catch</code>. Число не стає рядком саме: беріть <code>to_string</code>.",
+    work: "Параметри з командного рядка, значення з конфігурації, поля CSV і JSON приходять текстом, а рахувати треба числами. Явне перетворення з обробкою помилки відрізняє надійну програму від тієї, що падає на першому ж кривому рядку.",
+    tasks: [
+      "Чому <code>static_cast&lt;double&gt;(a / b)</code> для двох цілих не дає дробового результату, а <code>static_cast&lt;double&gt;(a) / b</code> дає?",
+      "Що станеться, якщо викликати <code>std::stoi(\"abc\")</code> без <code>try/catch</code>, і що поверне <code>std::stoi(\"42abc\")</code>?",
+    ],
+  },
+  {
+    t: "Умови: if, else і switch",
+    ch: "Основи мови",
+    easy: "Умова працює як розвилка на дорозі зі знаком: якщо дощ, беремо парасольку, інакше йдемо так. Програма на кожній розвилці перевіряє твердження і мусить обрати рівно одну гілку.",
+    p: [
+      "Досі наші програми виконувались згори вниз без вибору. Реальні програми приймають рішення: пропустити користувача чи ні, рахувати знижку чи ні, показати помилку чи результат. Для цього є умовні конструкції. Умова в C++ це вираз, який має значення <code>bool</code>: <code>true</code> вмикає гілку, <code>false</code> її пропускає.",
+      "Базова форма: <code>if (умова) { … } else { … }</code>. Коли гілок більше двох, додають <code>else if</code>. Перевірки виконуються по порядку, і перша, що дала <code>true</code>, спрацьовує, а решта пропускаються. Тому порядок має значення: спершу пишіть вужчі умови. Приклад: оцінка від 90 перевіряється раніше за оцінку від 60, інакше всі відмінники потрапили б у групу «задовільно».",
+      "Умови будують із порівнянь <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code> і логічних операторів <code>&amp;&amp;</code> («і»), <code>||</code> («або»), <code>!</code> («не»). Оператори <code>&amp;&amp;</code> і <code>||</code> обчислюються ліниво: якщо результат уже ясний за лівою частиною, права не виконується. Тому безпечно писати <code>i &gt;= 0 &amp;&amp; i &lt; n</code>, а для складних умов краще додати дужки й ясність.",
+      "Коли треба порівняти одне значення з кількома константами, зручніше <code>switch</code>. Він працює з цілими типами і <code>char</code>: <code>switch (x) { case 1: … break; default: … }</code>. Слово <code>break</code> виходить зі <code>switch</code>, а <code>default</code> ловить усе, що не підійшло. Кілька міток поспіль, як <code>case 6: case 7:</code>, ділять одну гілку, і це нормальний спосіб згрупувати значення.",
+      "Перша пастка: забутий <code>break</code>. Без нього виконання «провалюється» у наступну гілку й виконує її теж, а компілятор у цьому випадку може лише застерегти. Тож завершуйте кожну гілку через <code>break</code> або <code>return</code>, а навмисний провал позначайте атрибутом <code>[[fallthrough]];</code>. Друга пастка: <code>switch</code> не приймає рядків, тому для <code>std::string</code> працює тільки ланцюжок <code>if</code> та <code>else if</code>.",
+      "Третя пастка: у <code>if (x = 5)</code> стоїть присвоєння замість порівняння, і умова завжди істинна. Компілятор з прапорцями попереджень на таке вказує, тож читайте попередження. Також дроби порівнюйте обережно: <code>0.1 + 0.2 == 0.3</code> дає <code>false</code> через неточне двійкове подання. Для <code>double</code> порівнюють різницю з малим допуском. Ідіома: умови пишіть позитивно й коротко, а дрібні вибори з двох значень можна замінити тернарним оператором <code>умова ? а : б</code>.",
+      "Умови дають програмі вибір, але один раз. Щоб повторювати дію, поки умова істинна, або пройти по всіх елементах, потрібні цикли. Саме про них наступний урок: <code>for</code>, <code>while</code> і <code>range-for</code>.",
+    ],
+    code: [
+      String.raw`#include <iostream>
+
+int main() {
+    int score = 73;
+    if (score >= 90) {
+        std::cout << "excellent\n";
+    } else if (score >= 60) {
+        std::cout << "good\n";
+    } else {
+        std::cout << "retry\n";
+    }
+    return 0;
+}
+`,
+      String.raw`#include <iostream>
+
+int main() {
+    int age = 20;
+    bool hasTicket = true;
+    if (age >= 18 && hasTicket) {
+        std::cout << "enter\n";
+    }
+    if (!(age < 18 || !hasTicket)) {
+        std::cout << "same check\n";
+    }
+    std::cout << (0.1 + 0.2 == 0.3) << "\n";
+    std::cout << (age >= 18 ? "adult" : "minor") << "\n";
+    return 0;
+}
+`,
+      String.raw`#include <iostream>
+
+int main() {
+    for (int day = 1; day <= 7; ++day) {
+        switch (day) {
+            case 6:
+            case 7:
+                std::cout << day << " weekend\n";
+                break;
+            case 1:
+                std::cout << day << " start of week\n";
+                break;
+            default:
+                std::cout << day << " workday\n";
+                break;
+        }
+    }
+    return 0;
+}
+`,
+      String.raw`// не компілюється: switch не працює з рядками, лише з цілими типами
+#include <iostream>
+#include <string>
+
+int main() {
+    std::string cmd = "add";
+    switch (cmd) {
+        case "add":
+            std::cout << "adding\n";
+            break;
+        default:
+            break;
+    }
+    return 0;
+}
+`,
+      String.raw`#include <iostream>
+#include <sstream>
+#include <string>
+
+int main() {
+    std::istringstream commands("+ 5\n- 2\n* 4\n/ 0\n? 1\n");
+    int value = 10;
+    char op = 0;
+    int arg = 0;
+    while (commands >> op >> arg) {
+        switch (op) {
+            case '+':
+                value += arg;
+                break;
+            case '-':
+                value -= arg;
+                break;
+            case '*':
+                value *= arg;
+                break;
+            case '/':
+                if (arg == 0) {
+                    std::cout << "division by zero skipped\n";
+                } else {
+                    value /= arg;
+                }
+                break;
+            default:
+                std::cout << "unknown op " << op << "\n";
+                break;
+        }
+        std::cout << op << " " << arg << " -> " << value << "\n";
+    }
+    return 0;
+}
+`,
+    ],
+    note: "У <code>else if</code> порядок важливий: перша істинна умова виграє. У <code>switch</code> завершуйте гілку через <code>break</code>, інакше виконання провалиться далі. Рядки в <code>switch</code> не працюють, а <code>=</code> у умові замість <code>==</code> це майже завжди помилка.",
+    work: "Валідація введення, права доступу, розбір команд, обробка кодів стану: у кожній програмі повно розвилок. Охайний <code>switch</code> для команд і коротка перевірка помилок на початку функції роблять код читабельним.",
+    tasks: [
+      "Чому в ланцюжку <code>else if</code> умову <code>score &gt;= 90</code> треба писати раніше за <code>score &gt;= 60</code>?",
+      "Що станеться, якщо в гілці <code>switch</code> забути <code>break</code>, і чому <code>switch</code> не можна застосувати до <code>std::string</code>?",
+    ],
+  },
 ];
