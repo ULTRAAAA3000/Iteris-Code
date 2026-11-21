@@ -118,4 +118,84 @@ int main() {
     return 0;
 }
 `,
+  "cpp-if-weather": raw`#include <iostream>
+
+int main() {
+    int temp = 27;
+    bool raining = true;
+    std::cout << "Температура: " << temp << "\n";
+    std::cout << "Прогноз: ";
+    if (temp < 0) {
+        std::cout << "мороз\n";
+    } else if (temp < 15) {
+        std::cout << "прохолодно\n";
+    } else if (temp < 25) {
+        std::cout << "тепло\n";
+    } else {
+        std::cout << "спека\n";
+    }
+    std::cout << "Парасолька: " << (raining ? "так" : "ні") << "\n";
+    return 0;
+}
+`,
+  "cpp-switch-plan": raw`#include <iostream>
+
+int main() {
+    int plan = 2;
+    std::cout << "Тариф: " << plan << "\n";
+    switch (plan) {
+        case 3:
+            std::cout << "Підтримка 24/7\n";
+            [[fallthrough]];
+        case 2:
+            std::cout << "Резервні копії\n";
+            [[fallthrough]];
+        case 1:
+            std::cout << "Сховище 10 ГБ\n";
+            break;
+        default:
+            break;
+    }
+    return 0;
+}
+`,
+  "cpp-while-digits": raw`#include <iostream>
+
+int main() {
+    int original = 12345;
+    int n = original;
+    int digits = 0;
+    int sum = 0;
+    int reversed = 0;
+    while (n > 0) {
+        int d = n % 10;
+        sum += d;
+        reversed = reversed * 10 + d;
+        digits++;
+        n /= 10;
+    }
+    std::cout << "Число: " << original << "\n";
+    std::cout << "Цифр: " << digits << "\n";
+    std::cout << "Сума цифр: " << sum << "\n";
+    std::cout << "Навпаки: " << reversed << "\n";
+    return 0;
+}
+`,
+  "cpp-multiples": raw`#include <iostream>
+
+int main() {
+    int sum = 0;
+    bool first = true;
+    for (int i = 1; i <= 20; i++) {
+        if (i % 3 == 0 || i % 5 == 0) {
+            std::cout << (first ? "" : " ") << i;
+            sum += i;
+            first = false;
+        }
+    }
+    std::cout << "\n";
+    std::cout << "Сума: " << sum << "\n";
+    return 0;
+}
+`,
 };
