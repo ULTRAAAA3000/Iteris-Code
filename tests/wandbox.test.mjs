@@ -6,7 +6,7 @@ import { RUNNERS, RunnerUnavailable, pickCompiler, resetWandboxCache } from "../
 const LIST = [
   { name: "cpython-head", language: "Python" }, { name: "cpython-3.9.19", language: "Python" }, { name: "cpython-3.13.0", language: "Python" }, { name: "cpython-3.12.7", language: "Python" }, { name: "cpython-2.7.18", language: "Python" },
   { name: "openjdk-jdk-21+35", language: "Java" }, { name: "openjdk-jdk-22+36", language: "Java" }, { name: "openjdk-head", language: "Java" },
-  { name: "gcc-head", language: "C++" }, { name: "gcc-13.2.0", language: "C++" }, { name: "gcc-9.5.0", language: "C++" }, { name: "clang-18.1.0", language: "C++" },
+  { name: "gcc-head-c", language: "C" }, { name: "gcc-13.2.0-c", language: "C" }, { name: "clang-18.1.0-c", language: "C" }, { name: "gcc-head", language: "C++" }, { name: "gcc-13.2.0", language: "C++" }, { name: "gcc-9.5.0", language: "C++" }, { name: "clang-18.1.0", language: "C++" },
   { name: "php-8.3.12", language: "PHP" }, { name: "php-8.4.1", language: "PHP" }, { name: "php-head", language: "PHP" },
   { name: "fpc-3.0.2", language: "Pascal" }, { name: "fpc-3.2.2", language: "Pascal" },
   { name: "sqlite-3.45.1", language: "SQL" }, { name: "sqlite-3.46.0", language: "SQL" }, { name: "sqlite-head", language: "SQL" }, { name: "bash", language: "Bash script" },
@@ -29,6 +29,7 @@ await test("вибір компілятора: найновіший стабіл
   assert.equal(pickCompiler(LIST, "Python", /^cpython-3\./), "cpython-3.13.0");
   assert.equal(pickCompiler(LIST, "Java", /^openjdk-/), "openjdk-jdk-22+36");
   assert.equal(pickCompiler(LIST, "C++", /^gcc-\d/), "gcc-13.2.0");
+  assert.equal(pickCompiler(LIST, "C", /^gcc-\d/), "gcc-13.2.0-c", "C не змішується з C++ і без head");
   assert.equal(pickCompiler(LIST, "PHP", /^php-\d/), "php-8.4.1");
   assert.equal(pickCompiler(LIST, "Pascal", /^fpc-/), "fpc-3.2.2");
   assert.equal(pickCompiler(LIST, "TypeScript", /^typescript/), "typescript-5.6.2");
@@ -50,7 +51,7 @@ await test("запит: компілятор з кешованого списк�
 
 await test("кожна мова шле запит своєму компілятору", async () => {
   reply = { status: "0", program_output: "" };
-  const expected = { python: "cpython-3.13.0", java: "openjdk-jdk-22+36", cpp: "gcc-13.2.0", php: "php-8.4.1", pascal: "fpc-3.2.2", ts: "typescript-5.6.2", sql: "sqlite-3.46.0", bash: "bash" };
+  const expected = { python: "cpython-3.13.0", java: "openjdk-jdk-22+36", c: "gcc-13.2.0-c", cpp: "gcc-13.2.0", php: "php-8.4.1", pascal: "fpc-3.2.2", ts: "typescript-5.6.2", sql: "sqlite-3.46.0", bash: "bash" };
   for (const [lang, compiler] of Object.entries(expected)) {
     calls = [];
     await RUNNERS[lang].run("x");

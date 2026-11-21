@@ -37,6 +37,10 @@ const LANGS = {
     file: "Main.java", probe: ["javac", "-version"],
     run: (d) => { const c = sh("javac", ["-encoding", "UTF-8", "-d", "out", "Main.java"], d); return c.status !== 0 ? { r: c, compileFailed: () => true } : { r: sh("java", ["-cp", "out", "Main"], d), compileFailed: () => false }; },
   },
+  c: {
+    file: "main.c", probe: ["gcc", "--version"],
+    run: (d) => { const c = sh("gcc", ["-std=c11", "-O0", "main.c", "-o", "prog"], d); return c.status !== 0 ? { r: c, compileFailed: () => true } : { r: sh("./prog", [], d), compileFailed: () => false }; },
+  },
   cpp: {
     file: "main.cpp", probe: ["g++", "--version"],
     run: (d) => { const c = sh("g++", ["-std=c++17", "-O0", "main.cpp", "-o", "prog"], d); return c.status !== 0 ? { r: c, compileFailed: () => true } : { r: sh("./prog", [], d), compileFailed: () => false }; },
