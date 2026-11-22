@@ -150,4 +150,258 @@ int main(void) {
       { on: "source", name: "Читальний параметр позначено const", matches: "count_vowels\\s*\\(\\s*const\\s+char\\s*\\*", hint: "Змініть сигнатуру на int count_vowels(const char *s)." },
     ],
   },
+  {
+    ...base, id: "c-malloc-repeat", lesson: "c/35", xp: 30,
+    title: "Повторення рядка на купі",
+    context: "Функції, що збирають рядок невідомої заздалегідь довжини, виділяють для нього пам'ять самі й віддають її викликачеві. Вміння порахувати розмір, перевірити malloc і звільнити блок потрібне в кожному C-проєкті.",
+    brief: [
+      "Допишіть <code>repeat(s, times)</code>: вона виділяє <code>malloc</code>-блок потрібного розміру (з байтом під <code>'\\0'</code>), записує в нього рядок <code>s</code> підряд <code>times</code> разів і повертає блок. Якщо <code>malloc</code> не вдався, поверніть <code>NULL</code>.",
+      "Очікуваний вивід: <code>ababab (6)</code> і <code>----- (5)</code>. Блоки звільняє <code>main</code>, його змінювати не треба.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+char *repeat(const char *s, int times) {
+    return NULL;
+}
+
+int main(void) {
+    char *a = repeat("ab", 3);
+    char *b = repeat("-", 5);
+    if (a == NULL || b == NULL) {
+        printf("пам'яті немає\n");
+        free(a);
+        free(b);
+        return 0;
+    }
+    printf("%s (%zu)\n", a, strlen(a));
+    printf("%s (%zu)\n", b, strlen(b));
+    free(a);
+    free(b);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Рядок ab повторено тричі", has: "ababab (6)", hint: "Розмір блока: strlen(s) * times + 1. Копіюйте s на позицію i * len." },
+      { on: "stdout", name: "Рядок із дефісів", has: "----- (5)", hint: "Не забудьте записати '\\0' в кінець результату." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "ababab (6)\n----- (5)", hint: "Функція main вже друкує обидва рядки." },
+      { on: "source", name: "Пам'ять виділено через malloc", matches: "\\bmalloc\\s*\\(", hint: "char *out = malloc(len * times + 1);" },
+      { on: "source", name: "Результат malloc перевіряється", matches: "==\\s*NULL", hint: "Якщо out == NULL, поверніть NULL." },
+    ],
+  },
+  {
+    ...base, id: "c-vec-push", lesson: "c/36", xp: 35,
+    title: "Вектор, що росте через realloc",
+    context: "Масив, який збільшується під час роботи, лежить в основі буферів і списків. Безпечний realloc через тимчасовий вказівник і подвоєння ємності відрізняють робочий код від того, що витікає й падає.",
+    brief: [
+      "Допишіть <code>vec_push</code>: якщо <code>len == cap</code>, збільшіть ємність (почніть з 2, далі подвоюйте) через <code>realloc</code> з тимчасовим вказівником, потім запишіть елемент. Поверніть 1 при успіху й 0, якщо пам'яті не вистачило.",
+      "Очікуваний вивід після додавання чисел від 1 до 10: <code>len=10 cap=16</code> і <code>sum=55</code>. Присвоювати <code>v->data = realloc(v->data, …)</code> напряму не можна.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stdlib.h>
+
+typedef struct {
+    int *data;
+    size_t len;
+    size_t cap;
+} Vec;
+
+int vec_push(Vec *v, int x) {
+    return 1;
+}
+
+int main(void) {
+    Vec v = {NULL, 0, 0};
+    for (int i = 1; i <= 10; i++) {
+        if (!vec_push(&v, i)) {
+            printf("пам'яті немає\n");
+            free(v.data);
+            return 1;
+        }
+    }
+    long sum = 0;
+    for (size_t i = 0; i < v.len; i++) {
+        sum += v.data[i];
+    }
+    printf("len=%zu cap=%zu\n", v.len, v.cap);
+    printf("sum=%ld\n", sum);
+    free(v.data);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Довжина й ємність", has: "len=10 cap=16", hint: "Ємність: 2, 4, 8, 16. Збільшуйте, коли len == cap." },
+      { on: "stdout", name: "Сума збережених чисел", has: "sum=55", hint: "Після перенесення блока дані мають зберегтися: пишіть v->data[v->len++] = x." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "len=10 cap=16\nsum=55", hint: "main змінювати не потрібно." },
+      { on: "source", name: "Використано realloc", matches: "\\brealloc\\s*\\(", hint: "int *tmp = realloc(v->data, cap * sizeof *tmp);" },
+      { on: "source", name: "Немає присвоєння realloc просто у вказівник даних", matches: "data\\s*=\\s*realloc", not: true, hint: "Спершу tmp = realloc(...), перевірка tmp == NULL, потім v->data = tmp." },
+    ],
+  },
+  {
+    ...base, id: "c-join-words", lesson: "c/37", xp: 35,
+    title: "Склеїти масив рядків через роздільник",
+    context: "Масив рядків char ** це argv, список слів і набір заголовків. Склеювання їх в один рядок вимагає порахувати довжину, виділити блок і не забути байт під нуль: рівно те, що роблять реальні утиліти.",
+    brief: [
+      "Допишіть <code>join(words, n, sep)</code>: вона складає в одному <code>malloc</code>-блоці всі слова масиву через символ <code>sep</code> і повертає рядок, який звільнить викликач. Для <code>n == 0</code> поверніть порожній рядок. Якщо <code>malloc</code> не вдався, поверніть <code>NULL</code>.",
+      "Очікуваний вивід: <code>[ala_ma_kota]</code> і <code>[]</code>. Функцію <code>main</code> змінювати не треба.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+char *join(const char **words, size_t n, char sep) {
+    return NULL;
+}
+
+int main(void) {
+    const char *words[] = {"ala", "ma", "kota"};
+    char *a = join(words, 3, '_');
+    char *b = join(words, 0, '_');
+    if (a == NULL || b == NULL) {
+        printf("пам'яті немає\n");
+        free(a);
+        free(b);
+        return 0;
+    }
+    printf("[%s]\n", a);
+    printf("[%s]\n", b);
+    free(a);
+    free(b);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Слова склеєно", has: "[ala_ma_kota]", hint: "Довжина: сума strlen слів плюс n - 1 роздільників плюс 1 байт під '\\0'." },
+      { on: "stdout", name: "Порожній масив дає порожній рядок", has: "[]", hint: "Для n == 0 виділіть 1 байт і запишіть у нього '\\0'." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "[ala_ma_kota]\n[]", hint: "main вже друкує обидва результати." },
+      { on: "source", name: "Пам'ять виділено через malloc", matches: "\\bmalloc\\s*\\(", hint: "char *out = malloc(total + 1);" },
+      { on: "source", name: "Довжину слів знайдено через strlen", matches: "\\bstrlen\\s*\\(", hint: "Для кожного words[i] додайте strlen(words[i])." },
+    ],
+  },
+  {
+    ...base, id: "c-safe-release", lesson: "c/38", xp: 30,
+    title: "release: звільнити й обнулити",
+    context: "Обнулення вказівника після free перетворює подвійне звільнення й висячий вказівник на безпечну дію або чесну аварію. Таку функцію пишуть у багатьох проєктах, щоб не забувати цього кроку.",
+    brief: [
+      "Допишіть <code>release(char **pp)</code>: вона звільняє блок, на який вказує <code>*pp</code>, і записує в <code>*pp</code> значення <code>NULL</code>. Повторний виклик на вже обнуленому вказівнику має бути безпечним.",
+      "Очікуваний вивід: <code>ім'я: Ada</code>, <code>після release: NULL</code> і <code>повторний release безпечний</code>.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+char *make_name(const char *s) {
+    char *out = malloc(strlen(s) + 1);
+    if (out != NULL) {
+        strcpy(out, s);
+    }
+    return out;
+}
+
+void release(char **pp) {
+}
+
+int main(void) {
+    char *name = make_name("Ada");
+    if (name == NULL) {
+        return 1;
+    }
+    printf("ім'я: %s\n", name);
+    release(&name);
+    printf("після release: %s\n", name == NULL ? "NULL" : "не NULL");
+    release(&name);
+    printf("повторний release безпечний\n");
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Вказівник обнулено", has: "після release: NULL", hint: "Після free(*pp) запишіть *pp = NULL;." },
+      { on: "stdout", name: "Ім'я надруковано до звільнення", has: "ім'я: Ada", hint: "Вивід робить main, змінювати його не треба." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "ім'я: Ada\nпісля release: NULL\nповторний release безпечний", hint: "Три рядки: ім'я, після release, повторний." },
+      { on: "source", name: "Блок звільнено через вказівник на вказівник", matches: "free\\s*\\(\\s*\\*\\s*pp\\s*\\)", hint: "free(*pp); звільняє те, на що вказує *pp." },
+      { on: "source", name: "Вказівник обнулено", matches: "\\*\\s*pp\\s*=\\s*NULL", hint: "*pp = NULL; змінює змінну викликача." },
+    ],
+  },
+  {
+    ...base, id: "c-static-ticket", lesson: "c/39", xp: 30,
+    title: "Квитки: статичний лічильник і текст на купі",
+    context: "Лічильник, що пам'ятає значення між викликами, живе в статичній пам'яті, а текст, який має пережити функцію, виділяють на купі. Вибір місця зберігання за часом життя це щоденне рішення C-програміста.",
+    brief: [
+      "Допишіть <code>next_ticket</code>: вона має повертати 1, 2, 3 при послідовних викликах, тож лічильник зберігайте в <code>static</code>-змінній. Допишіть <code>ticket_text</code>: вона виділяє <code>malloc</code>-блок, записує в нього текст на кшталт <code>T-007</code> через <code>snprintf</code> (формат <code>T-%03d</code>) і повертає його.",
+      "Очікуваний вивід: три рядки <code>T-001</code>, <code>T-002</code>, <code>T-003</code>. Блоки звільняє <code>main</code>.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stdlib.h>
+
+int next_ticket(void) {
+    int n = 0;
+    n++;
+    return n;
+}
+
+char *ticket_text(int n) {
+    return NULL;
+}
+
+int main(void) {
+    for (int i = 0; i < 3; i++) {
+        char *t = ticket_text(next_ticket());
+        if (t == NULL) {
+            printf("немає тексту\n");
+            continue;
+        }
+        printf("%s\n", t);
+        free(t);
+    }
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Перший квиток", has: "T-001", hint: "snprintf(s, 16, \"T-%03d\", n) дає нулі зліва." },
+      { on: "stdout", name: "Третій квиток: лічильник пам'ятає значення", has: "T-003", hint: "Локальна змінна щоразу починає з нуля. Потрібна static int n = 0;" },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "T-001\nT-002\nT-003", hint: "Три рядки, по одному на виклик." },
+      { on: "source", name: "Лічильник статичний", matches: "\\bstatic\\s+int\\b", hint: "static int n = 0; усередині next_ticket." },
+      { on: "source", name: "Текст виділено на купі", matches: "\\bmalloc\\s*\\(", hint: "char *s = malloc(16); не забудьте перевірити NULL." },
+    ],
+  },
+  {
+    ...base, id: "c-qsort-people", lesson: "c/40", xp: 40,
+    title: "Сортування людей через qsort",
+    context: "qsort не знає типу елементів, тому правило порядку передають їй як функцію. Порівнювач із двома ключами робить сортування передбачуваним навіть тоді, коли значення першого ключа повторюються.",
+    brief: [
+      "Допишіть порівнювач <code>cmp_person</code>: спершу за віком від найстаршого до наймолодшого, а при однаковому віці за іменем за алфавітом (<code>strcmp</code>). Не віднімайте числа: використайте порівняння.",
+      "Очікуваний вивід: <code>Bohdan 31</code>, <code>Eva 31</code>, <code>Anna 25</code>, <code>Olya 25</code>, <code>Dmytro 19</code>, кожен у своєму рядку. Виклик <code>qsort</code> уже в <code>main</code>.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+    const char *name;
+    int age;
+} Person;
+
+int cmp_person(const void *a, const void *b) {
+    return 0;
+}
+
+int main(void) {
+    Person people[] = {{"Olya", 25}, {"Bohdan", 31}, {"Anna", 25}, {"Dmytro", 19}, {"Eva", 31}};
+    size_t n = sizeof people / sizeof people[0];
+    qsort(people, n, sizeof people[0], cmp_person);
+    for (size_t i = 0; i < n; i++) {
+        printf("%s %d\n", people[i].name, people[i].age);
+    }
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Найстарші першими, за алфавітом", has: "Bohdan 31\nEva 31", hint: "Якщо вік різний, поверніть порівняння за віком у зворотному напрямку." },
+      { on: "stdout", name: "Однаковий вік: за іменем", has: "Anna 25\nOlya 25", hint: "Коли вік однаковий, поверніть strcmp(x->name, y->name)." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "Bohdan 31\nEva 31\nAnna 25\nOlya 25\nDmytro 19", hint: "П'ять рядків: від найстаршого до наймолодшого." },
+      { on: "source", name: "Імена порівнюються через strcmp", matches: "\\bstrcmp\\s*\\(", hint: "strcmp повертає від'ємне, нуль або додатне, як потрібно порівнювачу." },
+      { on: "source", name: "Немає віднімання віку", matches: "age\\s*-\\s*[\\w>.()-]*age", not: true, hint: "Замість x->age - y->age напишіть (x->age < y->age) - (x->age > y->age)." },
+    ],
+  },
 ];
