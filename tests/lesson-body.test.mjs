@@ -2,7 +2,7 @@
 // Запуск: node tests/lesson-body.test.mjs
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { codeFlag, lessonBody, readMinutes } from "../src/lesson-body.ts";
+import { codeFlag, lessonBody, placeExamples, readMinutes } from "../src/lesson-body.ts";
 import { GO_LESSONS } from "../content/go/index.js";
 import { LESSONS_01 } from "../content/python/ch01.js";
 
@@ -35,6 +35,38 @@ test("позначки збою в першому рядку прикладу д
   assert.equal(codeFlag("print(1)\n# аварія пізніше в тексті"), null);
   assert.equal(codeFlag("x = 1  # не компілюється"), null);
   assert.equal(codeFlag(""), null);
+});
+
+for (const [course, lessons] of Object.entries(sets)) {
+  test(`${course}: приклади розставлені за порядком між абзацами, нічого не загублено`, () => {
+    for (const l of lessons) {
+      const at = placeExamples(l.p, l.code), where = `${course} «${l.t}»`;
+      assert.equal(at.length, l.code.length, `${where}: кількість місць`);
+      for (let i = 0; i < at.length; i++) {
+        assert.ok(at[i] >= 0 && at[i] < l.p.length, `${where}: місце ${at[i]} поза абзацами`);
+        if (i) assert.ok(at[i] >= at[i - 1], `${where}: порядок прикладів порушено`);
+      }
+      const html = lessonBody(l);
+      let from = 0;
+      for (const x of l.p) { const pos = html.indexOf(`<p>${x}</p>`, from); assert.ok(pos >= from, `${where}: порядок абзаців змінено`); from = pos; }
+      assert.ok(!html.includes('<h2 id="l-code">'), `${where}: приклади більше не окремий розділ`);
+    }
+  });
+}
+
+test("приклад іде одразу за абзацом, у якому його пояснено", () => {
+  const l = GO_LESSONS.find((x) => x.t.startsWith("Змінні: var"));
+  const html = lessonBody(l);
+  const p2 = html.indexOf(l.p[1]), p3 = html.indexOf(l.p[2]), fig = html.indexOf("<figure");
+  assert.ok(p2 > 0 && fig > p2 && fig < p3, "перший приклад (var age int = 17…) має стояти між 2-м і 3-м абзацами");
+  assert.ok(placeExamples(l.p, l.code)[0] === 1);
+});
+
+test("приклади без збігів із текстом розподіляються рівномірно, а не збираються в кінці", () => {
+  const ps = ["Вступ.", "Один.", "Два.", "Три.", "Чотири.", "П'ять."];
+  assert.deepEqual(placeExamples(ps, ["a", "b", "c"]), [1, 3, 4]);
+  assert.deepEqual(placeExamples(ps, []), []);
+  assert.deepEqual(placeExamples([], ["a"]), [0]);
 });
 
 test("код з тегами екранується, дозволена розмітка текстів лишається", () => {
