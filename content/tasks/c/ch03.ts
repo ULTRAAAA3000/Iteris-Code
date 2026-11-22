@@ -175,4 +175,77 @@ int main(void) {
       { on: "source", name: "sprintf не використано", matches: "\\bsprintf\\s*\\(", not: true, hint: "sprintf не знає розміру буфера, замініть його на snprintf." },
     ],
   },
+  {
+    ...base, id: "c-input-parse", lesson: "c/25", xp: 30,
+    title: "Вік із введеного рядка: strtol з перевірками",
+    context: "Користувач вводить що завгодно: літери, числа з хвостом, надто великі значення. Надійний розбір через strtol відрізняє коректне число від сміття, а не мовчки перетворює його на нуль, як atoi.",
+    brief: [
+      "Допишіть <code>parse_age</code>: вона розбирає рядок через <code>strtol</code> і повертає вік, або <code>-1</code>, якщо цифр немає, після числа є зайве, число виходить за межі <code>long</code> або вік не в межах від 0 до 150.",
+      "Не використовуйте <code>atoi</code>. Функцію <code>main</code> змінювати не треба: вона читає п'ять рядків через <code>fgets</code> з імітованого вводу й друкує результат для кожного.",
+    ],
+    starter: raw`#define _POSIX_C_SOURCE 200809L
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int parse_age(const char s[]) {
+    return 0;
+}
+
+int main(void) {
+    char data[] = "17\nabc\n42x\n200\n  8\n";
+    FILE *in = fmemopen(data, strlen(data), "r");
+    if (in == NULL) {
+        return 1;
+    }
+    char line[16];
+    while (fgets(line, sizeof line, in) != NULL) {
+        line[strcspn(line, "\n")] = '\0';
+        printf("[%s] -> %d\n", line, parse_age(line));
+    }
+    fclose(in);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Коректний вік розпізнано", has: "[17] -> 17", hint: "Якщо end вказує на кінець рядка, поверніть (int)v." },
+      { on: "stdout", name: "Слово й число з хвостом відхилено", has: "[42x] -> -1", hint: "Перевірте end == s (немає цифр) і *end != '\\0' (є хвіст)." },
+      { on: "stdout", name: "Вік поза межами відхилено", has: "[200] -> -1", hint: "Додайте перевірку v < 0 || v > 150." },
+      { on: "stdout", name: "Початкові пробіли пропускаються", has: "[  8] -> 8", hint: "strtol сама пропускає пробіли на початку, окремо їх обробляти не треба." },
+      { on: "stdout", name: "Усі п'ять рядків без зайвого", equals: "[17] -> 17\n[abc] -> -1\n[42x] -> -1\n[200] -> -1\n[  8] -> 8", hint: "main змінювати не потрібно." },
+      { on: "source", name: "Використано strtol", matches: "\\bstrtol\\s*\\(", hint: "long v = strtol(s, &end, 10);" },
+      { on: "source", name: "atoi не використано", matches: "\\batoi\\s*\\(", not: true, hint: "atoi не повідомляє про помилки, використайте strtol." },
+    ],
+  },
+  {
+    ...base, id: "c-matrix-transpose", lesson: "c/26", xp: 30,
+    title: "Транспонування матриці 2 на 3",
+    context: "Матриці й таблиці часто доводиться розвертати: рядки стають стовпцями. Це хороша вправа на двовимірні індекси й на правило, що параметр-масив потребує ширини рядка.",
+    brief: [
+      "Допишіть <code>transpose</code>: вона копіює матрицю <code>src</code> з <code>rows</code> рядків і 3 стовпців у <code>dst</code> так, щоб <code>dst[j][i]</code> дорівнював <code>src[i][j]</code>.",
+      "Для матриці <code>{{1, 2, 3}, {4, 5, 6}}</code> результат має мати три рядки: <code>1 4</code>, <code>2 5</code>, <code>3 6</code>. Функцію <code>main</code> змінювати не треба.",
+    ],
+    starter: raw`#include <stdio.h>
+
+void transpose(size_t rows, int src[][3], int dst[][2]) {
+}
+
+int main(void) {
+    int m[2][3] = {{1, 2, 3}, {4, 5, 6}};
+    int t[3][2] = {{0}};
+    transpose(2, m, t);
+    for (size_t i = 0; i < 3; i++) {
+        printf("%d %d\n", t[i][0], t[i][1]);
+    }
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Перший рядок результату 1 4", has: "1 4", hint: "Перший стовпець матриці m це 1 і 4." },
+      { on: "stdout", name: "Останній рядок результату 3 6", has: "3 6", hint: "Третій стовпець m це 3 і 6." },
+      { on: "stdout", name: "Усі три рядки без зайвого", equals: "1 4\n2 5\n3 6", hint: "dst[j][i] = src[i][j] у подвійному циклі за i < rows і j < 3." },
+      { on: "source", name: "Використано два індекси підряд", matches: "dst\\s*\\[[^\\]]+\\]\\s*\\[[^\\]]+\\]\\s*=", hint: "Присвоюйте елемент через dst[j][i] = src[i][j];" },
+    ],
+  },
 ];

@@ -133,4 +133,55 @@ int main(void) {
     return 0;
 }
 `,
+  "c-input-parse": raw`#define _POSIX_C_SOURCE 200809L
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+int parse_age(const char s[]) {
+    char *end;
+    errno = 0;
+    long v = strtol(s, &end, 10);
+    if (end == s || *end != '\0' || errno == ERANGE || v < 0 || v > 150) {
+        return -1;
+    }
+    return (int)v;
+}
+
+int main(void) {
+    char data[] = "17\nabc\n42x\n200\n  8\n";
+    FILE *in = fmemopen(data, strlen(data), "r");
+    if (in == NULL) {
+        return 1;
+    }
+    char line[16];
+    while (fgets(line, sizeof line, in) != NULL) {
+        line[strcspn(line, "\n")] = '\0';
+        printf("[%s] -> %d\n", line, parse_age(line));
+    }
+    fclose(in);
+    return 0;
+}
+`,
+  "c-matrix-transpose": raw`#include <stdio.h>
+
+void transpose(size_t rows, int src[][3], int dst[][2]) {
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < 3; j++) {
+            dst[j][i] = src[i][j];
+        }
+    }
+}
+
+int main(void) {
+    int m[2][3] = {{1, 2, 3}, {4, 5, 6}};
+    int t[3][2] = {{0}};
+    transpose(2, m, t);
+    for (size_t i = 0; i < 3; i++) {
+        printf("%d %d\n", t[i][0], t[i][1]);
+    }
+    return 0;
+}
+`,
 };
