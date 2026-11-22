@@ -61,6 +61,24 @@ export function placeExamples(paragraphs: readonly string[], codes: readonly str
   return at;
 }
 
+// ---- довгі абзаци розбиваємо на 2–3 частини по реченнях (лише подання: текст той самий, між частинами лише менший відступ) ----
+/** Чи стоїть позиція всередині тега <code> (там крапки — частина коду, різати не можна) */
+const inCode = (s: string, at: number): boolean => (s.slice(0, at).match(/<code>/g) ?? []).length > (s.slice(0, at).match(/<\/code>/g) ?? []).length;
+export function splitParagraph(p: string, minChunk = 200, minTail = 100, minLen = 360): string[] {
+  if (p.length < minLen) return [p];
+  const out: string[] = [];
+  let start = 0;
+  for (const m of p.matchAll(/([.!?…])(["”»)]?)\s+(?=[«"„<A-ZА-ЯІЇЄҐ])/g)) {
+    const end = m.index + m[1].length + m[2].length, next = m.index + m[0].length;
+    const word = /([A-Za-zА-Яа-яІіЇїЄєҐґ]+)$/.exec(p.slice(0, m.index))?.[1] ?? "";
+    if (m[1] === "." && word.length > 0 && word.length <= 2) continue;   // «т. д.», «напр.»: це не кінець речення
+    if (inCode(p, m.index)) continue;
+    if (end - start >= minChunk && p.length - end >= minTail) { out.push(p.slice(start, end)); start = next; }
+  }
+  out.push(p.slice(start));
+  return out;
+}
+
 const chip = (id: string, label: string): string => `<button type="button" class="l-chip" data-scroll="${id}">${label}</button>`;
 
 /** Тіло уроку до самоперевірки включно: підсумок, зміст, теорія, приклади, «Запам'ятайте», «Як це в роботі», завдання */
@@ -71,10 +89,10 @@ export function lessonBody(l: Lesson): string {
     const f = codeFlag(x);
     return `<figure class="ex${f ? ` ex--${f.kind}` : ""}"${i === 0 ? ' id="l-code"' : ""}><figcaption><span>Приклад ${i + 1} з ${l.code.length}</span>${f ? `<span class="ex-flag fl-${f.kind}">${f.label}</span>` : ""}</figcaption><pre class="code">${esc(x)}</pre></figure>`;
   };
-  const theory = l.p.map((x, pi) => `<p>${x}</p>${l.code.map((c, i) => (at[i] === pi ? figure(c, i) : "")).join("")}`).join("");
+  const theory = l.p.map((x, pi) => `<div class="l-para">${splitParagraph(x).map((c) => `<p>${c}</p>`).join("")}</div>${l.code.map((c, i) => (at[i] === pi ? figure(c, i) : "")).join("")}`).join("");
   return `<div class="l-body">
         ${l.easy ? `<aside class="callout co-easy"><div class="co-h">Простими словами</div><p>${l.easy}</p></aside>` : ""}
-        <nav class="l-toc" aria-label="Зміст уроку">${nav}</nav>
+        <nav class="l-toc" aria-label="Зміст уроку">${nav}<span class="l-size" role="group" aria-label="Розмір тексту"><button type="button" class="l-chip" data-fs="-1" aria-label="Менший текст">A−</button><button type="button" class="l-chip" data-fs="1" aria-label="Більший текст">A+</button></span></nav>
         <h2 id="l-theory">Теорія з прикладами</h2>
         <div class="l-theory">${theory}</div>
         <aside class="callout co-note" id="l-note"><div class="co-h">Запам'ятайте</div><p>${l.note}</p></aside>

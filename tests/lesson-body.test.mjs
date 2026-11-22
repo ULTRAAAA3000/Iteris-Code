@@ -2,7 +2,7 @@
 // Запуск: node tests/lesson-body.test.mjs
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { codeFlag, lessonBody, placeExamples, readMinutes } from "../src/lesson-body.ts";
+import { codeFlag, lessonBody, placeExamples, readMinutes, splitParagraph } from "../src/lesson-body.ts";
 import { GO_LESSONS } from "../content/go/index.js";
 import { LESSONS_01 } from "../content/python/ch01.js";
 
@@ -19,7 +19,8 @@ for (const [course, lessons] of Object.entries(sets)) {
       assert.equal(html.includes('id="l-work"'), !!l.work, `${at}: блок «Як це в роботі»`);
       assert.equal((html.match(/<figure class="ex/g) ?? []).length, l.code.length, `${at}: кількість прикладів`);
       assert.equal((html.match(/<li><input type="checkbox"/g) ?? []).length, l.tasks.length, `${at}: кількість завдань`);
-      for (const x of [l.easy, ...l.p, l.note, l.work, ...l.tasks]) if (x) assert.ok(html.includes(x), `${at}: текст змінено: ${x.slice(0, 40)}…`);
+      for (const x of [l.easy, l.note, l.work, ...l.tasks]) if (x) assert.ok(html.includes(x), `${at}: текст змінено: ${x.slice(0, 40)}…`);
+      for (const x of l.p) assert.ok(html.includes(splitParagraph(x).map((c) => `<p>${c}</p>`).join("")), `${at}: абзац змінено: ${x.slice(0, 40)}…`);
       for (const x of l.code) assert.ok(html.includes(esc(x)), `${at}: код змінено або не екрановано`);
       const m = readMinutes(l);
       assert.ok(m >= 1 && m <= 15, `${at}: час читання ${m} хв виглядає неправдоподібно`);
@@ -48,16 +49,44 @@ for (const [course, lessons] of Object.entries(sets)) {
       }
       const html = lessonBody(l);
       let from = 0;
-      for (const x of l.p) { const pos = html.indexOf(`<p>${x}</p>`, from); assert.ok(pos >= from, `${where}: порядок абзаців змінено`); from = pos; }
+      for (const x of l.p) { const pos = html.indexOf(`<p>${splitParagraph(x)[0]}</p>`, from); assert.ok(pos >= from, `${where}: порядок абзаців змінено`); from = pos; }
       assert.ok(!html.includes('<h2 id="l-code">'), `${where}: приклади більше не окремий розділ`);
     }
   });
 }
 
+test("довгі абзаци діляться по реченнях, текст при цьому не змінюється", () => {
+  let split = 0, total = 0;
+  for (const lessons of Object.values(sets)) for (const l of lessons) for (const x of l.p) {
+    const parts = splitParagraph(x);
+    total++; if (parts.length > 1) split++;
+    assert.equal(parts.join(" ").replace(/\s+/g, " "), x.replace(/\s+/g, " "), `текст абзацу змінено: ${x.slice(0, 40)}…`);
+    assert.ok(parts.length <= 5, `занадто багато частин: ${parts.length}`);
+    for (const c of parts) {
+      assert.ok(c.trim().length > 0 && c === c.trim(), "порожня частина або зайві пробіли по краях");
+      assert.equal((c.match(/<code>/g) ?? []).length, (c.match(/<\/code>/g) ?? []).length, `тег <code> розірвано: ${c.slice(0, 50)}…`);
+      assert.equal((c.match(/<b>/g) ?? []).length, (c.match(/<\/b>/g) ?? []).length, "тег <b> розірвано");
+    }
+    if (parts.length > 1) for (const c of parts) assert.ok(c.length >= 95, `частина закоротка: ${c}`);
+  }
+  assert.ok(split > total * 0.3, `розбито лише ${split} із ${total} абзаців`);
+});
+
+test("короткі абзаци не ріжуться; скорочення й крапки всередині <code> не вважаються кінцем речення", () => {
+  assert.deepEqual(splitParagraph("Коротко. Дуже."), ["Коротко. Дуже."]);
+  const long = "Перше речення про щось доволі довге, щоб набрати потрібну кількість символів у першій частині абзацу, і ще трохи слів для надійності. " +
+    "Викликайте <code>fmt.Println. Далі</code> так, як показано, і не плутайте з іншим способом, бо це один із найпоширеніших випадків у реальному коді. " +
+    "Це стосується, напр. Go та ін. мов. Останнє речення лишається окремою частиною, і воно теж достатньо довге для цього.";
+  const parts = splitParagraph(long);
+  assert.ok(parts.length >= 2);
+  assert.ok(parts.every((c) => !c.includes("<code>fmt.Println.") || c.includes("Далі</code>")), "розрізано всередині <code>");
+  assert.ok(parts.every((c) => !/(напр\.|ін\.)$/.test(c)), "розрізано після скорочення");
+});
+
 test("приклад іде одразу за абзацом, у якому його пояснено", () => {
   const l = GO_LESSONS.find((x) => x.t.startsWith("Змінні: var"));
   const html = lessonBody(l);
-  const p2 = html.indexOf(l.p[1]), p3 = html.indexOf(l.p[2]), fig = html.indexOf("<figure");
+  const p2 = html.indexOf(splitParagraph(l.p[1])[0]), p3 = html.indexOf(splitParagraph(l.p[2])[0]), fig = html.indexOf("<figure");
   assert.ok(p2 > 0 && fig > p2 && fig < p3, "перший приклад (var age int = 17…) має стояти між 2-м і 3-м абзацами");
   assert.ok(placeExamples(l.p, l.code)[0] === 1);
 });

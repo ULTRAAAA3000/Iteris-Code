@@ -3,7 +3,9 @@
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--co-note:#F0B24A;--co-note-bg:#2A2414;--fl-err:#FF8A80;--fl-crash:#F0B24A;--fl-build:#B7A4FF;--fl-frag:#9CA9C9}}
 :root[data-theme="dark"]{--co-note:#F0B24A;--co-note-bg:#2A2414;--fl-err:#FF8A80;--fl-crash:#F0B24A;--fl-build:#B7A4FF;--fl-frag:#9CA9C9}
 
-.l-body{font-size:1.0625rem;line-height:1.75;counter-reset:lsec}
+.l-body{font-size:calc(1.0625rem * var(--l-fs, 1));line-height:1.75;counter-reset:lsec}
+.l-body p{text-wrap:pretty;overflow-wrap:break-word}
+.l-body h2{text-wrap:balance}
 .l-body p{margin:0}
 .l-body code{font-family:var(--code);font-size:.88em;background:var(--grid);border:1px solid var(--line);border-radius:6px;padding:.06em .38em;overflow-wrap:anywhere}
 .l-body b{font-weight:700;background:linear-gradient(transparent 62%,color-mix(in srgb,var(--hl) 50%,transparent) 62%)}
@@ -24,10 +26,14 @@
 .l-body h2::before{counter-increment:lsec;content:counter(lsec);flex:none;min-width:1.9em;text-align:center;padding:.12em .3em;font-size:.8rem;background:var(--hl);color:var(--hl-ink);border:2px solid var(--ink);border-radius:8px}
 
 /* теорія: простір між абзацами, перший абзац крупніше */
-.l-theory p{margin:0 0 1.25em}
-.l-theory p:first-child{font-size:1.14rem;line-height:1.65}
-.l-theory p:last-child{margin-bottom:0}
-.l-theory .ex{margin-top:-.15em}   /* приклад стоїть упритул до абзацу, який він пояснює */
+.l-para{margin:0 0 1.5em}
+.l-para p{margin:0 0 .7em}   /* частини одного абзацу: невеликий проміжок, між абзацами — більший */
+.l-para p:last-child{margin-bottom:0}
+.l-theory > .l-para:first-child > p:first-child{font-size:1.08em;line-height:1.65}
+.l-theory .ex{margin-top:-.5em}   /* приклад стоїть упритул до абзацу, який він пояснює */
+.l-size{margin-left:auto;display:inline-flex;gap:6px}
+.l-size .l-chip{min-width:2.6em;padding:3px 10px}
+.l-size .l-chip:disabled{opacity:.4;cursor:default;background:var(--paper);color:inherit}
 
 /* приклади коду: підпис «Приклад N з M» і мітка навмисного збою */
 .ex{margin:0 0 1.5em;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#0B1020}
