@@ -404,4 +404,171 @@ int main(void) {
       { on: "source", name: "Немає віднімання віку", matches: "age\\s*-\\s*[\\w>.()-]*age", not: true, hint: "Замість x->age - y->age напишіть (x->age < y->age) - (x->age > y->age)." },
     ],
   },
+  {
+    ...base, id: "c-generic-swap", lesson: "c/41", xp: 40,
+    title: "Універсальний swap за розміром",
+    context: "Одна функція, що міняє місцями значення будь-якого типу, потребує лише адрес і розміру елемента. Це основа qsort, memcpy і всіх узагальнених контейнерів у C.",
+    brief: [
+      "Допишіть <code>swap_any(void *a, void *b, size_t size)</code>: вона має міняти місцями <code>size</code> байтів двох об'єктів, не знаючи їхнього типу. Виклики в <code>main</code> уже є. Усередині працюйте через <code>unsigned char *</code>.",
+      "Очікуваний вивід: <code>7 3</code>, <code>2.50 1.25</code>, <code>Olya Anna</code>, кожен у своєму рядку. Не пишіть окремих функцій для кожного типу.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stddef.h>
+
+void swap_any(void *a, void *b, size_t size) {
+    (void)a;
+    (void)b;
+    (void)size;
+}
+
+int main(void) {
+    int x = 3, y = 7;
+    double p = 1.25, q = 2.5;
+    const char *s = "Anna", *t = "Olya";
+    swap_any(&x, &y, sizeof x);
+    swap_any(&p, &q, sizeof p);
+    swap_any(&s, &t, sizeof s);
+    printf("%d %d\n", x, y);
+    printf("%.2f %.2f\n", p, q);
+    printf("%s %s\n", s, t);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "int міняються місцями", has: "7 3", hint: "Цикл по size байтах: тимчасова змінна, x[i] = y[i], y[i] = тимчасова." },
+      { on: "stdout", name: "double міняються місцями", has: "2.50 1.25", hint: "Та сама функція, інший sizeof: розмір передає викликач." },
+      { on: "stdout", name: "Вказівники на рядки міняються", has: "Olya Anna", hint: "Передаємо адреси самих вказівників &s і &t, розмір sizeof s." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "7 3\n2.50 1.25\nOlya Anna", hint: "Три рядки в такому порядку." },
+      { on: "source", name: "Робота через unsigned char *", matches: "unsigned\\s+char\\s*\\*", hint: "unsigned char *x = a; unsigned char *y = b;" },
+    ],
+  },
+  {
+    ...base, id: "c-memmove-shift", lesson: "c/42", xp: 40,
+    title: "Вставка й видалення через memmove",
+    context: "Зсув елементів усередині одного масиву це накладання областей, де memcpy не гарантує нічого. Тому вставка й видалення в масиві будуються на memmove.",
+    brief: [
+      "Допишіть <code>insert_at</code> і <code>remove_at</code> для масиву <code>int</code>. Вставка зсуває хвіст праворуч, видалення ліворуч, обидві через <code>memmove</code> (кількість байтів це число елементів помножене на <code>sizeof</code>). Не використовуйте <code>memcpy</code>.",
+      "Очікуваний вивід: <code>1 2 99 3 4 5</code> після вставки на позицію 2 й <code>1 2 3 4 5</code> після видалення тієї самої позиції.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <string.h>
+
+size_t insert_at(int *a, size_t len, size_t pos, int value) {
+    (void)a;
+    (void)pos;
+    (void)value;
+    return len;
+}
+
+size_t remove_at(int *a, size_t len, size_t pos) {
+    (void)a;
+    (void)pos;
+    return len;
+}
+
+void show(const int *a, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        printf("%d%c", a[i], i + 1 < len ? ' ' : '\n');
+    }
+}
+
+int main(void) {
+    int a[8] = {1, 2, 3, 4, 5};
+    size_t len = 5;
+    len = insert_at(a, len, 2, 99);
+    show(a, len);
+    len = remove_at(a, len, 2);
+    show(a, len);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Вставка зсуває хвіст праворуч", has: "1 2 99 3 4 5", hint: "memmove(a + pos + 1, a + pos, (len - pos) * sizeof a[0]); потім a[pos] = value; повернути len + 1." },
+      { on: "stdout", name: "Видалення зсуває хвіст ліворуч", has: "1 2 3 4 5", hint: "memmove(a + pos, a + pos + 1, (len - pos - 1) * sizeof a[0]); повернути len - 1." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "1 2 99 3 4 5\n1 2 3 4 5", hint: "Два рядки: після вставки й після видалення." },
+      { on: "source", name: "Є memmove", matches: "\\bmemmove\\s*\\(", hint: "Для накладання областей потрібен memmove." },
+      { on: "source", name: "Немає memcpy", matches: "\\bmemcpy\\s*\\(", not: true, hint: "memcpy на перетині областей дає невизначену поведінку." },
+    ],
+  },
+  {
+    ...base, id: "c-struct-reorder", lesson: "c/43", xp: 45,
+    title: "Порядок полів і падінг",
+    context: "Та сама структура може займати різний обсяг залежно від порядку полів. Впорядкування за спаданням вирівнювання прибирає зайвий падінг, а static_assert фіксує припущення про платформу.",
+    brief: [
+      "Структура <code>Record</code> містить ті самі поля, що й <code>RecordLoose</code>, але в порядку, що марнує місце. Переставте поля в <code>Record</code> від найбільшого вирівнювання до найменшого: <code>double value</code>, <code>short id</code>, <code>char flag</code>, <code>char tag</code>. Інші рядки не змінюйте.",
+      "Очікуваний вивід: <code>Record менший: 1</code>, <code>value на початку: 1</code>, <code>розмір кратний вирівнюванню: 1</code>. Конкретні числа не друкуємо: вони залежать від платформи.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <stddef.h>
+#include <assert.h>
+
+typedef struct {
+    char flag;
+    double value;
+    short id;
+    char tag;
+} RecordLoose;
+
+typedef struct {
+    char flag;
+    double value;
+    short id;
+    char tag;
+} Record;
+
+static_assert(_Alignof(double) == 8 && sizeof(short) == 2, "очікуємо типову платформу");
+
+int main(void) {
+    printf("Record менший: %d\n", sizeof(Record) < sizeof(RecordLoose));
+    printf("value на початку: %d\n", offsetof(Record, value) == 0);
+    printf("розмір кратний вирівнюванню: %d\n", sizeof(Record) % _Alignof(Record) == 0);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Record став меншим", has: "Record менший: 1", hint: "Поставте double першим, далі short, потім обидва char." },
+      { on: "stdout", name: "double на початку структури", has: "value на початку: 1", hint: "Поле value має бути першим у Record." },
+      { on: "stdout", name: "Весь вивід без зайвого", equals: "Record менший: 1\nvalue на початку: 1\nрозмір кратний вирівнюванню: 1", hint: "Три рядки; сам RecordLoose не змінюйте." },
+      { on: "source", name: "Є static_assert", matches: "\\bstatic_assert\\s*\\(", hint: "Припущення про платформу фіксує static_assert, залиште його." },
+    ],
+  },
+  {
+    ...base, id: "c-debug-log", lesson: "c/44", xp: 40,
+    title: "Відладковий друк у stderr",
+    context: "Відладковий друк не має псувати результат програми, тому його пишуть у stderr, а вмикають і вимикають макросом. assert додатково ловить порушені припущення.",
+    brief: [
+      "Макрос <code>LOG</code> зараз друкує у <code>stdout</code> і засмічує результат. Перепишіть його: <code>do { if (DEBUG) fprintf(stderr, __VA_ARGS__); } while (0)</code>. У <code>sum_to</code> додайте <code>assert(n &gt;= 0);</code> (заголовок <code>assert.h</code> підключіть).",
+      "Очікуваний вивід у <code>stdout</code> лише два рядки: <code>sum=15</code> та <code>sum=0</code>. Рядки з <code>LOG</code> мають іти в <code>stderr</code>.",
+    ],
+    starter: raw`#include <stdio.h>
+
+#ifndef DEBUG
+#define DEBUG 1
+#endif
+
+#define LOG(...) printf(__VA_ARGS__)
+
+int sum_to(int n) {
+    int s = 0;
+    for (int i = 1; i <= n; i++) {
+        s += i;
+        LOG("i=%d s=%d\n", i, s);
+    }
+    return s;
+}
+
+int main(void) {
+    printf("sum=%d\n", sum_to(5));
+    printf("sum=%d\n", sum_to(0));
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Результат у stdout", has: "sum=15", hint: "Після виправлення LOG у stdout лишаються тільки рядки з sum=." },
+      { on: "stdout", name: "Налагоджувальний друк не в stdout", equals: "sum=15\nsum=0", hint: "Замініть printf у макросі на fprintf(stderr, ...)." },
+      { on: "source", name: "Друк у stderr", matches: "fprintf\\s*\\(\\s*stderr", hint: "fprintf(stderr, __VA_ARGS__);" },
+      { on: "source", name: "Є assert", matches: "\\bassert\\s*\\(", hint: "assert(n >= 0); на початку sum_to, і #include &lt;assert.h&gt;." },
+      { on: "source", name: "Макрос загорнуто у do-while", matches: "do\\s*\\{[\\s\\S]*\\}\\s*while\\s*\\(\\s*0\\s*\\)", hint: "do { ... } while (0), щоб макрос поводився як один оператор." },
+    ],
+  },
 ];

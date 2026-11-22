@@ -1079,4 +1079,468 @@ int main(void) {
       "Що саме отримує порівнювач <code>qsort</code> і чому <code>return *x - *y;</code> може дати невизначену поведінку?",
     ],
   },
+  {
+    t: "void * і узагальнені функції",
+    ch: "Вказівники й пам'ять",
+    adv: true,
+    easy: "<code>void *</code> це адреса без підпису, як коробка без етикетки: ви знаєте, де вона лежить, але не знаєте, що всередині. Тому її розмір треба передавати окремо, а відповідальність за тип лягає на вас.",
+    p: [
+      "У C немає шаблонів і перевантаження, а <code>swap</code> для <code>int</code> і для <code>double</code> різні за типом. Мова дає один універсальний інструмент: вказівник <code>void *</code>. Це адреса, про тип якої компілятор нічого не знає. Саме так влаштовані <code>malloc</code>, <code>memcpy</code>, <code>qsort</code> і <code>bsearch</code>: вони працюють із «шматками байтів», а не з числами чи структурами.",
+      "Правила для <code>void *</code> прості. У C будь-який вказівник на об'єкт неявно перетворюється на <code>void *</code> і назад (у C++ назад потрібне приведення, у C ні). Розіменувати <code>void *</code> не можна: компілятор не знає, скільки байтів брати. Арифметика на ньому за стандартом теж заборонена (gcc дозволяє як розширення з розміром 1, але покладатися на це не варто). Щоб щось зробити, спершу приведіть адресу до <code>unsigned char *</code> або до справжнього типу.",
+      "Узагальнена функція отримує <code>void *</code> разом із розміром елемента, бо розмір єдине, що їй потрібно знати. Так працює <code>swap_any(void *a, void *b, size_t size)</code>: вона проходить по <code>size</code> байтах обох об'єктів і міняє їх місцями. Для цього зручно взяти <code>unsigned char *</code>: через нього можна читати байти будь-якого об'єкта. Одна функція тоді міняє й <code>int</code>, й <code>double</code>, й цілу структуру.",
+      "Для копіювання блоків є <code>memcpy(dst, src, n)</code> і <code>memmove(dst, src, n)</code>: обидві приймають <code>void *</code> й кількість байтів, а не елементів. Помилка номер один: передати кількість елементів замість <code>n * sizeof(елемент)</code>. Різницю між ними (накладання областей) розбирає наступний урок, поки запам'ятайте, що для зсуву в межах одного масиву потрібен саме <code>memmove</code>.",
+      "Власний узагальнений контейнер зводиться до структури <code>{ void *data; size_t elem; size_t len; size_t cap; }</code>. Елемент номер <code>i</code> лежить за адресою <code>(unsigned char *)data + i * elem</code>. Додавання робить <code>memcpy</code> у цю адресу, а при нестачі місця <code>realloc</code> збільшує масив удвічі. Контейнер не знає, що в ньому лежить: усе, що йому потрібно, це <code>elem</code>, а звільняє пам'ять один <code>free(data)</code>.",
+      "Ціна цієї гнучкості це втрата типобезпеки. Компілятор не помітить, що в контейнер для <code>int</code> кладуть <code>double</code>: обидва передаються як <code>const void *</code>, розмір бере на себе програміст. Копіювання <code>sizeof(double)</code> байтів із адреси <code>int</code> читає за межею об'єкта, а це невизначена поведінка, яку санітайзер піймає не завжди. Тому типізуйте інтерфейс: ховайте <code>void *</code> за тонкими обгортками чи макросами на кшталт <code>vec_push_int</code>, а до <code>_Generic</code> (C11) вернемося, коли знадобиться вибір за типом.",
+      "Запам'ятайте формулу: <code>void *</code> плюс розмір елемента дорівнює усе, що потрібно для роботи з байтами. Нічого більше функція знати не може й не повинна. Якщо їй потрібне порівняння чи копіювання з особливою логікою (глибока копія рядка), передайте ще й вказівник на функцію, як це робить <code>qsort</code>.",
+    ],
+    code: [
+      String.raw`#include <stdio.h>
+#include <string.h>
+
+void swap_any(void *a, void *b, size_t size) {
+    unsigned char *x = a;
+    unsigned char *y = b;
+    for (size_t i = 0; i < size; i++) {
+        unsigned char t = x[i];
+        x[i] = y[i];
+        y[i] = t;
+    }
+}
+
+typedef struct {
+    char name[8];
+    int score;
+} Player;
+
+int main(void) {
+    int a = 3, b = 8;
+    double p = 1.5, q = -2.25;
+    Player u = {"Anna", 90}, v = {"Olya", 75};
+    swap_any(&a, &b, sizeof a);
+    swap_any(&p, &q, sizeof p);
+    swap_any(&u, &v, sizeof u);
+    printf("%d %d\n", a, b);
+    printf("%.2f %.2f\n", p, q);
+    printf("%s %d, %s %d\n", u.name, u.score, v.name, v.score);
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+    int src[] = {10, 20, 30, 40, 50};
+    int dst[5] = {0};
+    size_t n = sizeof src / sizeof src[0];
+    memcpy(dst, src, n * sizeof src[0]);
+    memmove(dst + 2, dst + 1, 3 * sizeof dst[0]);
+    dst[1] = 15;
+    for (size_t i = 0; i < n; i++) {
+        printf("%d ", dst[i]);
+    }
+    printf("\n");
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+typedef struct {
+    void *data;
+    size_t elem;
+    size_t len;
+    size_t cap;
+} Vec;
+
+int vec_push(Vec *v, const void *item) {
+    if (v->len == v->cap) {
+        size_t cap = v->cap == 0 ? 2 : v->cap * 2;
+        void *grown = realloc(v->data, cap * v->elem);
+        if (grown == NULL) {
+            return 0;
+        }
+        v->data = grown;
+        v->cap = cap;
+    }
+    memcpy((unsigned char *)v->data + v->len * v->elem, item, v->elem);
+    v->len++;
+    return 1;
+}
+
+void *vec_at(const Vec *v, size_t i) {
+    return (unsigned char *)v->data + i * v->elem;
+}
+
+int main(void) {
+    Vec v = {NULL, sizeof(int), 0, 0};
+    for (int i = 1; i <= 5; i++) {
+        int sq = i * i;
+        if (!vec_push(&v, &sq)) {
+            free(v.data);
+            return 1;
+        }
+    }
+    for (size_t i = 0; i < v.len; i++) {
+        printf("%d ", *(int *)vec_at(&v, i));
+    }
+    printf("\nlen=%zu cap=%zu\n", v.len, v.cap);
+    free(v.data);
+    return 0;
+}`,
+      String.raw`// не компілюється: void * не можна розіменувати
+#include <stdio.h>
+
+int main(void) {
+    int x = 7;
+    void *p = &x;
+    int y = *p;
+    printf("%d\n", y);
+    return 0;
+}`,
+      String.raw`// фрагмент: типобезпеки немає, компілятор мовчить
+Vec v = {NULL, sizeof(int), 0, 0};
+double d = 3.14;
+vec_push(&v, &d);
+// memcpy прочитає sizeof(int) байтів із double: компілюється, але сенсу немає
+int n = 5;
+vec_push(&v, &n);
+// такий самий виклик із неправильним elem читав би за межею об'єкта: UB`,
+    ],
+    note: "<code>void *</code> безпечно перетворюється туди й назад без приведення, але розіменовувати його не можна. Розмір елемента передавайте окремим аргументом і рахуйте в байтах: <code>n * sizeof(елемент)</code>, а не в штуках.",
+    work: "Так написані стандартні <code>qsort</code>, <code>memcpy</code>, <code>bsearch</code>, а також динамічні масиви, хеш-таблиці й черги в ядрах ОС і бібліотеках: один код на будь-який тип елемента, а типи вертаються через тонкі обгортки.",
+    tasks: [
+      "Чому функція <code>swap_any</code> приймає розмір окремим параметром і чому всередині зручно працювати з <code>unsigned char *</code>?",
+      "Що піде не так, якщо у <code>vec_push</code> замість <code>v-&gt;elem</code> байтів скопіювати кількість елементів, і чому компілятор цього не помітить?",
+    ],
+  },
+  {
+    t: "restrict і накладання пам'яті",
+    ch: "Вказівники й пам'ять",
+    adv: true,
+    easy: "Якщо ксерокопіюєте сторінку просто поверх неї самої, текст зіпсується. <code>memmove</code> робить копію з урахуванням накладання, <code>memcpy</code> припускає, що області різні, а <code>restrict</code> це обіцянка компілятору, що вказівники не перетинаються.",
+    p: [
+      "Два вказівники можуть вказувати на одне й те саме місце або на частково спільні ділянки: це називається накладанням, або аліасингом. Для компілятора це проблема: після запису через <code>*a</code> він не може довірити, що <code>*b</code> лишився тим самим, і щоразу перечитує пам'ять замість тримати значення в регістрі. Нижче розберемо, як мова дозволяє це вирішити.",
+      "Класичний випадок це копіювання. <code>memcpy(dst, src, n)</code> за стандартом вимагає, щоб області <b>не перетиналися</b>: інакше невизначена поведінка. Реалізація вільна копіювати великими блоками чи у будь-якому порядку, і на перетині результат непередбачуваний. <code>memmove</code> гарантує правильний результат, ніби спершу копіювали у тимчасовий буфер, тож його беруть для зсуву елементів у масиві: вставки, видалення, прокрутка буфера.",
+      "Як <code>memmove</code> цього досягає, видно на власній версії. Якщо призначення лежить раніше за джерело, копіюють від початку до кінця; якщо пізніше, то від кінця до початку. Інакше байти, які ще не скопійовані, будуть затерті. Порівнювати вказівники різних об'єктів стандарт не дозволяє, але в межах одного масиву це допустимо, і саме так працює зсув усередині буфера.",
+      "Ключове слово <code>restrict</code> (C99) пишуть у вказівнику-параметрі: <code>void add(int *restrict dst, const int *restrict a, size_t n)</code>. Це обіцянка програміста: протягом виклику до об'єкта, на який вказує такий вказівник, не звертаються інакше, як через нього. Компілятор вільний тоді тримати значення в регістрах і векторизувати цикл. Сигнатури <code>memcpy</code> і <code>strcpy</code> у стандарті мають <code>restrict</code>, а <code>memmove</code> ні, і саме тому вона дозволяє накладання.",
+      "Обіцянку треба виконувати. Якщо викликати <code>scale(a, a, n)</code> із двома <code>restrict</code>-параметрами й записами в один і той самий масив, це невизначена поведінка: компілятор міг закешувати значення, і результат буде не той. <code>restrict</code> не перевіряється ні під час компіляції, ні під час роботи: це договір, і порушення помітно лише за дивним результатом після оптимізації. Додавайте його, коли впевнені, що області розділені, і описуйте це в документації функції.",
+      "Окрема тема це суворий аліасинг (strict aliasing). Компілятор вважає, що об'єкт типу <code>float</code> ніколи не читають через <code>int *</code>, тому код на кшталт <code>*(int *)&amp;f</code> це невизначена поведінка, навіть якщо на практиці «зазвичай працює». Винятки: символьні типи (<code>char</code>, <code>unsigned char</code>) можуть дивитися на будь-який об'єкт. Правильний спосіб переглянути біти <code>float</code> це <code>memcpy</code> у змінну того самого розміру, а компілятор оптимізує його до одного переміщення.",
+      "Підсумок для практики: копіюєте між різними буферами, беріть <code>memcpy</code>; можуть накладатися, беріть <code>memmove</code>; для гарячих циклів із неперетинними масивами додавайте <code>restrict</code>; для перегляду байтів чужого типу використовуйте <code>memcpy</code> чи <code>unsigned char *</code>. Санітайзери не завжди ловлять порушення <code>restrict</code> і strict aliasing, тому тут допомагає лише дисципліна.",
+    ],
+    code: [
+      String.raw`#include <stdio.h>
+#include <string.h>
+
+int main(void) {
+    char buf[] = "abcdef";
+    memmove(buf + 2, buf, 4);
+    printf("%s\n", buf);
+
+    char line[] = "123456";
+    memmove(line, line + 2, strlen(line + 2) + 1);
+    printf("%s\n", line);
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+#include <stddef.h>
+
+void my_move(void *dst, const void *src, size_t n) {
+    unsigned char *d = dst;
+    const unsigned char *s = src;
+    if (d < s) {
+        for (size_t i = 0; i < n; i++) {
+            d[i] = s[i];
+        }
+    } else {
+        for (size_t i = n; i > 0; i--) {
+            d[i - 1] = s[i - 1];
+        }
+    }
+}
+
+int main(void) {
+    int a[] = {1, 2, 3, 4, 5, 6};
+    my_move(a + 2, a, 4 * sizeof a[0]);
+    for (size_t i = 0; i < 6; i++) {
+        printf("%d ", a[i]);
+    }
+    printf("\n");
+    my_move(a, a + 2, 4 * sizeof a[0]);
+    for (size_t i = 0; i < 6; i++) {
+        printf("%d ", a[i]);
+    }
+    printf("\n");
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+#include <stddef.h>
+
+void add_arrays(int *restrict out, const int *restrict a, const int *restrict b, size_t n) {
+    for (size_t i = 0; i < n; i++) {
+        out[i] = a[i] + b[i];
+    }
+}
+
+int main(void) {
+    int x[] = {1, 2, 3, 4};
+    int y[] = {10, 20, 30, 40};
+    int z[4];
+    add_arrays(z, x, y, 4);
+    for (size_t i = 0; i < 4; i++) {
+        printf("%d ", z[i]);
+    }
+    printf("\n");
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+#include <assert.h>
+
+int main(void) {
+    static_assert(sizeof(float) == sizeof(uint32_t), "float і uint32_t мають однаковий розмір");
+    float f = 1.0f;
+    uint32_t bits;
+    memcpy(&bits, &f, sizeof bits);
+    printf("біти 1.0f: 0x%08x\n", (unsigned)bits);
+    return 0;
+}`,
+      String.raw`// не компілюється: restrict застосовується лише до вказівників
+#include <stdio.h>
+
+int main(void) {
+    int restrict n = 3;
+    printf("%d\n", n);
+    return 0;
+}`,
+    ],
+    note: "<code>memcpy</code> вимагає, щоб області не перетиналися, <code>memmove</code> ні. <code>restrict</code> це обіцянка, а не перевірка: компілятор їй довіряє й оптимізує, тож порушення дає невизначену поведінку без жодного попередження.",
+    work: "<code>memmove</code> використовують у текстових редакторах і буферах введення для вставок та видалень, <code>restrict</code> у числових бібліотеках (BLAS, відеокодеки), а <code>memcpy</code> для розбору мережевих пакетів і чужих бінарних форматів замість небезпечних приведень.",
+    tasks: [
+      "Чому для зсуву елементів усередині одного масиву потрібен <code>memmove</code>, а не <code>memcpy</code>, і в якому порядку власна версія копіює, якщо призначення лежить пізніше за джерело?",
+      "Що обіцяє програміст, коли пише <code>restrict</code>, і чому компілятор не повідомить про порушення цієї обіцянки?",
+    ],
+  },
+  {
+    t: "sizeof, вирівнювання й упаковка",
+    ch: "Вказівники й пам'ять",
+    adv: true,
+    easy: "Структура в пам'яті це полиця з комірками фіксованої ширини: процесор любить брати речі з кратних адрес, тому між полями лишаються порожні проміжки. Порядок полів вирішує, скільки місця вони забирають.",
+    p: [
+      "Сума розмірів полів структури не завжди дорівнює її <code>sizeof</code>. Процесор читає значення швидше (а на деяких архітектурах лише) тоді, коли його адреса кратна <b>вирівнюванню</b> типу: <code>int</code> зазвичай чотири, <code>double</code> вісім. Тому компілятор вставляє між полями невидимі байти, <b>padding</b>, і дописує їх у кінець структури. Конкретні числа залежать від платформи, тож їх фіксують перевірками, а не здогадами.",
+      "Три оператори допомагають бачити розкладку. <code>sizeof</code> повертає розмір типу чи об'єкта в байтах (тип <code>size_t</code>, друкують через <code>%zu</code>). <code>offsetof(T, поле)</code> із <code>&lt;stddef.h&gt;</code> дає зсув поля від початку структури. <code>_Alignof(T)</code> (C11, а в <code>&lt;stdalign.h&gt;</code> зручний псевдонім <code>alignof</code>) дає вимогу до адреси. Правило: <code>sizeof</code> структури завжди кратний її вирівнюванню, бо інакше другий елемент масиву таких структур стояв би невирівняно.",
+      "Порядок полів це безкоштовна економія. Структура <code>{ char a; int b; char c; }</code> на типовій системі займає 12 байтів: <code>a</code>, три байти падінгу, <code>b</code>, <code>c</code>, ще три байти в кінці. Ті самі поля у порядку <code>{ int b; char a; char c; }</code> займають 8. Загальне правило: ставте поля від найбільшого вирівнювання до найменшого. Компілятор C не переставляє поля сам, бо порядок видимий програмі (<code>offsetof</code>, бінарні формати).",
+      "Щоб числа не стали сюрпризом, фіксуйте припущення в <code>static_assert(умова, \"повідомлення\")</code> (C11, <code>&lt;assert.h&gt;</code>). Він працює під час компіляції: якщо умова хибна, збірка зупиняється з вашим текстом. Так записують <code>static_assert(sizeof(int) == 4, ...)</code>, <code>static_assert(offsetof(Header, len) == 4, ...)</code> і розмір вашої структури. Тоді перенесення на іншу платформу не поламає формат мовчки.",
+      "Вирівнювання можна й задати: <code>_Alignas(16) char buf[64];</code> або <code>_Alignas(double)</code> змушує компілятор поставити об'єкт на адресу, кратну 16. Це потрібно для SIMD-інструкцій і апаратних буферів. Адреси друкувати не треба: перевіряйте вираз на кшталт <code>(uintptr_t)buf % 16 == 0</code>, його результат детермінований. Динамічну пам'ять <code>malloc</code> вирівнює для будь-якого стандартного типу, а для більшого вирівнювання є <code>aligned_alloc</code>.",
+      "Упаковка (packing) прибирає падінг: у gcc це <code>__attribute__((packed))</code>, у MSVC <code>#pragma pack</code>. Це розширення компіляторів, не стандарт C. Структура стає компактною, але доступ до невирівняного поля повільніший, а на частині процесорів призводить до апаратної помилки, а адреса поля тоді не годиться для звичайного вказівника. Для обміну даними надійніший шлях інший: записувати поля у байтовий буфер по одному (зсувами), тоді формат не залежить ні від падінгу, ні від порядку байтів платформи.",
+      "Підсумок: розмір структури й зсуви це властивості платформи, які треба перевіряти, а не вгадувати. Упорядковуйте поля за спаданням вирівнювання, фіксуйте припущення через <code>static_assert</code>, а зовнішні формати серіалізуйте явно. Так код однаково веде себе на різних компіляторах.",
+    ],
+    code: [
+      String.raw`#include <stdio.h>
+#include <stddef.h>
+#include <assert.h>
+
+typedef struct {
+    char a;
+    int b;
+    char c;
+} Loose;
+
+typedef struct {
+    int b;
+    char a;
+    char c;
+} Tight;
+
+static_assert(sizeof(int) == 4 && _Alignof(int) == 4, "очікуємо 4-байтовий int");
+
+int main(void) {
+    printf("Tight менший за Loose: %d\n", sizeof(Tight) < sizeof(Loose));
+    printf("Loose.b не на початку: %d\n", offsetof(Loose, b) > 0);
+    printf("Tight.b на початку: %d\n", offsetof(Tight, b) == 0);
+    printf("економія: %zu байтів\n", sizeof(Loose) - sizeof(Tight));
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+#include <stdalign.h>
+#include <stdint.h>
+
+typedef struct {
+    double x;
+    char tag;
+} Item;
+
+int main(void) {
+    printf("sizeof кратний alignof: %d\n", sizeof(Item) % alignof(Item) == 0);
+    printf("alignof(Item) == alignof(double): %d\n", alignof(Item) == alignof(double));
+    Item arr[3];
+    printf("масив: %d\n", sizeof arr == 3 * sizeof(Item));
+    alignas(16) unsigned char buf[32];
+    printf("buf кратний 16: %d\n", (uintptr_t)buf % 16 == 0);
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+#include <stdint.h>
+#include <string.h>
+
+size_t put_record(unsigned char *out, uint16_t id, uint32_t value) {
+    out[0] = (unsigned char)(id & 0xFF);
+    out[1] = (unsigned char)(id >> 8);
+    out[2] = (unsigned char)(value & 0xFF);
+    out[3] = (unsigned char)((value >> 8) & 0xFF);
+    out[4] = (unsigned char)((value >> 16) & 0xFF);
+    out[5] = (unsigned char)(value >> 24);
+    return 6;
+}
+
+int main(void) {
+    unsigned char buf[8];
+    memset(buf, 0, sizeof buf);
+    size_t n = put_record(buf, 0x0102, 0x0A0B0C0D);
+    printf("довжина запису: %zu\n", n);
+    for (size_t i = 0; i < n; i++) {
+        printf("%02x ", buf[i]);
+    }
+    printf("\n");
+    return 0;
+}`,
+      String.raw`// не компілюється: static_assert зупиняє збірку, якщо припущення хибне
+#include <assert.h>
+
+static_assert(sizeof(char) == 2, "очікуємо двобайтовий char");
+
+int main(void) {
+    return 0;
+}`,
+      String.raw`// фрагмент: упаковка розширенням gcc (не стандарт C), невирівняний доступ
+struct __attribute__((packed)) Wire {
+    char kind;
+    int value;
+};
+// sizeof(struct Wire) == 5, але поле value лежить за зсувом 1:
+// звичайний вказівник int * на нього порушує вирівнювання (UB), читайте через memcpy`,
+    ],
+    note: "Розмір і зсуви залежать від платформи: порівнюйте їх (<code>&lt;</code>, <code>==</code>) і фіксуйте через <code>static_assert</code>. <code>sizeof</code> структури кратний її вирівнюванню, а компілятор C не переставляє поля сам.",
+    work: "Порядок полів і вирівнювання дуже важливі для мережевих протоколів, бінарних форматів файлів, драйверів, ігрових рушіїв (мільйони структур у кеші) й вбудованих систем, де кожен байт ОЗП на рахунку.",
+    tasks: [
+      "Чому <code>{ char a; int b; char c; }</code> займає більше місця, ніж <code>{ int b; char a; char c; }</code>, і чому <code>sizeof</code> структури кратний її вирівнюванню?",
+      "Навіщо <code>static_assert</code> поряд із розкладкою структури й чому вивід програми не має залежати від конкретного <code>sizeof</code>?",
+    ],
+  },
+  {
+    t: "Налагодження: gdb і printf-відладка",
+    ch: "Вказівники й пам'ять",
+    adv: true,
+    easy: "Налагодження це робота детектива: спершу відтворити збій, потім дивитися, що відбувається. Для цього є два інструменти: друк у stderr, коли хочете побачити хід програми, і gdb, коли треба зупинити її й оглянути пам'ять.",
+    p: [
+      "Помилки в C рідко повідомляють про себе зрозумілим текстом: програма падає із segmentation fault, або тихо дає не той результат. Налагодження складається з трьох кроків: відтворити збій (мінімальний вхід), локалізувати місце (де значення вперше стало хибним) і виправити причину, а не симптом. Інструменти нижче лише допомагають швидше пройти другий крок.",
+      "Найпростіше це відладковий друк. Правило перше: друкуйте у <code>stderr</code> (<code>fprintf(stderr, ...)</code>), а не в <code>stdout</code>. Потік <code>stderr</code> не буферизується, тож рядок з'явиться навіть перед аварією, а вивід програми, який перевіряють, лишається чистим і його можна перенаправити окремо. Друкуйте не «тут» і «там», а значення змінних разом з місцем: файл, рядок, функція (<code>__FILE__</code>, <code>__LINE__</code>, <code>__func__</code>).",
+      "Відладковий друк зручно загорнути в макрос і вимикати одним прапорцем: <code>#define LOG(...) do { if (DEBUG) fprintf(stderr, __VA_ARGS__); } while (0)</code>, а <code>DEBUG</code> задати з командного рядка: <code>gcc -DDEBUG=1 main.c</code>. Обгортка <code>do { ... } while (0)</code> робить макрос схожим на звичайний оператор і безпечним усередині <code>if</code> без фігурних дужок. У готовому коді виклики лишаються, але нічого не коштують, бо <code>DEBUG</code> дорівнює 0.",
+      "Друга ланка це <code>assert(умова)</code> із <code>&lt;assert.h&gt;</code>. Якщо умова хибна, програма друкує файл, рядок і текст умови в <code>stderr</code> та викликає <code>abort()</code>. Це перевірка припущень («індекс у межах», «вказівник не <code>NULL</code>»), а не обробка помилок користувача: з <code>-DNDEBUG</code> усі <code>assert</code> зникають, тож у них не можна ховати дії з побічним ефектом на кшталт <code>assert(i++ &lt; n)</code>.",
+      "Третя ланка це <code>gdb</code>, інтерактивний налагоджувач. Збирайте з <code>-g</code> (таблиця символів) і <code>-O0</code> (щоб оптимізація не переставляла рядки). Типова сесія: <code>break функція</code> ставить точку зупину, <code>run</code> запускає, <code>next</code> іде на наступний рядок, <code>step</code> заходить у функцію, <code>print вираз</code> показує значення, <code>backtrace</code> стек викликів, <code>finish</code> виконує функцію до повернення, <code>watch змінна</code> зупиняє програму, щойно значення зміниться.",
+      "Для аварій найкорисніше таке: запустіть програму під gdb, дочекайтеся SIGSEGV й одразу введіть <code>backtrace</code>: побачите функцію й рядок, де програма впала, і увесь ланцюжок викликів до неї. Далі <code>frame N</code> і <code>print</code> змінних покажуть, який вказівник був <code>NULL</code>. Схожу картину для пам'яті дають санітайзери: <code>-fsanitize=address,undefined</code> повідомляють про вихід за межі й інші порушення вже в момент помилки, а не після неї.",
+      "Як вибирати. Хід виконання й послідовність значень зручніше бачити через <code>LOG</code>; конкретний момент і стан пам'яті через gdb; порушення припущень ловіть через <code>assert</code> і санітайзери; а чудовий звичай це спершу зменшити програму до найкоротшого збою. Часто сама спроба описати, що має бути, й порівняти з тим, що друкується, знаходить помилку швидше за будь-який інструмент.",
+    ],
+    code: [
+      String.raw`// фрагмент: сесія gdb у терміналі
+$ gcc -g -O0 -o demo main.c
+$ gdb ./demo
+(gdb) break find_max
+Breakpoint 1 at 0x1189: file main.c, line 6.
+(gdb) run
+Breakpoint 1, find_max (a=0x7ffe3c10, n=5) at main.c:6
+6           int best = a[0];
+(gdb) next
+(gdb) print best
+$1 = 4
+(gdb) watch best
+(gdb) continue
+(gdb) backtrace
+#0  find_max (a=0x7ffe3c10, n=5) at main.c:8
+#1  main () at main.c:19
+(gdb) finish
+(gdb) quit`,
+      String.raw`#include <stdio.h>
+#include <assert.h>
+
+int find_max(const int *a, int n) {
+    assert(a != NULL);
+    assert(n > 0);
+    int best = a[0];
+    for (int i = 1; i < n; i++) {
+        if (a[i] > best) {
+            best = a[i];
+        }
+    }
+    return best;
+}
+
+int main(void) {
+    int a[] = {4, 9, 2, 7, 5};
+    printf("max = %d\n", find_max(a, 5));
+    return 0;
+}`,
+      String.raw`#include <stdio.h>
+
+#ifndef DEBUG
+#define DEBUG 1
+#endif
+
+#define LOG(...) \
+    do { \
+        if (DEBUG) { \
+            fprintf(stderr, "[%s:%d %s] ", __FILE__, __LINE__, __func__); \
+            fprintf(stderr, __VA_ARGS__); \
+        } \
+    } while (0)
+
+int binary_search(const int *a, int n, int key) {
+    int lo = 0;
+    int hi = n - 1;
+    while (lo <= hi) {
+        int mid = lo + (hi - lo) / 2;
+        LOG("lo=%d hi=%d mid=%d\n", lo, hi, mid);
+        if (a[mid] == key) {
+            return mid;
+        }
+        if (a[mid] < key) {
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    return -1;
+}
+
+int main(void) {
+    int a[] = {1, 3, 5, 7, 9, 11};
+    printf("індекс 7: %d\n", binary_search(a, 6, 7));
+    printf("індекс 4: %d\n", binary_search(a, 6, 4));
+    return 0;
+}`,
+      String.raw`// аварія: assert зупиняє програму з повідомленням у stderr і кодом від abort
+#include <assert.h>
+#include <stdio.h>
+
+int average(int sum, int count) {
+    assert(count != 0);
+    return sum / count;
+}
+
+int main(void) {
+    printf("%d\n", average(10, 2));
+    printf("%d\n", average(10, 0));
+    return 0;
+}`,
+      String.raw`// фрагмент: збірка для налагодження
+$ gcc -std=c11 -Wall -Wextra -g -O0 -DDEBUG=1 -fsanitize=address,undefined main.c -o demo
+$ ./demo 2> debug.log      # stdout у термінал, відладочний друк у файл
+$ gdb -batch -ex run -ex backtrace ./demo   # де саме впала програма`,
+    ],
+    note: "Відладковий друк пишіть у <code>stderr</code>, щоб не змішувати його з результатом програми. <code>assert</code> перевіряє припущення розробника, а не помилки користувача; з <code>-DNDEBUG</code> він зникає. Для gdb збирайте з <code>-g -O0</code>.",
+    work: "Так шукають помилки в будь-якому C-проєкті: від ядра Linux до вбудованих пристроїв. Відладковий макрос лишається в коді, <code>backtrace</code> із core dump допомагає розібрати збій у продакшні, а <code>assert</code> ловить порушені припущення ще на тестах.",
+    tasks: [
+      "Чому відладковий друк краще писати у <code>stderr</code>, а не у <code>stdout</code>, і навіщо обгортка <code>do { ... } while (0)</code> у макросі?",
+      "Яку команду gdb використати, щоб побачити стек викликів після аварії, і навіщо програму збирають із <code>-g -O0</code>?",
+    ],
+  },
 ];

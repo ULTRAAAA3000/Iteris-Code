@@ -331,4 +331,112 @@ int main(void) {
     return 0;
 }
 `,
+  "c-generic-swap": raw`#include <stdio.h>
+#include <stddef.h>
+
+void swap_any(void *a, void *b, size_t size) {
+    unsigned char *x = a;
+    unsigned char *y = b;
+    for (size_t i = 0; i < size; i++) {
+        unsigned char tmp = x[i];
+        x[i] = y[i];
+        y[i] = tmp;
+    }
+}
+
+int main(void) {
+    int x = 3, y = 7;
+    double p = 1.25, q = 2.5;
+    const char *s = "Anna", *t = "Olya";
+    swap_any(&x, &y, sizeof x);
+    swap_any(&p, &q, sizeof p);
+    swap_any(&s, &t, sizeof s);
+    printf("%d %d\n", x, y);
+    printf("%.2f %.2f\n", p, q);
+    printf("%s %s\n", s, t);
+    return 0;
+}
+`,
+  "c-memmove-shift": raw`#include <stdio.h>
+#include <string.h>
+
+size_t insert_at(int *a, size_t len, size_t pos, int value) {
+    memmove(a + pos + 1, a + pos, (len - pos) * sizeof a[0]);
+    a[pos] = value;
+    return len + 1;
+}
+
+size_t remove_at(int *a, size_t len, size_t pos) {
+    memmove(a + pos, a + pos + 1, (len - pos - 1) * sizeof a[0]);
+    return len - 1;
+}
+
+void show(const int *a, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        printf("%d%c", a[i], i + 1 < len ? ' ' : '\n');
+    }
+}
+
+int main(void) {
+    int a[8] = {1, 2, 3, 4, 5};
+    size_t len = 5;
+    len = insert_at(a, len, 2, 99);
+    show(a, len);
+    len = remove_at(a, len, 2);
+    show(a, len);
+    return 0;
+}
+`,
+  "c-struct-reorder": raw`#include <stdio.h>
+#include <stddef.h>
+#include <assert.h>
+
+typedef struct {
+    char flag;
+    double value;
+    short id;
+    char tag;
+} RecordLoose;
+
+typedef struct {
+    double value;
+    short id;
+    char flag;
+    char tag;
+} Record;
+
+static_assert(_Alignof(double) == 8 && sizeof(short) == 2, "очікуємо типову платформу");
+
+int main(void) {
+    printf("Record менший: %d\n", sizeof(Record) < sizeof(RecordLoose));
+    printf("value на початку: %d\n", offsetof(Record, value) == 0);
+    printf("розмір кратний вирівнюванню: %d\n", sizeof(Record) % _Alignof(Record) == 0);
+    return 0;
+}
+`,
+  "c-debug-log": raw`#include <stdio.h>
+#include <assert.h>
+
+#ifndef DEBUG
+#define DEBUG 1
+#endif
+
+#define LOG(...) do { if (DEBUG) fprintf(stderr, __VA_ARGS__); } while (0)
+
+int sum_to(int n) {
+    assert(n >= 0);
+    int s = 0;
+    for (int i = 1; i <= n; i++) {
+        s += i;
+        LOG("i=%d s=%d\n", i, s);
+    }
+    return s;
+}
+
+int main(void) {
+    printf("sum=%d\n", sum_to(5));
+    printf("sum=%d\n", sum_to(0));
+    return 0;
+}
+`,
 };
