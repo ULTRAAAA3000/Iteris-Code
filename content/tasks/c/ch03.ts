@@ -248,4 +248,170 @@ int main(void) {
       { on: "source", name: "Використано два індекси підряд", matches: "dst\\s*\\[[^\\]]+\\]\\s*\\[[^\\]]+\\]\\s*=", hint: "Присвоюйте елемент через dst[j][i] = src[i][j];" },
     ],
   },
+  {
+    ...base, id: "c-vla-literals", lesson: "c/27", xp: 30,
+    title: "VLA-параметри й складений літерал",
+    context: "Функції над матрицями різної ширини зручно писати з VLA-параметрами, а тимчасові масиви для викликів без допоміжних змінних дають складені літерали. Розмір VLA потрібно тримати під контролем.",
+    brief: [
+      "Допишіть <code>sum_matrix</code>, яка рахує суму всіх елементів матриці через VLA-параметр <code>int m[rows][cols]</code>, <code>max_of</code>, що повертає найбільший елемент масиву, і <code>squares_sum</code>.",
+      "У <code>squares_sum(n)</code> оголосіть масив змінної довжини <code>int sq[n]</code>, заповніть його квадратами <code>i * i</code> від 0 до <code>n - 1</code> і поверніть суму. Очікуваний вивід: <code>a: 21</code>, <code>b: 25</code>, <code>max: 9</code>, <code>squares: 30</code>.",
+    ],
+    starter: raw`#include <stdio.h>
+
+int sum_matrix(size_t rows, size_t cols, int m[rows][cols]) {
+    return 0;
+}
+
+int max_of(const int a[], size_t n) {
+    return 0;
+}
+
+int squares_sum(size_t n) {
+    return 0;
+}
+
+int main(void) {
+    int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
+    int b[3][2] = {{1, 2}, {3, 4}, {5, 10}};
+    printf("a: %d\n", sum_matrix(2, 3, a));
+    printf("b: %d\n", sum_matrix(3, 2, b));
+    printf("max: %d\n", max_of((int[]){4, 9, 2, 7}, 4));
+    printf("squares: %d\n", squares_sum(5));
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Сума матриці 2 на 3", has: "a: 21", hint: "Подвійний цикл за i < rows і j < cols, додавайте m[i][j]." },
+      { on: "stdout", name: "Та сама функція для матриці 3 на 2", has: "b: 25", hint: "Функція не має залежати від ширини: беріть cols із параметра." },
+      { on: "stdout", name: "Максимум дорівнює 9", has: "max: 9", hint: "Почніть з a[0] і порівнюйте решту елементів." },
+      { on: "stdout", name: "Усі чотири рядки без зайвого", equals: "a: 21\nb: 25\nmax: 9\nsquares: 30", hint: "squares_sum(5) = 0 + 1 + 4 + 9 + 16." },
+      { on: "source", name: "Оголошено масив змінної довжини sq[n]", matches: "int\\s+sq\\s*\\[\\s*n\\s*\\]\\s*;", hint: "int sq[n]; без ініціалізатора, заповніть циклом." },
+    ],
+  },
+  {
+    ...base, id: "c-utf8-count", lesson: "c/28", xp: 30,
+    title: "UTF-8: кодові точки й префікс за символами",
+    context: "Текст користувачів містить кирилицю, діакритику й знаки валют, тому довжина в байтах і довжина в символах розходяться. Рахувати й різати такі рядки треба по межах символів, інакше текст зіпсується.",
+    brief: [
+      "Допишіть <code>utf8_count</code>: повертає кількість кодових точок, тобто байтів, які не є байтами продовження (значення від <code>0x80</code> до <code>0xBF</code>). Байт беріть як <code>unsigned char</code>.",
+      "Допишіть <code>utf8_prefix_bytes(s, chars)</code>: повертає, скільки байтів займають перші <code>chars</code> символів. Для рядка <code>Привіт, світе</code> очікується <code>Байтів: 24</code>, <code>Символів: 13</code>, <code>Початок: Привіт</code>.",
+    ],
+    starter: raw`#include <stdio.h>
+#include <string.h>
+
+size_t utf8_count(const char s[]) {
+    return 0;
+}
+
+size_t utf8_prefix_bytes(const char s[], size_t chars) {
+    return 0;
+}
+
+int main(void) {
+    const char text[] = "Привіт, світе";
+    printf("Байтів: %zu\n", strlen(text));
+    printf("Символів: %zu\n", utf8_count(text));
+    printf("Початок: %.*s\n", (int)utf8_prefix_bytes(text, 6), text);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Довжина в байтах 24", has: "Байтів: 24", hint: "Цей рядок друкує main через strlen, нічого міняти не треба." },
+      { on: "stdout", name: "Символів 13", has: "Символів: 13", hint: "Лічіть байти, що не лежать у діапазоні 0x80 до 0xBF." },
+      { on: "stdout", name: "Префікс із шести символів", has: "Початок: Привіт", hint: "Зупиніться на початковому байті сьомого символу й поверніть його індекс." },
+      { on: "stdout", name: "Усі три рядки без зайвого", equals: "Байтів: 24\nСимволів: 13\nПочаток: Привіт", hint: "main змінювати не потрібно." },
+      { on: "source", name: "Байти порівнюються як unsigned char", matches: "unsigned\\s+char", hint: "unsigned char c = (unsigned char)s[i];" },
+    ],
+  },
+  {
+    ...base, id: "c-bit-flags", lesson: "c/29", xp: 30,
+    title: "Біти: встановити, скинути, перевірити, порахувати",
+    context: "Прапорці прав, регістри пристроїв і заголовки протоколів зберігають багато значень в одному числі. Чотири базові дії з бітом і підрахунок ввімкнених бітів потрібні в кожному системному коді.",
+    brief: [
+      "Допишіть <code>set_bit</code>, <code>clear_bit</code> і <code>test_bit</code>: вони встановлюють, скидають і перевіряють біт номер <code>n</code> у беззнаковому <code>x</code> (нумерація з нуля, маска <code>1u &lt;&lt; n</code>). <code>test_bit</code> повертає 0 або 1.",
+      "Допишіть <code>popcount</code>: кількість ввімкнених бітів числа. Очікуваний вивід: <code>set: 42</code>, <code>clear: 34</code>, <code>bit5: 1</code>, <code>bit3: 0</code>, <code>bits: 12</code>. Функцію <code>main</code> змінювати не треба.",
+    ],
+    starter: raw`#include <stdio.h>
+
+unsigned set_bit(unsigned x, unsigned n) {
+    return x;
+}
+
+unsigned clear_bit(unsigned x, unsigned n) {
+    return x;
+}
+
+unsigned test_bit(unsigned x, unsigned n) {
+    return 0;
+}
+
+unsigned popcount(unsigned x) {
+    return 0;
+}
+
+int main(void) {
+    unsigned x = 0;
+    x = set_bit(x, 1);
+    x = set_bit(x, 3);
+    x = set_bit(x, 5);
+    printf("set: %u\n", x);
+    x = clear_bit(x, 3);
+    printf("clear: %u\n", x);
+    printf("bit5: %u\n", test_bit(x, 5));
+    printf("bit3: %u\n", test_bit(x, 3));
+    printf("bits: %u\n", popcount(0xFF0Fu));
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Біти 1, 3 і 5 дають 42", has: "set: 42", hint: "x | (1u << n) вмикає біт n: 2 + 8 + 32." },
+      { on: "stdout", name: "Скидання біта 3 дає 34", has: "clear: 34", hint: "x & ~(1u << n) вимикає біт n." },
+      { on: "stdout", name: "Перевірка бітів", has: "bit5: 1\nbit3: 0", hint: "(x >> n) & 1u повертає 0 або 1." },
+      { on: "stdout", name: "Усі п'ять рядків без зайвого", equals: "set: 42\nclear: 34\nbit5: 1\nbit3: 0\nbits: 12", hint: "У 0xFF0F дванадцять ввімкнених бітів: x &= x - 1 скидає наймолодший." },
+      { on: "source", name: "Використано зсув беззнакової одиниці", matches: "1u\\s*<<", hint: "Маска біта: 1u << n." },
+      { on: "source", name: "Використано інверсію маски", matches: "~\\s*\\(", hint: "Скидання: x & ~(1u << n)." },
+    ],
+  },
+  {
+    ...base, id: "c-word-frequency", lesson: "c/30", xp: 35,
+    title: "Частотний словник тексту",
+    context: "Частоти літер і слів потрібні в стисненні, шифрах, фільтрах спаму й аналізі журналів. Масив лічильників з індексом-ключем це найпростіший і найшвидший спосіб, і він без мап.",
+    brief: [
+      "Допишіть <code>count_letters</code>: для кожної літери тексту (без урахування регістру) збільште комірку <code>counts[c - 'a']</code>. Допишіть <code>count_words</code>: вона рахує слова, тобто групи літер, розділені будь-чим іншим. Символи передавайте в <code>ctype.h</code> як <code>unsigned char</code>.",
+      "Допишіть <code>top_letter</code>, що повертає найчастішу літеру (при рівності перша за абеткою). Очікуваний вивід: <code>Слів: 8</code>, <code>Найчастіша: t (6)</code>, <code>Літер a: 5</code>. Функцію <code>main</code> змінювати не треба.",
+    ],
+    starter: raw`#include <ctype.h>
+#include <stdio.h>
+
+void count_letters(const char text[], unsigned counts[26]) {
+}
+
+size_t count_words(const char text[]) {
+    return 0;
+}
+
+char top_letter(const unsigned counts[]) {
+    return 'a';
+}
+
+int main(void) {
+    const char text[] = "the cat and the hat and the bat";
+    unsigned counts[26] = {0};
+    count_letters(text, counts);
+    char top = top_letter(counts);
+    printf("Слів: %zu\n", count_words(text));
+    printf("Найчастіша: %c (%u)\n", top, counts[top - 'a']);
+    printf("Літер a: %u\n", counts['a' - 'a']);
+    return 0;
+}
+`,
+    checks: [
+      { on: "stdout", name: "Слів вісім", has: "Слів: 8", hint: "Слово починається, коли літера йде після не-літери (або з початку тексту)." },
+      { on: "stdout", name: "Найчастіша літера t шість разів", has: "Найчастіша: t (6)", hint: "Пройдіть counts і оновлюйте найбільше лише при строго більшому значенні." },
+      { on: "stdout", name: "Літера a п'ять разів", has: "Літер a: 5", hint: "Збільшуйте counts[tolower(c) - 'a'] для кожної літери." },
+      { on: "stdout", name: "Усі три рядки без зайвого", equals: "Слів: 8\nНайчастіша: t (6)\nЛітер a: 5", hint: "main змінювати не потрібно." },
+      { on: "source", name: "Літери фільтруються через isalpha", matches: "\\bisalpha\\s*\\(", hint: "Перед індексацією перевірте isalpha((unsigned char)c)." },
+      { on: "source", name: "Індекс обчислюється від 'a'", matches: "-\\s*'a'", hint: "counts[tolower(c) - 'a']++;" },
+    ],
+  },
 ];

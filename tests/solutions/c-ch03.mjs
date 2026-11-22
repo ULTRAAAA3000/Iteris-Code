@@ -184,4 +184,169 @@ int main(void) {
     return 0;
 }
 `,
+  "c-vla-literals": raw`#include <stdio.h>
+
+int sum_matrix(size_t rows, size_t cols, int m[rows][cols]) {
+    int total = 0;
+    for (size_t i = 0; i < rows; i++) {
+        for (size_t j = 0; j < cols; j++) {
+            total += m[i][j];
+        }
+    }
+    return total;
+}
+
+int max_of(const int a[], size_t n) {
+    int max = a[0];
+    for (size_t i = 1; i < n; i++) {
+        if (a[i] > max) {
+            max = a[i];
+        }
+    }
+    return max;
+}
+
+int squares_sum(size_t n) {
+    int sq[n];
+    int total = 0;
+    for (size_t i = 0; i < n; i++) {
+        sq[i] = (int)(i * i);
+        total += sq[i];
+    }
+    return total;
+}
+
+int main(void) {
+    int a[2][3] = {{1, 2, 3}, {4, 5, 6}};
+    int b[3][2] = {{1, 2}, {3, 4}, {5, 10}};
+    printf("a: %d\n", sum_matrix(2, 3, a));
+    printf("b: %d\n", sum_matrix(3, 2, b));
+    printf("max: %d\n", max_of((int[]){4, 9, 2, 7}, 4));
+    printf("squares: %d\n", squares_sum(5));
+    return 0;
+}
+`,
+  "c-utf8-count": raw`#include <stdio.h>
+#include <string.h>
+
+size_t utf8_count(const char s[]) {
+    size_t n = 0;
+    for (size_t i = 0; s[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (c < 0x80 || c >= 0xC0) {
+            n++;
+        }
+    }
+    return n;
+}
+
+size_t utf8_prefix_bytes(const char s[], size_t chars) {
+    size_t seen = 0;
+    size_t i = 0;
+    for (; s[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)s[i];
+        if (c < 0x80 || c >= 0xC0) {
+            if (seen == chars) {
+                break;
+            }
+            seen++;
+        }
+    }
+    return i;
+}
+
+int main(void) {
+    const char text[] = "Привіт, світе";
+    printf("Байтів: %zu\n", strlen(text));
+    printf("Символів: %zu\n", utf8_count(text));
+    printf("Початок: %.*s\n", (int)utf8_prefix_bytes(text, 6), text);
+    return 0;
+}
+`,
+  "c-bit-flags": raw`#include <stdio.h>
+
+unsigned set_bit(unsigned x, unsigned n) {
+    return x | (1u << n);
+}
+
+unsigned clear_bit(unsigned x, unsigned n) {
+    return x & ~(1u << n);
+}
+
+unsigned test_bit(unsigned x, unsigned n) {
+    return (x >> n) & 1u;
+}
+
+unsigned popcount(unsigned x) {
+    unsigned count = 0;
+    while (x != 0) {
+        x &= x - 1;
+        count++;
+    }
+    return count;
+}
+
+int main(void) {
+    unsigned x = 0;
+    x = set_bit(x, 1);
+    x = set_bit(x, 3);
+    x = set_bit(x, 5);
+    printf("set: %u\n", x);
+    x = clear_bit(x, 3);
+    printf("clear: %u\n", x);
+    printf("bit5: %u\n", test_bit(x, 5));
+    printf("bit3: %u\n", test_bit(x, 3));
+    printf("bits: %u\n", popcount(0xFF0Fu));
+    return 0;
+}
+`,
+  "c-word-frequency": raw`#include <ctype.h>
+#include <stdio.h>
+
+void count_letters(const char text[], unsigned counts[26]) {
+    for (size_t i = 0; text[i] != '\0'; i++) {
+        unsigned char c = (unsigned char)text[i];
+        if (isalpha(c)) {
+            counts[tolower(c) - 'a']++;
+        }
+    }
+}
+
+size_t count_words(const char text[]) {
+    size_t words = 0;
+    int in_word = 0;
+    for (size_t i = 0; text[i] != '\0'; i++) {
+        if (isalpha((unsigned char)text[i])) {
+            if (!in_word) {
+                words++;
+            }
+            in_word = 1;
+        } else {
+            in_word = 0;
+        }
+    }
+    return words;
+}
+
+char top_letter(const unsigned counts[]) {
+    int best = 0;
+    for (int i = 1; i < 26; i++) {
+        if (counts[i] > counts[best]) {
+            best = i;
+        }
+    }
+    return (char)('a' + best);
+}
+
+int main(void) {
+    const char text[] = "the cat and the hat and the bat";
+    unsigned counts[26] = {0};
+    count_letters(text, counts);
+    char top = top_letter(counts);
+    printf("Слів: %zu\n", count_words(text));
+    printf("Найчастіша: %c (%u)\n", top, counts[top - 'a']);
+    printf("Літер a: %u\n", counts['a' - 'a']);
+    return 0;
+}
+`,
 };
