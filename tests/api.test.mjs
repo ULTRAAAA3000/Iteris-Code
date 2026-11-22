@@ -197,6 +197,11 @@ await test("дашборд повертає розв'язані завдання
   assert.deepEqual(r.data.passedTasks.sort(), ["js-cart-total", "js-safe-city", "js-sum"]);
   assert.equal(r.data.tasksPassed, 3);
 });
+await test("/api/progress віддає й розв'язані завдання: за ними клієнт відмічає пройдені уроки", async () => {
+  const r = await call(progressGet, req("/api/progress", { cookie }));
+  assert.deepEqual(r.data.taskIds.sort(), ["js-cart-total", "js-safe-city", "js-sum"]);
+  assert.ok(!r.data.taskIds.includes("js-counter-bug"), "невдала спроба не рахується розв'язаною");
+});
 await test("ліміт відправок: не більше 20 за хвилину", async () => {
   const ins = sqlite.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES (?, 'g-123', 'rate', 'x', 0)");
   for (let i = 0; i < 20; i++) ins.run("r" + i);
