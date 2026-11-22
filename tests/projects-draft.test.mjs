@@ -1,6 +1,6 @@
-// Чернетки проєктів за ТЗ (Python, Java, Go): структура + справжній запуск еталонів і заготовок локальними інтерпретаторами/компіляторами.
+// Чернетки проєктів за ТЗ (Python, Java, Go, C++, Pascal, TypeScript, PHP, SQL): структура + справжній запуск еталонів і заготовок локальними інтерпретаторами/компіляторами.
 // Еталон (tests/projects-draft/solutions-<мова>.mjs) має пройти всі вимоги, заготовка має компілюватись і не проходити жодної.
-// Запуск: node tests/projects-draft.test.mjs [python|java|go|cpp|pascal]   (потрібні python3, javac/java, go, g++, fpc у PATH; без інструмента мову пропущено)
+// Запуск: node tests/projects-draft.test.mjs [python|java|go|cpp|pascal|ts|php|sql]   (потрібні python3, javac/java, go, g++, fpc, node+tsc, php, sqlite3 у PATH; без інструмента мову пропущено)
 // Якщо є tests/projects-draft/mutations-<мова>.mjs, перевіряється ще й що КОЖНА вимога має «поломку» еталона, яка її краснить (перевірки не «завжди зелені»).
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -10,8 +10,8 @@ import { join } from "node:path";
 import { FILE, assemble } from "../content/projects-draft/types.ts";
 
 const only = process.argv[2];
-const LANGS = ["python", "java", "go", "cpp", "pascal"].filter((l) => !only || l === only);
-const TOOL = { python: "python3", java: "javac", go: "go", cpp: "g++", pascal: "fpc" };
+const LANGS = ["python", "java", "go", "cpp", "pascal", "ts", "php", "sql"].filter((l) => !only || l === only);
+const TOOL = { python: "python3", java: "javac", go: "go", cpp: "g++", pascal: "fpc", ts: "tsc", php: "php", sql: "sqlite3" };
 const tool = (c) => spawnSync("which", [c]).status === 0;
 
 function run(lang, program) {
@@ -35,6 +35,24 @@ function run(lang, program) {
       const c = spawnSync("fpc", ["-vew", "main.pas"], opt);
       if (c.status !== 0) return { compiled: false, err: c.stdout + c.stderr, stdout: "", status: c.status };
       const r = spawnSync("./main", [], opt);
+      return { compiled: true, stdout: r.stdout, err: r.stderr, status: r.status };
+    }
+    if (lang === "ts") {
+      // Типи перевіряє tsc (strict, як у курсі), виконує node зі стиранням типів: так само, як пісочниця з компілятором TypeScript
+      const c = spawnSync("tsc", ["--noEmit", "--strict", "--target", "es2022", "--lib", "es2022,dom", "--module", "esnext", "--erasableSyntaxOnly", "main.ts"], opt);
+      if (c.status !== 0) return { compiled: false, err: c.stdout + c.stderr, stdout: "", status: c.status };
+      const r = spawnSync("node", ["--no-warnings", "main.ts"], opt);
+      return { compiled: true, stdout: r.stdout, err: r.stderr, status: r.status };
+    }
+    if (lang === "php") {
+      const c = spawnSync("php", ["-l", "main.php"], opt);
+      if (c.status !== 0) return { compiled: false, err: c.stdout + c.stderr, stdout: "", status: c.status };
+      const r = spawnSync("php", ["-d", "display_errors=stderr", "main.php"], opt);
+      return { compiled: true, stdout: r.stdout, err: r.stderr, status: r.status };
+    }
+    if (lang === "sql") {
+      // Скрипт виконується на порожній базі в пам'яті; помилки окремих операторів не зупиняють скрипт (вони йдуть у stderr)
+      const r = spawnSync("sqlite3", [":memory:"], { ...opt, input: program });
       return { compiled: true, stdout: r.stdout, err: r.stderr, status: r.status };
     }
     const r = lang === "go" ? spawnSync("go", ["run", "main.go"], { ...opt, env: { ...process.env, GOFLAGS: "-mod=mod", GOCACHE: join(tmpdir(), "gocache") } }) : spawnSync("python3", ["-I", "main.py"], opt);
@@ -80,7 +98,7 @@ for (const lang of LANGS) {
       for (const q of p.requirements) assert.ok(v[q.id] && !v[q.id].pass, `${q.id} має бути FAIL у заготовці: ${JSON.stringify(v[q.id])}\n${r.stdout}\n${r.err}`);
     });
     test(`${p.id}: harness не пускає в вивід службових слів і не залежить від мережі/файлів`, () => {
-      assert.ok(!/(https?:\/\/|os\.Open|open\(|FileReader|Scanner\(System\.in\)|input\(|std::cin|std::ifstream|readln|\bAssign\()/.test(p.harness), "harness не має читати ввід, файли чи мережу");
+      assert.ok(!/(https?:\/\/|os\.Open|open\(|FileReader|Scanner\(System\.in\)|input\(|std::cin|std::ifstream|readln|\bAssign\(|fopen|file_get_contents|curl_|fetch\(|require\(|readFileSync|process\.stdin|\.read\b|\.shell|\.system|ATTACH\s)/i.test(p.harness), "harness не має читати ввід, файли чи мережу");
     });
   }
   const mutPath = new URL(`./projects-draft/mutations-${lang}.mjs`, import.meta.url);

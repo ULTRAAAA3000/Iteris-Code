@@ -1,8 +1,8 @@
-// ЧЕРНЕТКИ проєктів за ТЗ для мов із серверним запуском (Python, Java, Go, C++, Pascal). НЕ ПІДКЛЮЧЕНІ до сайту: не потрапляють у PROJECTS,
+// ЧЕРНЕТКИ проєктів за ТЗ для мов із серверним запуском (Python, Java, Go, C++, Pascal, TypeScript, PHP, SQL). НЕ ПІДКЛЮЧЕНІ до сайту: не потрапляють у PROJECTS,
 // у сітку курсів і в /api/project. Підключення відбудеться, коли дописані курси (див. Documentation/project-drafts.md).
 // Опис дивіться там же. Тут лише тип, спільний для чернеток і тесту tests/projects-draft.test.mjs.
 
-export type ProgramLang = "python" | "java" | "go" | "cpp" | "pascal";
+export type ProgramLang = "python" | "java" | "go" | "cpp" | "pascal" | "ts" | "php" | "sql";
 
 export interface ProgramRequirement {
   /** R1, R2, … Збігається з міткою у виводі harness: рядок «R1 PASS» або «R1 FAIL: причина» */
@@ -33,6 +33,6 @@ export interface ProgramProject {
   xp: number;
 }
 
-/** Складає програму для запуску: код користувача + harness. Файл: main.py, Main.java, main.go, main.cpp, main.pas */
+/** Складає програму для запуску: код користувача + harness. Файл: main.py, Main.java, main.go, main.cpp, main.pas, main.ts, main.php, main.sql */
 export const assemble = (p: Pick<ProgramProject, "harness">, userCode: string): string => userCode.replace(/\s+$/, "") + "\n\n" + p.harness + "\n";
-export const FILE: Record<ProgramLang, string> = { python: "main.py", java: "Main.java", go: "main.go", cpp: "main.cpp", pascal: "main.pas" };
+export const FILE: Record<ProgramLang, string> = { python: "main.py", java: "Main.java", go: "main.go", cpp: "main.cpp", pascal: "main.pas", ts: "main.ts", php: "main.php", sql: "main.sql" };
