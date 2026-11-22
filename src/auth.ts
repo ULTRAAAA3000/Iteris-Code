@@ -1,7 +1,7 @@
 // Особистий кабінет: вхід через Google і GitHub, синхронізація прогресу, дашборд (/dashboard)
 import { allTasks, C, inLevel, levelTotal, projectMeta, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
-import { done, isDone, persist } from "./progress.ts";
+import { done, isDone, isTaskPassed, lessonsOfPassedTasks, markTaskPassed, persist } from "./progress.ts";
 import { idolById, idolSrc } from "./data/idols.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
@@ -135,17 +135,23 @@ async function handleCallback(): Promise<void> {
 
 // Після входу: об'єднуємо локальний прогрес із серверним
 async function syncLocal(): Promise<void> {
-  const r = await api<{ lessonIds: string[] }>("/api/progress");
+  const r = await api<{ lessonIds: string[]; taskIds?: string[] }>("/api/progress");
   if (!r.ok || !r.data) return;
   const server = new Set(r.data.lessonIds);
-  const local: string[] = [];
-  for (const k of Object.keys(done)) if (C[k]) (done[k] || []).forEach((n) => local.push(k + "/" + n));
+  for (const id of r.data.taskIds ?? []) markTaskPassed(id);   // завдання, розв'язані на іншому пристрої, видно й тут
   let changed = false;
   server.forEach((id) => {
     const [k, n] = id.split("/");
     if (C[k] && +n >= 1 && +n <= C[k].L.length && !isDone(k, +n)) { done[k] = [...(done[k] || []), +n].sort((a, b) => a - b); changed = true; }
   });
+  // Розв'язане завдання = пройдений урок: добираємо уроки, які лишились без відмітки (так було до виправлення)
+  for (const id of lessonsOfPassedTasks(allTasks(), isTaskPassed, (k, n) => !!C[k] && n >= 1 && n <= C[k].L.length)) {
+    const [k, n] = id.split("/");
+    done[k] = [...(done[k] || []), +n].sort((a, b) => a - b); changed = true;
+  }
   if (changed) persist();
+  const local: string[] = [];
+  for (const k of Object.keys(done)) if (C[k]) (done[k] || []).forEach((n) => local.push(k + "/" + n));
   const extra = local.filter((id) => !server.has(id)).slice(0, 200);
   if (extra.length) await post("/api/progress", { lessonIds: extra, done: true, sync: true });
   st.dash = null;
