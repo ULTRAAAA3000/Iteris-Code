@@ -1,10 +1,13 @@
-import { getUser, init as initAuth, isReady, renderDashboard, syncLesson } from "./auth.ts";
+import { getUser, init as initAuth, isReady, renderDashboard, syncLesson, updateHeader } from "./auth.ts";
 import { mountDemo } from "./demo-mount.ts";
 import { adminHtml, mountAdmin } from "./admin.ts";
+import { altsFor, applyChromeDom, type Alts } from "./chrome.ts";
 import { mountContact } from "./contact-mount.ts";
 import { cachedLesson, cachedProject, fetchLesson, fetchProject, lessonFailed, outlineLoaded, projectFailed, retryLesson, retryProject } from "./content.ts";
 import { C, projectMeta } from "./data.ts";
 import { authTitle, isAuthRoute, mountAuthPage, renderAuthPage } from "./login.ts";
+import { preferredLang, savePreferred } from "./i18n-client.ts";
+import { setLang, splitLang, tr, withLang, type Lang } from "./i18n.ts";
 import { setMeta } from "./meta.ts";
 import { getOnboarding, onboardingHtml } from "./onboarding.ts";
 import { BRAND, findPage } from "./pages.ts";
@@ -22,7 +25,9 @@ import { store } from "./util.ts";
 import { course, gate, lesson, loadError, loadingCard, notFound } from "./views.ts";
 import { disposeWorkspace, mountWorkspace } from "./workspace.ts";
 
-const DEFAULT_DESC = "Безкоштовні уроки програмування українською. Читай урок, пиши код у терміналі, отримуй перевірку й XP.";
+const defaultDesc = (): string => tr("Безкоштовні уроки програмування українською. Читай урок, пиши код у терміналі, отримуй перевірку й XP.", "Free programming lessons. Read a lesson, write code in the terminal, get checked and earn XP.");
+// Сторінки з українським вмістом, яким в англійській версії потрібне пояснення
+const UK_ONLY = new Set(["course", "lesson", "project", "dashboard", "path", "start", "profile", "admin", "u"]);
 const app = document.getElementById("app") as HTMLElement;
 
 /** Уроки, шлях і кабінет лише після входу: чекаємо відповіді сервера, гостю показуємо запрошення, а за помилки пропонуємо повторити */
@@ -34,7 +39,12 @@ function locked(): string | null {
 
 function render(): void {
   const [a, b, c] = segments();
-  const page = onDashHost() ? undefined : findPage(location.pathname.replace(/\.html$/, ""));   // на кабінетному піддомені «/» не головна, а кабінет
+  // Мова: префікс /en в адресі, для публічних сторінок без префікса українська, для кабінету й форм входу останній вибір користувача
+  const sp = splitLang(location.pathname), barePath = sp.path.replace(/\.html$/, "");
+  const lang: Lang = sp.lang ?? (!onDashHost() && findPage(barePath, "uk") ? "uk" : preferredLang());
+  setLang(lang);
+  const page = onDashHost() ? undefined : findPage(barePath, lang);   // на кабінетному піддомені «/» не головна, а кабінет
+  if (page || sp.lang) savePreferred(lang);
   let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | undefined, indexable = false;
   disposeWorkspace();
   disposeProject();
@@ -64,17 +74,21 @@ function render(): void {
       else { html = loadingCard(); fetchProject(b); }
     }
   }
-  else if (a === "dashboard") { html = renderDashboard(); title = "Особистий кабінет — " + BRAND; }
+  else if (a === "dashboard") { html = renderDashboard(); title = tr("Особистий кабінет", "My account") + " — " + BRAND; }
   else if (a === "path") { html = locked() ?? renderPath(b, { onboarding: getOnboarding(), loggedIn: !!getUser() }); active = "path"; title = "Мій шлях — " + BRAND; }
   else if (a === "start") { html = locked() ?? onboardingHtml(); title = "Налаштування шляху — " + BRAND; }
   else if (a === "u" && b && !c) { const r = renderPublic(b); html = r.html; title = r.title + " — " + BRAND; indexable = r.index; }
   else if (a === "profile") { html = !isReady() ? loadingCard() : !getUser() ? gate() : renderSettings(); title = "Мій профіль — " + BRAND; }
   else if (a === "admin") { html = !isReady() ? loadingCard() : !getUser() ? gate() : adminHtml(); title = "Аналітика — " + BRAND; }
   else if (isAuthRoute(a)) { html = renderAuthPage(a); title = authTitle(a) + " — " + BRAND; }
-  else { html = notFound(); title = "Сторінку не знайдено — " + BRAND; }
+  else { html = notFound(); title = tr("Сторінку не знайдено", "Page not found") + " — " + BRAND; }
+  if (lang === "en" && !page && UK_ONLY.has(a)) html = `<p class="lang-note" role="note">${tr("", "Lessons, tasks and your account are available in Ukrainian only for now. English course content is on the way.")}</p>` + html;
   app.innerHTML = html;
   // Індексуються лише публічні сторінки: кабінет, уроки й форми входу пошуковикам не потрібні
-  setMeta({ title, desc: page?.desc ?? DEFAULT_DESC, path: page?.path ?? location.pathname, noindex: !page && !indexable });   // індексуються публічні сторінки й відкриті профілі
+  const alts: Alts = page ? altsFor(page.path) : { uk: location.pathname, en: location.pathname };
+  setMeta({ title, desc: page?.desc ?? defaultDesc(), path: page ? withLang(page.path, lang) : location.pathname, noindex: !page && !indexable, lang, alts: page ? alts : null });   // індексуються публічні сторінки й відкриті профілі
+  applyChromeDom(lang, alts);
+  updateHeader();   // кнопка входу й підказки в шапці теж мовою сторінки
   document.documentElement.classList.remove("spa");
   document.querySelectorAll<HTMLElement>("#nav a").forEach((l) => (l.dataset.k === active ? l.setAttribute("aria-current", "page") : l.removeAttribute("aria-current")));
   window.scrollTo(0, 0);
@@ -90,6 +104,12 @@ function render(): void {
 ui.render = render;
 hooks.onToggle = syncLesson;
 initStage2();
+
+// Перемикач мови: запам'ятовуємо вибір до того, як роутер перемалює сторінку (фаза перехоплення), далі перехід робить роутер
+document.addEventListener("click", (e) => {
+  const l = (e.target as Element).closest<HTMLElement>("#lang [data-lang]")?.dataset.lang;
+  if (l === "uk" || l === "en") savePreferred(l);
+}, true);
 
 document.addEventListener("click", (e) => {
   const target = e.target as Element;
@@ -125,9 +145,9 @@ function initHome(): void {
   }));
   const el = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
   const run = () => {
-    const v = el<HTMLInputElement>("pyname").value.trim() || "друже";
+    const v = el<HTMLInputElement>("pyname").value.trim() || tr("друже", "friend");
     const o = el("pyout");
-    o.textContent = "Як тебе звати? " + v + "\nПривіт, " + v + "!";
+    o.textContent = tr("Як тебе звати? ", "What is your name? ") + v + "\n" + tr("Привіт, ", "Hello, ") + v + "!";
     o.style.whiteSpace = "pre-line";
   };
   el("pyrun").addEventListener("click", run);

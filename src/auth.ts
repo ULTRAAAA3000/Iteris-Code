@@ -5,6 +5,7 @@ import { done, isDone, persist } from "./progress.ts";
 import { idolById, idolSrc } from "./data/idols.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
+import { tr } from "./i18n.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, factCard, goalCard, levelCard, pathCard, streakCard, streakRiskCard } from "./cabinet.ts";
 import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
@@ -75,8 +76,8 @@ export function updateHeader(): void {
   if (!el) return;
   if (!st.ready) { el.innerHTML = ""; return; }
   el.innerHTML = st.user
-    ? `<a class="acct-user" href="/dashboard" title="Особистий кабінет">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
-    : loginBtn("btn small", "Увійти");
+    ? `<a class="acct-user" href="/dashboard" title="${tr("Особистий кабінет", "My account")}">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
+    : loginBtn("btn small", tr("Увійти", "Sign in"));
 }
 
 /** Випадковий state для входу через зовнішній сервіс; зберігається в сесії браузера й перевіряється при поверненні */

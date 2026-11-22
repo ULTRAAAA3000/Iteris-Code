@@ -41,7 +41,7 @@ const html = readFileSync("src/index.template.html", "utf8");
 if (!html.includes("{{title}}") || !html.includes("<!--seo-->")) throw new Error("src/index.template.html: немає {{title}} або <!--seo-->");
 if (!html.includes('<script src="app.js"></script>')) throw new Error("src/index.template.html: не знайдено тег <script src=\"app.js\">");
 // Стилі Етапу 2 лежать окремим файлом і вбудовуються в єдиний <style> сторінки
-const stage2css = readFileSync("src/stage2.css", "utf8") + readFileSync("src/landing.css", "utf8") + readFileSync("src/profile.css", "utf8") + readFileSync("src/support.css", "utf8") + readFileSync("src/news.css", "utf8") + readFileSync("src/demo.css", "utf8");
+const stage2css = readFileSync("src/stage2.css", "utf8") + readFileSync("src/landing.css", "utf8") + readFileSync("src/profile.css", "utf8") + readFileSync("src/support.css", "utf8") + readFileSync("src/news.css", "utf8") + readFileSync("src/demo.css", "utf8") + readFileSync("src/lang.css", "utf8");
 if (!html.includes("</style>")) throw new Error("src/index.template.html: не знайдено </style>");
 const template = html.replace("</style>", () => stage2css + "</style>").replace('<script src="app.js"></script>', () => boot).replaceAll("__ROOT__", ROOT).replaceAll("__DASH__", DASH);
 // Кожна публічна сторінка отримує власний HTML: заголовок, опис, canonical, Open Graph, JSON-LD і готовий вміст
@@ -96,6 +96,8 @@ const SECURITY_HEADERS = `/*
 writeFileSync("dist/_headers", `${SECURITY_HEADERS}/
   Cache-Control: no-cache
 /index.html
+  Cache-Control: no-cache
+/en/
   Cache-Control: no-cache
 ${pages.filter((f) => f.file !== "index.html").map((f) => `/${f.file}\n  Cache-Control: no-cache\n/${f.file.replace(/\.html$/, "")}\n  Cache-Control: no-cache\n`).join("")}/sitemap.xml
   Cache-Control: no-cache

@@ -1,20 +1,21 @@
 // Поведінка форми підтримки: підстановка даних акаунта, лічильник, перевірка, Turnstile, відправка й ефекти.
+import { tr } from "./i18n.ts";
 import { getAuthConfig, getUser, isReady, post } from "./auth.ts";
 import { loadTurnstile } from "./login.ts";
 import { DEFAULT_TOPIC, isTopic, MSG_MAX, MSG_MIN } from "./support.ts";
 import type { PublicUser } from "./types.ts";
 
-const ERR: Record<string, string> = {
-  invalid_email: "Перевірте адресу пошти",
-  invalid_message: `Напишіть від ${MSG_MIN} до ${MSG_MAX} символів`,
-  invalid_topic: "Оберіть тему",
-  captcha_failed: "Не вдалося пройти перевірку. Спробуйте ще раз",
-  too_many_requests: "Забагато звернень. Спробуйте трохи пізніше",
-};
+const ERR = (): Record<string, string> => ({
+  invalid_email: tr("Перевірте адресу пошти", "Check the email address"),
+  invalid_message: tr(`Напишіть від ${MSG_MIN} до ${MSG_MAX} символів`, `Write between ${MSG_MIN} and ${MSG_MAX} characters`),
+  invalid_topic: tr("Оберіть тему", "Choose a topic"),
+  captcha_failed: tr("Не вдалося пройти перевірку. Спробуйте ще раз", "The check failed. Please try again"),
+  too_many_requests: tr("Забагато звернень. Спробуйте трохи пізніше", "Too many messages. Please try again a bit later"),
+});
 const BAD: Record<string, string[]> = { invalid_email: ["email"], invalid_message: ["message"] };
 const serverFailure = (status: number, code?: string): string =>
-  status === 0 ? "Немає зв'язку із сервером. Перевірте інтернет і спробуйте ще раз"
-    : `Помилка сервера (код ${status}${code ? ", " + code : ""}). Спробуйте ще раз трохи пізніше`;
+  status === 0 ? tr("Немає зв'язку із сервером. Перевірте інтернет і спробуйте ще раз", "No connection to the server. Check your internet and try again")
+    : tr(`Помилка сервера (код ${status}${code ? ", " + code : ""}). Спробуйте ще раз трохи пізніше`, `Server error (code ${status}${code ? ", " + code : ""}). Please try again a little later`);
 
 const cameFrom = (q: URLSearchParams): string => {
   const f = q.get("from");
@@ -70,7 +71,7 @@ export function mountContact(user: PublicUser | null): void {
     slot = Object.assign(document.createElement("div"), { className: "ts-slot", id: "ct-ts" });
     btn.before(slot);
     void loadTurnstile().then((ts) => {
-      if (!ts) return say("Не вдалося завантажити перевірку від ботів. Вимкніть блокувальники реклами й оновіть сторінку");
+      if (!ts) return say(tr("Не вдалося завантажити перевірку від ботів. Вимкніть блокувальники реклами й оновіть сторінку", "Could not load the bot check. Turn off ad blockers and reload the page"));
       if (!slot?.isConnected) return;
       wid = ts.render(slot, { sitekey: key, callback: (t) => { captcha = t; }, "expired-callback": () => { captcha = ""; }, "error-callback": () => { captcha = ""; } });
     });
@@ -89,10 +90,10 @@ export function mountContact(user: PublicUser | null): void {
     e.preventDefault();
     const email = field("email").value.trim(), message = ta.value.trim();
     say("");
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail(ERR.invalid_email, ["email"]);
-    if (message.length < MSG_MIN) return fail(ERR.invalid_message, ["message"]);
-    if (!isReady()) return fail("Зачекайте мить і спробуйте ще раз");
-    if (slot && !captcha) return fail("Дочекайтеся завершення перевірки на бота");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail(ERR().invalid_email, ["email"]);
+    if (message.length < MSG_MIN) return fail(ERR().invalid_message, ["message"]);
+    if (!isReady()) return fail(tr("Зачекайте мить і спробуйте ще раз", "Wait a moment and try again"));
+    if (slot && !captcha) return fail(tr("Дочекайтеся завершення перевірки на бота", "Please wait for the bot check to finish"));
     btn.disabled = true;
     btn.classList.add("is-loading");
     btn.setAttribute("aria-busy", "true");
@@ -107,9 +108,9 @@ export function mountContact(user: PublicUser | null): void {
     if (!r.ok) {
       resetCaptcha();
       const code = r.data?.error ?? "";
-      return fail(r.status === 0 || r.status >= 500 || !r.data ? serverFailure(r.status, r.data?.code) : ERR[code] ?? "Не вдалося надіслати. Спробуйте пізніше", BAD[code]);
+      return fail(r.status === 0 || r.status >= 500 || !r.data ? serverFailure(r.status, r.data?.code) : ERR()[code] ?? tr("Не вдалося надіслати. Спробуйте пізніше", "Could not send. Please try again later"), BAD[code]);
     }
-    (document.getElementById("ct-ok-text") as HTMLElement).textContent = `Ми отримали ваше повідомлення й відповімо на ${email}.`;
+    (document.getElementById("ct-ok-text") as HTMLElement).textContent = tr(`Ми отримали ваше повідомлення й відповімо на ${email}.`, `We received your message and will reply to ${email}.`);
     f.hidden = true;
     ok.hidden = false;
     (document.getElementById("ct-ok-h") as HTMLElement).focus();

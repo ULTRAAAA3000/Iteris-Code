@@ -1,0 +1,13 @@
+/* Перемикач мови в шапці (UA | EN) і пояснення для сторінок, що поки лише українською. Вбудовується в index.html під час збірки. */
+.lang{display:inline-flex;flex:none;border:2px solid var(--ink);border-radius:99px;overflow:hidden;font-weight:800;font-size:.78rem;line-height:1;background:var(--panel)}
+.lang a{padding:8px 11px;color:var(--ink);text-decoration:none;transition:background-color .15s,color .15s}
+.lang a+a{border-left:2px solid var(--ink)}
+.lang a:hover{background:var(--grid)}
+.lang a[aria-current=true]{background:var(--pen);color:var(--pen-ink)}
+.lang a:focus-visible{outline:3px solid var(--pen);outline-offset:-3px}
+.lang-note{margin:0 0 18px;padding:10px 14px;border:2px dashed var(--line);border-radius:12px;color:var(--muted);font-size:.92rem}
+@media (max-width:480px){
+  .top .wrap{column-gap:6px}
+  .lang{font-size:.7rem}
+  .lang a{padding:7px 7px}
+}
