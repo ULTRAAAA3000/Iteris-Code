@@ -1,5 +1,5 @@
 import { BASH_TASKS } from "./bash.ts";
-import { CPP_TASKS } from "./cpp.ts";
+import { CPP_TASKS } from "./cpp/index.ts";
 import { CSS_TASKS } from "./css.ts";
 import { GO_TASKS } from "./go/index.ts";
 import { HTML_TASKS } from "./html.ts";

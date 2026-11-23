@@ -37,7 +37,7 @@ const BASE = {
 
 // Еталони віддалених завдань лежать окремо по мовах: tests/solutions/<мова>.mjs
 import { BASH } from "./solutions/bash.mjs";
-import { CPP } from "./solutions/cpp.mjs";
+import { CPP } from "./solutions/cpp-all.mjs";
 import { CSS } from "./solutions/css.mjs";
 import { GO_SOLUTIONS } from "./solutions/go.mjs";
 import { HTML } from "./solutions/html.mjs";
