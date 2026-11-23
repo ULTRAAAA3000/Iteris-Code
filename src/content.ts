@@ -1,11 +1,11 @@
 // Завантаження уроків і структури курсів із сервера. Доступно лише після входу: у публічній збірці текстів уроків немає.
 import { setOutline } from "./data.ts";
-import type { Project } from "./projects/types.ts";
+import type { Project, ProgramProject } from "./projects/types.ts";
 import type { LessonPayload, Outline } from "./types.ts";
 import { ui } from "./ui.ts";
 
 const lessons = new Map<string, LessonPayload>();
-const projects = new Map<string, Project>();
+const projects = new Map<string, Project | ProgramProject>();
 const failedProjects = new Set<string>();
 const loadingProjects = new Set<string>();
 const failed = new Set<string>();
@@ -57,7 +57,7 @@ export function fetchLesson(k: string, n: number): void {
   });
 }
 
-export const cachedProject = (id: string): Project | undefined => projects.get(id);
+export const cachedProject = (id: string): Project | ProgramProject | undefined => projects.get(id);
 export const projectFailed = (id: string): boolean => failedProjects.has(id);
 export const retryProject = (id: string): void => { failedProjects.delete(id); };
 
@@ -65,7 +65,7 @@ export const retryProject = (id: string): void => { failedProjects.delete(id); }
 export function fetchProject(id: string): void {
   if (projects.has(id) || loadingProjects.has(id)) return;
   loadingProjects.add(id);
-  void getJson<Project>(`/api/project?id=${encodeURIComponent(id)}`).then((p) => {
+  void getJson<Project | ProgramProject>(`/api/project?id=${encodeURIComponent(id)}`).then((p) => {
     loadingProjects.delete(id);
     if (p) projects.set(id, p); else failedProjects.add(id);
     ui.render();

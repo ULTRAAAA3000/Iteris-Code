@@ -13,8 +13,9 @@ import { getOnboarding, onboardingHtml } from "./onboarding.ts";
 import { BRAND, findPage } from "./pages.ts";
 import { renderPath } from "./path.ts";
 import { mountSettings, renderPublic, renderSettings } from "./profile.ts";
+import { chooseLevel } from "./levels.ts";
 import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
-import type { Project } from "./projects/types.ts";
+import type { Project, ProgramProject } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
 import { onDashHost } from "./domains.ts";
 import { initRouter, segments } from "./router.ts";
@@ -45,7 +46,7 @@ function render(): void {
   setLang(lang);
   const page = onDashHost() ? undefined : findPage(barePath, lang);   // на кабінетному піддомені «/» не головна, а кабінет
   if (page || sp.lang) savePreferred(lang);
-  let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | undefined, indexable = false;
+  let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | ProgramProject | undefined, indexable = false;
   disposeWorkspace();
   disposeProject();
   if (page) { html = page.html(!!getUser()); active = page.active; title = page.title; }
@@ -113,6 +114,12 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("click", (e) => {
   const target = e.target as Element;
+  const lv = target.closest<HTMLElement>("[data-level]");
+  if (lv?.dataset.course && (lv.dataset.level === "base" || lv.dataset.level === "adv")) {
+    const y = window.scrollY;
+    void chooseLevel(lv.dataset.course, lv.dataset.level, () => { ui.render(); window.scrollTo(0, y); });
+    return;
+  }
   const t = target.closest<HTMLElement>("[data-toggle]");
   if (t) {
     const [k, n] = (t.dataset.toggle ?? "").split(":");

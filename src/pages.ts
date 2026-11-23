@@ -56,7 +56,7 @@ const faq = (): readonly (readonly [string, string])[] => tr<readonly (readonly 
   ["Як перевіряються завдання?", "Автоматично, без ШІ: платформа запускає ваш код і порівнює результат із вимогами. Ви бачите вивід програми й галочки за кожним пунктом: наприклад, «пройдено 2 з 3»."],
   ["Чи потрібна реєстрація, щоб користуватись довідником?", "Ні. Довідник по кожній мові відкритий без входу. Вхід потрібен для уроків, завдань, XP і збереження прогресу на всіх пристроях."],
   ["Чи можна вчитись із телефона?", "Так. Усі сторінки перевірено на екранах від 360 пікселів, а на телефоні замість важкого редактора відкривається простий."],
-  ["Чи є проєкти за технічним завданням?", "Так. Ви отримуєте технічне завдання, складаєте невеликий продукт і бачите звіт «виконано X з N». Перший проєкт (JavaScript) уже в кабінеті, нові з'являтимуться поступово."],
+  ["Чи є проєкти за технічним завданням?", "Так. Ви отримуєте технічне завдання, складаєте невеликий продукт і бачите звіт «виконано X з N». Проєкти вже є в курсах JavaScript і Go (по три в Python, Java і Go), інші мови додаватимуться поступово."],
   ["Якою мовою уроки?", "Зараз усі уроки й завдання українською. Англійська версія готується: інтерфейс і публічні сторінки сайту вже доступні англійською, перемикач мови зверху."],
 ], [
   ["Is it really free?", "Yes. The reference is open to everyone, and lessons, tasks and your personal account are free for signed-in users. You never have to pay."],
@@ -65,7 +65,7 @@ const faq = (): readonly (readonly [string, string])[] => tr<readonly (readonly 
   ["How are tasks checked?", "Automatically, without AI: the platform runs your code and compares the result with the requirements. You see the program output and a tick for every requirement, for example “2 of 3 passed”."],
   ["Do I need to register to use the reference?", "No. The reference for each language is open without signing in. You sign in for lessons, tasks, XP and saving progress across devices."],
   ["Can I learn from my phone?", "Yes. Every page is tested on screens from 360 pixels wide, and phones get a simple editor instead of the heavy one."],
-  ["Are there projects based on a specification?", "Yes. You get a specification, build a small product and see a “done X of N” report. The first project (JavaScript) is already in your account, and new ones will appear gradually."],
+  ["Are there projects based on a specification?", "Yes. You get a specification, build a small product and see a “done X of N” report. Projects already exist in the JavaScript and Go courses (three each in Python, Java and Go), and other languages will be added gradually."],
   ["What language are the lessons in?", "For now all lessons and tasks are in Ukrainian. An English version is on the way: the interface and the public pages of the site are already available in English, use the language switch at the top."],
 ]);
 
@@ -120,7 +120,7 @@ print("Hello,", name + "!")`)}</pre>
       <li class="lp-step">
         <span class="lp-n" aria-hidden="true">3</span>
         <h3>${tr("Проєкт за ТЗ", "A project from a spec")}</h3>
-        <p>${tr("Отримуєш технічне завдання й складаєш невеликий продукт, як у справжній роботі. Перший проєкт уже в кабінеті.", "You get a specification and build a small product, just like in real work. The first project is already in your account.")}</p>
+        <p>${tr("Отримуєш технічне завдання й складаєш невеликий продукт, як у справжній роботі. Проєкти вже є в JavaScript, Python, Java і Go.", "You get a specification and build a small product, just like in real work. Projects already exist in JavaScript, Python, Java and Go.")}</p>
         <div class="lp-viz lp-spec" aria-hidden="true"><b>${tr("ТЗ: калькулятор знижок", "Spec: discount calculator")}</b><span>${tr("☐ Рахує суму", "☐ Adds up the total")}</span><span>${tr("☐ Застосовує промокод", "☐ Applies a promo code")}</span><span>${tr("☐ Показує чек", "☐ Shows a receipt")}</span></div>
       </li>
       <li class="lp-step">
@@ -224,7 +224,7 @@ const howHtml = (loggedIn: boolean): string => `
     <h2>${tr("5. XP, рівні та серія днів", "5. XP, levels and day streaks")}</h2>
     <p>${tr("За кожен урок і завдання ви отримуєте XP. Вони не витрачаються: це показник вашого прогресу, від якого залежить рівень. Серія днів показує, скільки днів поспіль ви вчились, а календар активності зберігає, що саме ви проходили. День рахується за часом UTC.", "You earn XP for every lesson and task. It is never spent: it is a measure of your progress that determines your level. The day streak shows how many days in a row you studied, and the activity calendar records what exactly you went through. A day is counted in UTC time.")}</p>
     <h2>${tr("6. Проєкти за технічним завданням", "6. Projects from a specification")}</h2>
-    <p>${tr("Наступний крок розвитку платформи: ви отримуєте ТЗ, складаєте невеликий продукт і бачите звіт «виконано X з Y». Проєкти перевірятимуться автоматичними тестами за зрозумілими вимогами.", "The next step in the platform's growth: you get a specification, build a small product and see a “done X of Y” report. Projects are checked by automatic tests against clear requirements.")}</p>
+    <p>${tr("Ви отримуєте ТЗ, складаєте невеликий продукт і бачите звіт «виконано X з Y». Кожну вимогу перевіряють автоматичні тести, без ШІ. Проєкти вже є в курсах JavaScript (список справ), Python, Java і Go (по три, код запускається на сервері), інші мови додаватимуться поступово.", "You get a specification, build a small product and see a “done X of Y” report. Every requirement is checked by automatic tests, without AI. Projects already exist in the JavaScript (a to-do list), Python, Java and Go courses (three each, the code runs on the server), and other languages will be added gradually.")}</p>
   </div>
   <section class="lp-cta"><h2>${tr("Спробуйте самі", "Try it yourself")}</h2><p>${tr("Це безкоштовно. Оберіть мову й пройдіть перший урок.", "It is free. Choose a language and take the first lesson.")}</p>${cta(loggedIn)}</section>`;
 
@@ -274,7 +274,7 @@ function dirHtml(key: string): string {
       return `<a class="card" href="${l("/ref/" + k)}" style="text-decoration:none;display:grid;gap:14px;border-top:10px solid ${x.color}">
         <div style="display:flex;gap:14px;align-items:center">${badge(k)}<h2 style="font-size:1.6rem">${courseName(k)}</h2></div>
         <p style="margin:0">${courseDesc(k)}</p>
-        <small style="color:var(--muted)">${tr("Довідник", "Reference")}: ${cnt(sections(k), "section")} · ${cnt(x.lessons, "lesson")} ${tr("у кабінеті", "in your account")}</small>
+        <small style="color:var(--muted)">${tr("Довідник", "Reference")}: ${cnt(sections(k), "section")} · ${cnt(x.lessons, "lesson")} ${tr("у кабінеті", "in your account")}${x.base ? tr(` (${x.base} базових і ${x.lessons - x.base} просунутих)`, ` (${x.base} core and ${x.lessons - x.base} advanced)`) : ""}</small>
       </a>`;
     }).join("")}
   </div>`;
@@ -290,7 +290,7 @@ function refHtml(k: string, loggedIn: boolean): string {
     ${secs.map((s, i) => `<section id="s${i}"><h2>${esc(s.t)}</h2>
       ${s.items.map((x) => `<h3>${esc(x.t)}</h3>${x.note ? `<p>${inline(x.note)}</p>` : ""}<pre class="code">${esc(x.code)}</pre>`).join("")}</section>`).join("")}
   </div>
-  <div class="callout"><b>${tr("Хочете вчитися крок за кроком?", "Want to learn step by step?")}</b> ${tr(`У кабінеті є ${cnt(c.lessons, "lesson")} по главах і завдання з перевіркою коду.`, `Your account has ${cnt(c.lessons, "lesson")} organised by chapter and tasks with code checking.`)} ${loggedIn ? `<a href="/course/${k}">${tr(`Відкрити курс ${esc(courseName(k))}`, `Open the ${esc(courseName(k))} course`)}</a>` : `<button class="btn small" data-act="login">${tr("Увійти й почати", "Sign in and start")}</button>`}</div>`;
+  <div class="callout"><b>${tr("Хочете вчитися крок за кроком?", "Want to learn step by step?")}</b> ${tr(`У кабінеті є ${cnt(c.lessons, "lesson")} по главах${c.base ? ` (${c.base} базових і ${c.lessons - c.base} просунутих, рівень можна перемикати в будь-який момент)` : ""} і завдання з перевіркою коду.`, `Your account has ${cnt(c.lessons, "lesson")} organised by chapter${c.base ? ` (${c.base} core and ${c.lessons - c.base} advanced, you can switch the level at any time)` : ""} and tasks with code checking.`)} ${loggedIn ? `<a href="/course/${k}">${tr(`Відкрити курс ${esc(courseName(k))}`, `Open the ${esc(courseName(k))} course`)}</a>` : `<button class="btn small" data-act="login">${tr("Увійти й почати", "Sign in and start")}</button>`}</div>`;
 }
 
 /* ---------- Реєстр сторінок ---------- */

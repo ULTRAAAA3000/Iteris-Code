@@ -75,7 +75,7 @@ export function mountDemo(): void {
         const r = await runInWorker(editor.value, (demoTask("js") as JsTask).tests, () => {});
         if (my === runId) render(r.results, r.error);
       } else if (lang === "python") {
-        const r = await runRemote("demo-py", editor.value, 25000, "/api/demo-run", { lang: getLang() });
+        const r = await runRemote("demo-py", editor.value, 25000, "/api/demo-run", "taskId", { lang: getLang() });
         if (my === runId) render(r.results, r.error);
       } else {
         const page = preview(), task = demoTask(lang) as PageTask;
