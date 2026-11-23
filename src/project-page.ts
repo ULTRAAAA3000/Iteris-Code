@@ -1,4 +1,5 @@
 // Сторінка проєкту за ТЗ (/project/<id>): умови й вимоги ліворуч, редактор, звіт і попередній перегляд праворуч.
+import { COURSE_PAGE } from "./features.ts";
 import { completeTask, getUser, invalidate } from "./auth.ts";
 import { C } from "./data.ts";
 import { createEditor } from "./editor.ts";
@@ -18,7 +19,7 @@ const PFILE = { python: "main.py", java: "Main.java", go: "main.go" } as const;
 export function projectHTML(p: Project | ProgramProject): string {
   const c = C[p.course], [lk, ln] = p.lesson.split("/");
   const badge = p.premium ? `<span class="plan pro">Pro</span>` : `<span class="plan free">Безкоштовно</span>`;
-  return `<div class="crumbs"><a href="/">Головна</a> / <a href="/course/${escA(p.course)}">${escA(c.name)}</a> / Проєкт</div>
+  return `<div class="crumbs"><a href="/">Головна</a> / <a href="${COURSE_PAGE ? "/course/" : "/path/"}${escA(p.course)}">${escA(c.name)}</a> / Проєкт</div>
   <div class="ws pj">
     <article class="ws-left lesson">
       <div class="meta"><span class="tag" style="background:${c.color}">Проєкт за ТЗ</span><span>Курс «${escA(c.name)}»</span></div>

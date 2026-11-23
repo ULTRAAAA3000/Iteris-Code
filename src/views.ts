@@ -1,5 +1,6 @@
 // Сторінки, доступні лише після входу: список уроків курсу, урок із завданням. Публічні сторінки: src/pages.ts.
 import { C, CATS, darkText, inLevel, levelTotal, projectOf } from "./data.ts";
+import { COURSE_PAGE } from "./features.ts";
 import { lessonBody, readMinutes } from "./lesson-body.ts";
 import { levelLessons, levelProgress, levelSwitch, nextInLevel, prevInLevel } from "./levels.ts";
 import { badge } from "./pages.ts";
@@ -65,13 +66,15 @@ function projectCard(k: string, n: number): string {
 export function lesson(k: string, n: number, data: LessonPayload): string {
   const c = C[k], i = n - 1, l = data.lesson, d = isDone(k, n);
   store.set("ic-last", { k, n });
-  const crumbs = `<nav class="crumbs" aria-label="Де ви"><a href="/">Головна</a> / <a href="/courses">Курси</a> / <a href="/${c.cat}">${CATS[c.cat].title}</a> / <a href="/course/${k}">${c.name}</a> / Урок ${n}</nav>`;
+  const crumbs = COURSE_PAGE
+    ? `<nav class="crumbs" aria-label="Де ви"><a href="/">Головна</a> / <a href="/courses">Курси</a> / <a href="/${c.cat}">${CATS[c.cat].title}</a> / <a href="/course/${k}">${c.name}</a> / Урок ${n}</nav>`
+    : `<nav class="crumbs" aria-label="Де ви"><a href="/">Головна</a> / <a href="/path">Шлях</a> / <a href="/path/${k}">${c.name}</a> / Урок ${n}</nav>`;
   const meta = `<div class="meta"><span class="tag" style="background:${c.color};${darkText(k)}">${c.name}</span><span>Урок ${n} з ${c.L.length}</span><span>≈ ${readMinutes(l)} хв читання</span>${c.L[i].adv ? `<span class="lv-tag">просунутий рівень</span>` : ""}<span>Глава: ${l.ch}</span></div>`;
   const actions = `<div class="lesson-actions"><button class="btn small" data-toggle="${k}:${n}" aria-pressed="${d}">${d ? "Пройдено" : "Позначити пройденим"}</button><a class="btn small" href="/contact?topic=bug&amp;from=${encodeURIComponent(`/lesson/${k}/${n}`)}">Повідомити про помилку</a></div>${levelSwitch(k)}`;
   const prose = `${lessonBody(l)}${projectCard(k, n)}`;
   const pager = `<div class="pager">
         ${prevInLevel(k, n) ? `<a class="btn small" href="/lesson/${k}/${prevInLevel(k, n)}">Попередній урок</a>` : "<span></span>"}
-        ${nextInLevel(k, n) ? `<a class="btn primary small" href="/lesson/${k}/${nextInLevel(k, n)}">Наступний урок</a>` : `<a class="btn primary small" href="/course/${k}">До списку уроків</a>`}
+        ${nextInLevel(k, n) ? `<a class="btn primary small" href="/lesson/${k}/${nextInLevel(k, n)}">Наступний урок</a>` : COURSE_PAGE ? `<a class="btn primary small" href="/course/${k}">До списку уроків</a>` : `<a class="btn primary small" href="/path/${k}">До шляху</a>`}
       </div>`;
 
   if (data.task) return workspaceHTML({ crumbs, meta, title: l.t, actions, prose, pager, task: data.task });

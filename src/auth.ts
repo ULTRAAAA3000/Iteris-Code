@@ -276,7 +276,7 @@ function full(d: DashboardData): string {
     const gt = allTasks().filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
     return `<div class="card skill"><h3><span>${escA(g.t)}</span><span>${pct}%</span></h3>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escA(g.t)}"><i style="width:${pct}%"></i></div>
-        <ul>${ks.map((k) => `<li><a href="/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${levelTotal(k)}</span></li>`).join("")}</ul>
+        <ul>${ks.map((k) => `<li><a href="/path/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${levelTotal(k)}</span></li>`).join("")}</ul>
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
   const lvlTotal = Object.keys(C).reduce((a, k) => a + levelTotal(k), 0), lvlDone = [...set].filter((id) => inLevel(id.split("/")[0], +id.split("/")[1])).length;

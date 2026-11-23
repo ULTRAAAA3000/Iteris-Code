@@ -185,7 +185,7 @@ const gu = await page({ me: null, hash: "#/course/js" });
 gu.w.document.dispatchEvent(new gu.w.Event("ic:progress"));
 await sleep(500);
 t("XP: гість не викликає синхронізацію", posted(gu, "/api/xp/sync").length === 0);
-const tog = await page({ me: user, hash: "#/course/js", syncReply: { xp: 10, gained: [{ amount: 10 }], level: 1, prevLevel: 1, leveledUp: false } });
+const tog = await page({ me: user, hash: "#/lesson/js/1", syncReply: { xp: 10, gained: [{ amount: 10 }], level: 1, prevLevel: 1, leveledUp: false } });
 tog.$("[data-toggle='js:1']").click();
 await sleep(700);
 t("XP: відмітка уроку пройденим на сервері тягне синхронізацію XP й показує «+10 XP»", posted(tog, "/api/progress").length >= 1 && posted(tog, "/api/xp/sync").length === 1 && tog.$(".xp-pop")?.textContent === "+10 XP");
