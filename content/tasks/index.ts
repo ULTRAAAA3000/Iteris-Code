@@ -1,5 +1,5 @@
 import { BASH_TASKS } from "./bash.ts";
-import { CPP_TASKS } from "./cpp.ts";
+import { CPP_TASKS } from "./cpp/index.ts";
 import { CSS_TASKS } from "./css.ts";
 import { GO_TASKS } from "./go/index.ts";
 import { HTML_TASKS } from "./html.ts";
@@ -7,7 +7,7 @@ import { JAVA_TASKS } from "./java.ts";
 import { JS_TASKS } from "./js.ts";
 import { PASCAL_TASKS } from "./pascal.ts";
 import { PHP_TASKS } from "./php.ts";
-import { PYTHON_TASKS } from "./python.ts";
+import { PYTHON_TASKS } from "./python/index.ts";
 import { SQL_TASKS } from "./sql.ts";
 import { TS_TASKS } from "./ts.ts";
 import type { Task } from "../../src/tasks/types.ts";

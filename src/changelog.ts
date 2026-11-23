@@ -18,6 +18,17 @@ export interface Release {
 
 /** Випущене, від новішого до старішого. Додаючи запис, ставте його першим */
 export const RELEASES: readonly Release[] = [
+  { date: "23.11.2026", items: [
+    "Курси Python і C++ тепер повні: по 110 уроків у 12 главах і по завданню до кожного уроку з перевіркою вашого коду.",
+    "У Python і C++ є перемикач «Базовий / Просунутий»: 80 базових уроків і ще 30 просунутих, рівень можна змінити будь-коли.",
+    "Уроки стало легше читати: приклад коду стоїть одразу за поясненням, довгі абзаци розбито, а кнопки A− і A+ змінюють розмір тексту.",
+    "Уроки відкриваються через «Шлях»: хлібні крихти й кнопка в кінці уроку ведуть на нього, а окремий список уроків курсу тимчасово сховано."
+  ], en: [
+    "The Python and C++ courses are now complete: 110 lessons each in 12 chapters, with a task for every lesson and checking of your code.",
+    "Python and C++ now have the “Basic / Advanced” switch: 80 basic lessons plus 30 advanced ones, and you can change the level at any time.",
+    "Lessons are easier to read: a code example sits right after its explanation, long paragraphs are split up, and the A− and A+ buttons change the text size.",
+    "Lessons open through the Path: the breadcrumbs and the button at the end of a lesson lead to it, and the separate course lesson list is hidden for now."
+  ] },
   { date: "17.11.2026", items: [
     "Досягнення в профілі: значки за перший урок і завдання, 10 і 50 уроків, серії 3, 7 і 30 днів, 5-й і 10-й рівні та пройдений курс.",
     "Сторінка «Підтримка»: напишіть нам про помилку, ідею або те, що хочеться бачити красивішим. Відповідь прийде на вашу пошту.",
