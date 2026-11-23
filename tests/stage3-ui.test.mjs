@@ -1,7 +1,8 @@
 // Етап 3 (частина A), інтерфейс: рушій перевірки проєктів на справжніх рішеннях і сторінка проєкту.
 // Запуск: npm run build && npm i --no-save jsdom && node tests/stage3-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
-import { projectById } from "../content/projects/index.ts";
+import { ALL_PROJECTS, projectById } from "../content/projects/index.ts";
+import { TASKS } from "../content/tasks/index.ts";
 import { buildSrcdoc, REPORT_TYPE, scoreReport } from "../src/projects/sandbox.ts";
 import { contentReply } from "./content-mock.mjs";
 import { PROJECT_SOLUTIONS } from "./solutions.mjs";
@@ -142,10 +143,11 @@ const lo = await page({ me: user, dash: base, hash: "#/lesson/js/1" });
 await sleep(200);
 t("інші уроки без проєкту не мають картки", !lo.$(".pj-card"));
 const ph = await page({ me: user, dash: base, hash: "#/path/js" });
-t("шлях: біля уроку 17 чип «Проєкт: …» веде на проєкт", ph.$$(".path-prac").some((a) => a.getAttribute("href") === "/project/js-todo" && a.textContent.includes("Проєкт: список справ")));
+t("шлях: після уроку 17 пункт «Проєкт за ТЗ» веде на проєкт і показує назву та XP", ph.$$(".path-proj a").some((a) => a.getAttribute("href") === "/project/js-todo" && a.textContent.includes("Проєкт за ТЗ") && a.textContent.includes("список справ") && a.textContent.includes("до 60 XP")));
 const ds = await page({ me: user, dash: { ...base, completedLessons: [], passedTasks: ["js-todo"], tasksPassed: 1, recentSubmissions: [{ taskId: "js-todo", passed: true, at: new Date().toISOString() }] } });
 t("кабінет: у списку останніх спроб проєкт показано за назвою", ds.html().includes("Проєкт: список справ"));
 const lvl = await page({ me: user, dash: { ...base, xp: 10 } });
-t("кабінет: у підказці про XP максимум враховує проєкти (до +60 XP)", lvl.$(".lvl-hint").textContent.includes("до +60 XP"));
+const maxTaskXp = Math.max(...TASKS.map((x) => x.xp)), maxXp = Math.max(maxTaskXp, ...ALL_PROJECTS.map((x) => x.xp));
+t(`кабінет: у підказці про XP максимум враховує проєкти (до +${maxXp} XP, а завдання окремо лише до +${maxTaskXp})`, maxXp > maxTaskXp && lvl.$(".lvl-hint").textContent.includes(`до +${maxXp} XP`));
 
 console.log(`\nПройдено перевірок Етапу 3 (інтерфейс): ${ok}`);
