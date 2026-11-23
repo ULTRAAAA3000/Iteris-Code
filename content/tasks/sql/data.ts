@@ -7,3 +7,5 @@ export const USERS = raw`CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT, 
 INSERT INTO users VALUES (1, 'Оля', 25, 'Київ', 'olya@example.com'), (2, 'Іван', 31, 'Дніпро', NULL), (3, 'Олег', 19, 'Львів', 'oleg@example.com'), (4, 'Марія', 40, 'Київ', NULL), (5, 'Андрій', 28, NULL, 'andriy@example.com');`;
 export const EMPLOYEES = raw`CREATE TABLE employees (id INTEGER PRIMARY KEY, name TEXT, dept TEXT, salary INTEGER);
 INSERT INTO employees VALUES (1, 'Оля', 'IT', 100), (2, 'Іван', 'IT', 80), (3, 'Марія', 'HR', 60), (4, 'Олег', 'HR', 90), (5, 'Андрій', 'IT', 120);`;
+export const MENU = raw`CREATE TABLE menu (id INTEGER PRIMARY KEY, name TEXT, kind TEXT, price INTEGER);
+INSERT INTO menu VALUES (1, 'Борщ', 'суп', 90), (2, 'Окрошка', 'суп', 70), (3, 'Стейк', 'гаряче', 320), (4, 'Пюре', 'гарнір', 60), (5, 'Салат', 'закуска', 85), (6, 'Чай', 'напій', 25), (7, 'Кава', 'напій', 55), (8, 'Вино', 'напій', 180);`;
