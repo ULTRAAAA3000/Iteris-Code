@@ -1,11 +1,12 @@
 // Адреси сторінок: звичайні шляхи (/ref/js, /courses, /dashboard) через History API.
 // Старі адреси з решіткою (#/lesson/js/3) і далі відкриваються: при завантаженні вони перетворюються на шляхи.
 import { leave, onDashHost, onRootHost, resolveTarget } from "./domains.ts";
+import { splitLang } from "./i18n.ts";
 import { ui } from "./ui.ts";
 
 /** Частини адреси без крайніх скісних рисок і без .html: "ref/js", "courses", "" для головної */
 export const pathOf = (): string => {
-  const p = location.pathname.replace(/\.html$/, "").replace(/^\/+|\/+$/g, "");
+  const p = splitLang(location.pathname).path.replace(/\.html$/, "").replace(/^\/+|\/+$/g, "");   // /en/courses → courses
   return p === "" && onDashHost() ? "dashboard" : p;   // на кабінетному піддомені головна сторінка «/» і є кабінетом
 };
 

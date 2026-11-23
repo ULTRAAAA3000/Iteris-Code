@@ -7,20 +7,21 @@ import { badge } from "./pages.ts";
 import { done, isDone, isTaskPassed, progress } from "./progress.ts";
 import type { LessonPayload } from "./types.ts";
 import { count, esc, escA, pad, store, W } from "./util.ts";
+import { l, tr } from "./i18n.ts";
 import { workspaceHTML } from "./workspace.ts";
 
 /** Картка для сторінок, що доступні лише після входу (уроки, шлях, кабінет) */
 export function gate(): string {
-  return `<div class="card dash-guest"><h1>Уроки та завдання в кабінеті</h1>
-    <p>Увійдіть, щоб відкрити уроки й практику, зберігати прогрес на всіх пристроях і отримувати XP. Довідник по мовах доступний без входу.</p>
-    <button class="btn primary" data-act="login">Увійти</button> <a class="btn" href="/courses">До курсів</a></div>`;
+  return `<div class="card dash-guest"><h1>${tr("Уроки та завдання в кабінеті", "Lessons and tasks are in your account")}</h1>
+    <p>${tr("Увійдіть, щоб відкрити уроки й практику, зберігати прогрес на всіх пристроях і отримувати XP. Довідник по мовах доступний без входу.", "Sign in to open lessons and practice, save your progress on all devices and earn XP. The language reference is available without signing in.")}</p>
+    <button class="btn primary" data-act="login">${tr("Увійти", "Sign in")}</button> <a class="btn" href="${l("/courses")}">${tr("До курсів", "To courses")}</a></div>`;
 }
 
-export const loadingCard = (): string => `<div class="card dash-guest" aria-busy="true" aria-label="Завантаження"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
+export const loadingCard = (): string => `<div class="card dash-guest" aria-busy="true" aria-label="${tr("Завантаження", "Loading")}"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
 
 export function loadError(retry: string): string {
-  return `<div class="card dash-guest"><h1>Не вдалося завантажити уроки</h1>
-    <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${retry}">Спробувати ще раз</button></div>`;
+  return `<div class="card dash-guest"><h1>${tr("Не вдалося завантажити уроки", "Could not load the lessons")}</h1>
+    <p>${tr("Перевірте з'єднання та спробуйте ще раз.", "Check your connection and try again.")}</p><button class="btn primary" data-act="${retry}">${tr("Спробувати ще раз", "Try again")}</button></div>`;
 }
 
 /** Рядок проєкту за ТЗ у списку курсу: виділений, одразу після уроку, до якого прив'язаний */
@@ -99,5 +100,5 @@ export function lesson(k: string, n: number, data: LessonPayload): string {
 }
 
 export function notFound(): string {
-  return `<div class="empty"><h1>Такої сторінки немає</h1><p>Можливо, посилання застаріло. Поверніться на головну й оберіть курс.</p><a class="btn primary" href="/">На головну</a></div>`;
+  return `<div class="empty"><h1>${tr("Такої сторінки немає", "This page does not exist")}</h1><p>${tr("Можливо, посилання застаріло. Поверніться на головну й оберіть курс.", "The link may be out of date. Go back to the home page and choose a course.")}</p><a class="btn primary" href="${l("/")}">${tr("На головну", "Home")}</a></div>`;
 }

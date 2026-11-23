@@ -5,6 +5,7 @@ export const TOPICS = {
   idea: "Ідея або побажання",
   other: "Інше",
 } as const;
+export const TOPICS_EN: Record<keyof typeof TOPICS, string> = { visual: "Effects and visuals", bug: "Something is broken", idea: "Idea or wish", other: "Other" };
 export type Topic = keyof typeof TOPICS;
 export const isTopic = (v: unknown): v is Topic => typeof v === "string" && Object.prototype.hasOwnProperty.call(TOPICS, v);
 export const DEFAULT_TOPIC: Topic = "visual";
