@@ -15,6 +15,7 @@ import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
 import type { Project, ProgramProject } from "./projects/types.ts";
 import { hooks, toggle } from "./progress.ts";
 import { onDashHost } from "./domains.ts";
+import { COURSE_PAGE } from "./features.ts";
 import { initRouter, segments } from "./router.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
 import type { Task } from "./tasks/types.ts";
@@ -35,6 +36,7 @@ function locked(): string | null {
 
 function render(): void {
   const [a, b, c] = segments();
+  if (a === "course" && C[b] && !COURSE_PAGE) { history.replaceState(null, "", `/path/${b}`); render(); return; }   // сторінку списку уроків сховано: стара адреса веде на шлях цієї мови
   const page = onDashHost() ? undefined : findPage(location.pathname.replace(/\.html$/, ""));   // на кабінетному піддомені «/» не головна, а кабінет
   let html: string, active = "", title = BRAND, task: Task | undefined, project: Project | ProgramProject | undefined, indexable = false;
   disposeWorkspace();
@@ -43,7 +45,7 @@ function render(): void {
   else if (a === "course" && C[b]) { html = locked() ?? course(b); active = "courses"; title = C[b].name + " — " + BRAND; }
   else if (a === "lesson" && C[b]) {
     const n = Number(c), lk = locked();
-    active = "courses";
+    active = COURSE_PAGE ? "courses" : "path";
     if (lk) html = lk;
     else if (!C[b].L[n - 1]) html = notFound();
     else {
@@ -60,7 +62,7 @@ function render(): void {
     else if (!projectMeta(b)) html = notFound();
     else {
       const p = cachedProject(b);
-      if (p) { project = p; html = projectHTML(p); active = "courses"; title = p.title + " — " + BRAND; }
+      if (p) { project = p; html = projectHTML(p); active = COURSE_PAGE ? "courses" : "path"; title = p.title + " — " + BRAND; }
       else if (projectFailed(b)) html = loadError("retry-project");
       else { html = loadingCard(); fetchProject(b); }
     }

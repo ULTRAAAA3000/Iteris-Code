@@ -275,7 +275,7 @@ function refHtml(k: string, loggedIn: boolean): string {
     ${secs.map((s, i) => `<section id="s${i}"><h2>${esc(s.t)}</h2>
       ${s.items.map((x) => `<h3>${esc(x.t)}</h3>${x.note ? `<p>${inline(x.note)}</p>` : ""}<pre class="code">${esc(x.code)}</pre>`).join("")}</section>`).join("")}
   </div>
-  <div class="callout"><b>Хочете вчитися крок за кроком?</b> У кабінеті є ${count(c.lessons, W.lesson)} по главах${c.base ? ` (${c.base} базових і ${c.lessons - c.base} просунутих, рівень можна перемикати в будь-який момент)` : ""} і завдання з перевіркою коду. ${loggedIn ? `<a href="/course/${k}">Відкрити курс ${esc(c.name)}</a>` : `<button class="btn small" data-act="login">Увійти й почати</button>`}</div>`;
+  <div class="callout"><b>Хочете вчитися крок за кроком?</b> У кабінеті є ${count(c.lessons, W.lesson)} по главах${c.base ? ` (${c.base} базових і ${c.lessons - c.base} просунутих, рівень можна перемикати в будь-який момент)` : ""} і завдання з перевіркою коду. ${loggedIn ? `<a href="/path/${k}">Відкрити курс ${esc(c.name)}</a>` : `<button class="btn small" data-act="login">Увійти й почати</button>`}</div>`;
 }
 
 /* ---------- Реєстр сторінок ---------- */
