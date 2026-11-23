@@ -258,7 +258,7 @@ export const PROJECTS: readonly ProgramProject[] = [
   {
     id: "py-gradebook",
     lang: "python",
-    lesson: "python/10",
+    lesson: "python/52",
     title: "Проєкт: журнал оцінок",
     xp: 60,
     context:
@@ -347,7 +347,7 @@ def report(book):
   {
     id: "py-bank",
     lang: "python",
-    lesson: "python/18",
+    lesson: "python/53",
     title: "Проєкт: банківський рахунок",
     xp: 75,
     context:
@@ -453,7 +453,7 @@ class Account:
   {
     id: "py-inventory",
     lang: "python",
-    lesson: "python/16",
+    lesson: "python/78",
     title: "Проєкт: склад",
     xp: 90,
     context:

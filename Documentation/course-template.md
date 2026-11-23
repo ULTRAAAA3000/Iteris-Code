@@ -160,12 +160,12 @@
 
 | Язык | Уроков сейчас | Заданий сейчас | Осталось написать | Как запускается задание | Файл заготовки |
 |---|---|---|---|---|---|
-| Go | 110 в `content/go` (на сайте пока старые 11, подключение не сделано) | 110 | 0 (нужно подключить) | Go Playground, сервер | `main.go` |
-| Python | 20 | 20 | 90 | Wandbox (`remote`) | `main.py` |
+| Go | 110 (подключён) | 110 | 0 | Go Playground, сервер | `main.go` |
+| Python | 110 (подключён 23.11.2026) | 110 | 0 | Wandbox (`remote`) | `main.py` |
 | JavaScript | 22 | 19 | 88 | Web Worker в браузере (`runtime: "js"`, тесты как в Vitest) | `solution.js` |
 | TypeScript | 12 | 12 | 98 | Wandbox | `main.ts` |
 | Java | 11 | 11 | 99 | Wandbox | `Main.java` |
-| C++ | 10 | 10 | 100 | Wandbox | `main.cpp` |
+| C++ | 110 (подключён 23.11.2026) | 110 | 0 | Wandbox | `main.cpp` |
 | PHP | 10 | 9 (урок 8 без задания) | 100 | Wandbox | `main.php` |
 | Pascal | 8 | 8 | 102 | Wandbox | `main.pas` |
 | SQL | 15 | 15 | 95 | Wandbox (SQLite) и Python для урока про SQL в Python | `main.sql` |
