@@ -1,6 +1,6 @@
 // Этап 2, интерфейс: онбординг, путь, уровень/XP, серия, календарь, эффекты. Запуск: npm run build && npm i --no-save jsdom && node tests/stage2-ui.test.mjs
 import { readFileSync, readdirSync } from "node:fs";
-import { PROJECTS } from "../content/projects/index.ts";
+import { ALL_PROJECTS, PROJECTS } from "../content/projects/index.ts";
 import { TASKS } from "../content/tasks/index.ts";
 import { LESSONS } from "../content/lessons.js";
 import { chaptersOf, LESSON_XP, startLesson } from "../src/xp.ts";
@@ -185,12 +185,12 @@ const gu = await page({ me: null, hash: "#/course/js" });
 gu.w.document.dispatchEvent(new gu.w.Event("ic:progress"));
 await sleep(500);
 t("XP: гість не викликає синхронізацію", posted(gu, "/api/xp/sync").length === 0);
-const tog = await page({ me: user, hash: "#/course/js", syncReply: { xp: 10, gained: [{ amount: 10 }], level: 1, prevLevel: 1, leveledUp: false } });
+const tog = await page({ me: user, hash: "#/lesson/js/1", syncReply: { xp: 10, gained: [{ amount: 10 }], level: 1, prevLevel: 1, leveledUp: false } });
 tog.$("[data-toggle='js:1']").click();
 await sleep(700);
 t("XP: відмітка уроку пройденим на сервері тягне синхронізацію XP й показує «+10 XP»", posted(tog, "/api/progress").length >= 1 && posted(tog, "/api/xp/sync").length === 1 && tog.$(".xp-pop")?.textContent === "+10 XP");
 
-const maxXp = Math.max(...TASKS.map((x) => x.xp), ...PROJECTS.map((x) => x.xp));
+const maxXp = Math.max(...TASKS.map((x) => x.xp), ...ALL_PROJECTS.map((x) => x.xp));
 const hint = (await page({ me: user, dash: { ...base, onboarding: { level: "beginner", courses: ["js"] }, xp: 0 } })).$(".lvl-hint").textContent;
 t("рівень: підказка про XP береться з констант і завдань, а не з тексту", hint.includes(`+${LESSON_XP} XP`) && hint.includes(`до +${maxXp} XP`));
 const css = readFileSync(new URL("../src/stage2.css", import.meta.url), "utf8");

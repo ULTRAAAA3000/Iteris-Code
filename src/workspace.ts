@@ -2,7 +2,7 @@
 import { completeTask, getUser, invalidate } from "./auth.ts";
 import { createEditor } from "./editor.ts";
 import type { CodeEditor } from "./editor.ts";
-import { isTaskPassed, markTaskPassed } from "./progress.ts";
+import { completeLessonOf, isTaskPassed, markTaskPassed } from "./progress.ts";
 import { runInWorker } from "./runner/client.ts";
 import type { RunOutcome } from "./runner/client.ts";
 import { buildPageDoc, evalPageChecks, renderInFrame } from "./runner/page.ts";
@@ -169,6 +169,10 @@ export async function mountWorkspace(task: Task): Promise<void> {
 
   const onSolved = async (code: string, proof?: string): Promise<void> => {
     markTaskPassed(task.id);
+    if (completeLessonOf(task.lesson)) {   // урок із розв'язаним завданням стає пройденим одразу, без ручної відмітки
+      const [lk, ln] = task.lesson.split("/");
+      document.querySelectorAll<HTMLElement>(`[data-toggle="${lk}:${ln}"]`).forEach((b) => { b.setAttribute("aria-pressed", "true"); if (b.classList.contains("btn")) b.textContent = "Пройдено"; });
+    }
     const user = getUser();
     let msg = "Увійдіть, щоб зберегти прогрес і серію занять.";
     let xp = 0;

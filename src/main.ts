@@ -16,8 +16,10 @@ import { mountSettings, renderPublic, renderSettings } from "./profile.ts";
 import { chooseLevel } from "./levels.ts";
 import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
 import type { Project, ProgramProject } from "./projects/types.ts";
+import { applyFontStep, stepFont } from "./fontsize.ts";
 import { hooks, toggle } from "./progress.ts";
 import { onDashHost } from "./domains.ts";
+import { COURSE_PAGE } from "./features.ts";
 import { initRouter, segments } from "./router.ts";
 import { initStage2, mountStage2 } from "./stage2.ts";
 import type { Task } from "./tasks/types.ts";
@@ -40,6 +42,7 @@ function locked(): string | null {
 
 function render(): void {
   const [a, b, c] = segments();
+  if (a === "course" && C[b] && !COURSE_PAGE) { history.replaceState(null, "", `/path/${b}`); render(); return; }   // сторінку списку уроків сховано: стара адреса веде на шлях цієї мови
   // Мова: префікс /en в адресі, для публічних сторінок без префікса українська, для кабінету й форм входу останній вибір користувача
   const sp = splitLang(location.pathname), barePath = sp.path.replace(/\.html$/, "");
   const lang: Lang = sp.lang ?? (!onDashHost() && findPage(barePath, "uk") ? "uk" : preferredLang());
@@ -53,7 +56,7 @@ function render(): void {
   else if (a === "course" && C[b]) { html = locked() ?? course(b); active = "courses"; title = C[b].name + " — " + BRAND; }
   else if (a === "lesson" && C[b]) {
     const n = Number(c), lk = locked();
-    active = "courses";
+    active = COURSE_PAGE ? "courses" : "path";
     if (lk) html = lk;
     else if (!C[b].L[n - 1]) html = notFound();
     else {
@@ -70,7 +73,7 @@ function render(): void {
     else if (!projectMeta(b)) html = notFound();
     else {
       const p = cachedProject(b);
-      if (p) { project = p; html = projectHTML(p); active = "courses"; title = p.title + " — " + BRAND; }
+      if (p) { project = p; html = projectHTML(p); active = COURSE_PAGE ? "courses" : "path"; title = p.title + " — " + BRAND; }
       else if (projectFailed(b)) html = loadError("retry-project");
       else { html = loadingCard(); fetchProject(b); }
     }
@@ -101,6 +104,7 @@ function render(): void {
   if (a === "profile" && getUser()) mountSettings();
   if (a === "admin" && getUser()) void mountAdmin();
   mountStage2(a);
+  applyFontStep();
 }
 ui.render = render;
 hooks.onToggle = syncLesson;
@@ -114,6 +118,8 @@ document.addEventListener("click", (e) => {
 
 document.addEventListener("click", (e) => {
   const target = e.target as Element;
+  const fs = target.closest<HTMLElement>("[data-fs]");
+  if (fs) { stepFont(fs.dataset.fs === "1" ? 1 : -1); return; }
   const lv = target.closest<HTMLElement>("[data-level]");
   if (lv?.dataset.course && (lv.dataset.level === "base" || lv.dataset.level === "adv")) {
     const y = window.scrollY;

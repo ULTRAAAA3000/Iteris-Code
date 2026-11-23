@@ -1,0 +1,38 @@
+// «Поломки» еталонів HTML: після заміни мають стати невиконаними саме перелічені вимоги. Кожна вимога покрита хоч однією поломкою.
+export default {
+  "html-signup-form": [
+    { fails: ["R1"], replace: [['method="post"', 'method="get"']] },
+    { fails: ["R2"], replace: [["<legend>Особисті дані</legend>", "<legend>Дані</legend>"]] },
+    { fails: ["R3"], replace: [['type="text" required minlength="2"', 'type="text" minlength="2"']] },
+    { fails: ["R4"], replace: [['pattern="\\+380\\d{9}" ', ""]] },
+    { fails: ["R5"], replace: [['max="20"', 'max="40"']] },
+    { fails: ["R6"], replace: [['<label for="comment">Побажання</label>', "<span>Побажання</span>"]] },
+    { fails: ["R7"], replace: [['<option value="" disabled selected>', '<option value="">']] },
+    { fails: ["R8"], replace: [['name="format" value="offline"', 'name="format2" value="offline"']] },
+    { fails: ["R9"], replace: [['type="checkbox" required>', 'type="checkbox">']] },
+    { fails: ["R10"], replace: [['<button type="submit">Записатися</button>', '<button type="submit">Надіслати</button>']] },
+  ],
+  "html-cafe-menu": [
+    { fails: ["R1"], replace: [['<html lang="uk">', "<html>"]] },
+    { fails: ["R2"], replace: [['        <li><a href="#contacts">Контакти</a></li>\n', ""]] },
+    { fails: ["R3"], replace: [['<section id="desserts">', '<section id="sweets">']] },
+    { fails: ["R4"], replace: [["<caption>Ціни на каву</caption>", ""]] },
+    { fails: ["R5"], replace: [["<li><strong>Чизкейк</strong>", "<li>Чизкейк"]] },
+    { fails: ["R6"], replace: [['alt="Шматок чизкейка з ягідним соусом на білій тарілці"', 'alt="торт"']] },
+    { fails: ["R7"], replace: [[' rel="noopener noreferrer"', ""]] },
+    { fails: ["R8"], replace: [["<main>", "<main><font>Смачного!</font>"]] },
+    { fails: ["R9"], replace: [["<p>© 2026 Кафе «Лаванда»</p>", "<p>2026 Кафе «Лаванда»</p>"]] },
+  ],
+  "html-article-page": [
+    { fails: ["R1"], replace: [['content="Покроковий план на чотири тижні: від першого тегу до власної сторінки з формою, таблицею та семантичною розміткою."', 'content="Короткий опис"']] },
+    { fails: ["R2"], replace: [['content="https://webstart.example/img/html-month.jpg"', 'content="/img/html-month.jpg"']] },
+    { fails: ["R3"], replace: [['<main id="content">', "<main>"]] },
+    { fails: ["R4"], replace: [["Перейти до змісту</a>", "Пропустити</a>"]] },
+    { fails: ["R5"], replace: [['datetime="2026-11-12"', 'datetime="12.11.2026"']] },
+    { fails: ["R6"], replace: [[' loading="lazy"', ""]] },
+    { fails: ["R7"], replace: [["<h2>Читайте також</h2>", "<h2>Ще</h2>"]] },
+    { fails: ["R8"], replace: [['"@type": "Article"', '"@type": "Thing"']] },
+    { fails: ["R9"], replace: [['<a href="/privacy">Політика</a>', '<a href="#">Політика</a>']] },
+    { fails: ["R10"], replace: [["<p>© 2026 Вебстарт</p>", "<p>2026 Вебстарт</p>"]] },
+  ],
+};
