@@ -13,6 +13,7 @@ import { mountSettings, renderPublic, renderSettings } from "./profile.ts";
 import { chooseLevel } from "./levels.ts";
 import { disposeProject, mountProject, projectHTML } from "./project-page.ts";
 import type { Project, ProgramProject } from "./projects/types.ts";
+import { applyFontStep, stepFont } from "./fontsize.ts";
 import { hooks, toggle } from "./progress.ts";
 import { onDashHost } from "./domains.ts";
 import { COURSE_PAGE } from "./features.ts";
@@ -89,6 +90,7 @@ function render(): void {
   if (a === "profile" && getUser()) mountSettings();
   if (a === "admin" && getUser()) void mountAdmin();
   mountStage2(a);
+  applyFontStep();
 }
 ui.render = render;
 hooks.onToggle = syncLesson;
@@ -96,6 +98,8 @@ initStage2();
 
 document.addEventListener("click", (e) => {
   const target = e.target as Element;
+  const fs = target.closest<HTMLElement>("[data-fs]");
+  if (fs) { stepFont(fs.dataset.fs === "1" ? 1 : -1); return; }
   const lv = target.closest<HTMLElement>("[data-level]");
   if (lv?.dataset.course && (lv.dataset.level === "base" || lv.dataset.level === "adv")) {
     const y = window.scrollY;
