@@ -8,7 +8,7 @@ import { JS_TASKS } from "./js.ts";
 import { PASCAL_TASKS } from "./pascal.ts";
 import { PHP_TASKS } from "./php.ts";
 import { PYTHON_TASKS } from "./python/index.ts";
-import { SQL_TASKS } from "./sql.ts";
+import { SQL_TASKS } from "./sql/index.ts";
 import { TS_TASKS } from "./ts.ts";
 import type { Task } from "../../src/tasks/types.ts";
 

@@ -26,7 +26,7 @@ const META: Record<string, CourseMeta> = {
   php: { lessons: 10, name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
   git: { lessons: 10, name: "Git", badge: "Gt", color: "#F05032", cat: "tools", desc: "Контроль версій: коміти, гілки, GitHub і робота в команді." },
   bash: { lessons: 8, name: "Командний рядок", badge: "Sh", color: "#3E4A59", cat: "tools", desc: "Термінал і Bash: файли, пошук, конвеєри та перші скрипти." },
-  sql: { lessons: 15, name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: вибірка, фільтрація, групування та об'єднання таблиць." }
+  sql: { lessons: 35, base: 30, name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: від SELECT до JOIN, підзапитів, віконних функцій, індексів і транзакцій." }
 };
 
 // До входу в кожного курсу L порожній: уроки з'являються лише після setOutline

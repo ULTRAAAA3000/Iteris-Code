@@ -5,6 +5,7 @@
 // Глава в роботі (уроки дописуються поступово): SQL_CH=02 SQL_PARTIAL=1 node tests/sql-course.test.mjs
 // Без SQL_CH перевіряються лише глави, чиї файли вже існують; SQL_STRICT=1 вимагає всі глави плану (перед підключенням курсу).
 // Маркери в прикладах (перші коментарі блока): «-- помилка: …» (скрипт має дати помилку SQLite), «-- фрагмент: …» (не запускається).
+// Приклад мовою Python (урок «SQL у програмі») починається з коментаря «# …» і запускається python3; маркери там так само «# помилка:» і «# фрагмент:».
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -41,7 +42,7 @@ for (const c of chapters) {
 
 /** Режим прикладу за коментарями `--` на початку блока */
 const mode = (code) => {
-  const head = code.split("\n").filter((l, i, a) => a.slice(0, i + 1).every((x) => /^\s*--/.test(x) || !x.trim())).join("\n");
+  const head = code.split("\n").filter((l, i, a) => a.slice(0, i + 1).every((x) => /^\s*(--|#)/.test(x) || !x.trim())).join("\n");
   return /фрагмент/.test(head) ? "fragment" : /помилка/.test(head) ? "error" : "ok";
 };
 /** У текстових полях дозволені лише теги code, b, i; решту символів < > & треба екранувати */
@@ -88,7 +89,7 @@ for (const { c, lessons, tasks, solutions } of loaded) {
       assert.ok(t.xp >= 15 && t.xp <= 60 && t.brief.length && t.context && t.title, `${t.id}: xp 15–60, brief, context, title`);
       assert.ok(words(t.context) >= 15 && words(t.context) <= 46, `${t.id}: context має бути 15–46 слів (є ${words(t.context)})`);
       for (const x of t.checks) assert.equal([x.equals, x.has, x.matches].filter((v) => v !== undefined).length, 1, `${t.id}: «${x.name}» має рівно одну умову`);
-      for (const x of t.checks) if (x.on === "stdout" && x.equals !== undefined) assert.fail(`${t.id}: «${x.name}» використовує equals; для SQL перевіряємо вивід через has (режим заголовків)`);
+      for (const x of t.checks) if (t.lang === "sql" && x.on === "stdout" && x.equals !== undefined) assert.fail(`${t.id}: «${x.name}» використовує equals; для SQL перевіряємо вивід через has (режим заголовків)`);
     });
     assert.deepEqual(Object.keys(solutions).sort(), tasks.map((t) => t.id).sort(), "еталони лише для завдань цієї глави");
   });
@@ -148,9 +149,12 @@ if (!hasSqlite) {
       if (m === "fragment") return;
       const at = `sql/${c.lessons[i].n} приклад ${j + 1}`;
       jobs.push(async () => {
-        const r = await runSql(code);
-        const bad = m === "error" ? !r.error : r.error || r.exitCode !== 0;
-        return bad ? `${at} (${m}): ${r.error || r.stderr || "очікувалась помилка SQLite, а скрипт виконався успішно"}` : "";
+        const py = /^\s*#/.test(code.trimStart());
+        if (py && !hasPy) return "";
+        const r = py ? await runPy(code) : await runSql(code);
+        const failed = r.error || (py && r.exitCode !== 0);
+        const bad = m === "error" ? !failed : failed || r.exitCode !== 0;
+        return bad ? `${at} (${m}): ${r.error || r.stderr || "очікувалась помилка, а скрипт виконався успішно"}` : "";
       });
     }));
     tasks.forEach((t) => jobs.push(async () => {
@@ -169,6 +173,25 @@ if (!hasSqlite) {
   await test(`SQL: ${jobs.length} прикладів, заготовок і еталонів поводяться як задумано`, async () => {
     const errors = (await pool(jobs)).filter(Boolean);
     assert.equal(errors.length, 0, "\n" + errors.join("\n\n"));
+  });
+}
+{
+  const { LESSONS } = await import("../content/lessons.js");
+  const { TASKS } = await import("../content/tasks/index.ts");
+  const { readFileSync } = await import("node:fs");
+  const { SQL_OUTLINE } = await import("../content/sql/chapters.js");
+  await test("підключення: LESSONS.sql і TASKS збігаються з планом (35 уроків, 5 просунутих, по завданню на урок)", () => {
+    assert.equal(LESSONS.sql.length, SQL_OUTLINE.length);
+    LESSONS.sql.forEach((l, i) => { assert.equal(l.t, SQL_OUTLINE[i].t); assert.equal(!!l.adv, !!SQL_OUTLINE[i].adv); assert.equal(l.ch, SQL_OUTLINE[i].ch); });
+    assert.equal(LESSONS.sql.filter((l) => l.adv).length, 5);
+    const tasks = TASKS.filter((t) => t.course === "sql");
+    assert.equal(tasks.length, SQL_OUTLINE.length);
+    SQL_OUTLINE.forEach((o, i) => assert.equal(tasks.filter((t) => t.lesson === `sql/${i + 1}`).length, 1, `sql/${i + 1}: рівно одне завдання`));
+  });
+  await test("підключення: лічильники лендингу в src/data.ts (35 уроків, 30 базових), старих 15 id завдань збережено", () => {
+    assert.match(readFileSync(new URL("../src/data.ts", import.meta.url), "utf8"), /sql: \{ lessons: 35, base: 30,/);
+    const ids = new Set(TASKS.filter((t) => t.course === "sql").map((t) => t.id));
+    for (const id of ["sql-hello", "sql-select-columns"]) assert.ok(ids.has(id), `старе завдання ${id} має лишитися`);
   });
 }
 console.log(`\nУсі перевірки пройдено: ${passed}`);

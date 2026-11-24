@@ -168,7 +168,7 @@
 | C++ | 110 (подключён 23.11.2026) | 110 | 0 | Wandbox | `main.cpp` |
 | PHP | 10 | 9 (урок 8 без задания) | 100 | Wandbox | `main.php` |
 | Pascal | 8 | 8 | 102 | Wandbox | `main.pas` |
-| SQL | 15 | 15 | 95 | Wandbox (SQLite) и Python для урока про SQL в Python | `main.sql` |
+| SQL | 35 (підключено 24.11.2026, свій план у html-css-sql-courses.md) | 35 | 0 | Wandbox (SQLite) и Python для урока про SQL в Python | `main.sql` |
 | Bash | 8 | 8 | 102 | Wandbox | `main.sh` |
 | HTML | 12 | 11 | 98 | страница с предпросмотром (`page`), проверка DOM | `index.html` |
 | CSS | 13 | 13 | 97 | страница с предпросмотром (`page`), проверка стилей | `style.css` |
