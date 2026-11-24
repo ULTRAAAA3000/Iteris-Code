@@ -13,8 +13,8 @@ const CHAPTERS = [
     L("Інструменти: npm, package.json і читання помилок"),
   ]),
   ch("02", "Основи мови", [
-    L("Змінні: let, const і var", false, "js-type-of"),
-    L("Типи даних і typeof"),
+    L("Змінні: let, const і var"),
+    L("Типи даних і typeof", false, "js-type-of"),
     L("Числа: Number, NaN, BigInt і точність", false, "js-cart-total"),
     L("Рядки й шаблонні рядки", false, "js-format-price"),
     L("Перетворення типів і порівняння: == проти ==="),
