@@ -17,9 +17,9 @@
 
 | Проект | Урок | Темы |
 |---|---|---|
-| `py-gradebook` «Журнал оценок» | python/10 | словари, функции, ValueError |
-| `py-inventory` «Склад» | python/16 | lambda-сортировка, comprehensions, json |
-| `py-bank` «Банковский счёт» | python/18 | классы, исключения, property |
+| `py-gradebook` «Журнал оценок» | python/52 | словари, функции, ValueError |
+| `py-inventory` «Склад» | python/78 | lambda-сортировка, comprehensions, json |
+| `py-bank` «Банковский счёт» | python/53 | классы, исключения, property |
 | `java-wordstat` «Статистика текста» | java/8 | String, HashMap |
 | `java-shapes` «Фигуры» | java/10 | интерфейсы, наследование, полиморфизм |
 | `java-library` «Библиотека» | java/11 | классы, коллекции, свои исключения |

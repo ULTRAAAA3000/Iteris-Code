@@ -15,7 +15,9 @@ const t = (name, fn) => { try { fn(); ok++; console.log("ok  -", name); } catch 
 const template = readFileSync(new URL("../src/index.template.html", import.meta.url), "utf8")
   .replace("</style>", "</style>");
 const pages = publicPages();
-const files = buildPages(template, SITE);
+// Ці перевірки написано для української версії; англійська (en/…) перевіряється в tests/i18n.test.mjs
+const ukOnly = (list) => list.filter((f) => !f.file.startsWith("en/"));
+const files = ukOnly(buildPages(template, SITE));
 
 t("сторінок 26: головна, каталог, як це працює, про проєкт, що нового, підтримка, політика, умови, 5 напрямів, 13 довідників", () => assert.equal(pages.length, 26));
 t("адреси унікальні, заголовки й описи унікальні та не порожні", () => {
@@ -76,7 +78,7 @@ t("findPage розпізнає адреси з .html і скісною риск�
 
 /* ===== Розширене SEO: метадані, граф JSON-LD, robots для ІІ-ботів, llms.txt, Markdown-довідники, іконки ===== */
 const OPTS = { google: "g-code", bing: "b-code", yandex: "y-code", modified: "2026-11-17" };
-const filesO = buildPages(template, SITE, OPTS);
+const filesO = ukOnly(buildPages(template, SITE, OPTS));
 const decode = (x) => x.replace(/&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">");
 const graphOf = (html) => {
   const blocks = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)];
@@ -217,7 +219,7 @@ t("sitemap: дата зміни — переданий день, а для «Щ�
   const newest = RELEASES.map((x) => x.date.split(".").reverse().join("-")).sort().at(-1);
   assert.ok(sm.includes(`<loc>${SITE}${NEWS_PATH}</loc><lastmod>${newest}</lastmod>`));
   assert.ok(sm.includes(`<loc>${SITE}/courses</loc><lastmod>2020-01-01</lastmod>`));
-  assert.equal((sm.match(/<url>/g) || []).length, pages.length);
+  assert.equal((sm.match(/<url>/g) || []).length, pages.length * 2);   // кожна адреса в двох мовах
   for (const p of PRIVATE_PATHS) assert.ok(!sm.includes(`${SITE}${p.replace(/\/$/, "")}/`) && !sm.includes(`<loc>${SITE}${p}`), p);
 });
 
@@ -231,7 +233,7 @@ t("llms.txt: за специфікацією (H1, цитата-опис, роз�
   const txt = llmsTxt(SITE);
   assert.ok(txt.startsWith("# Iteris Code\n\n> "));
   assert.deepEqual(txt.match(/^## .+$/gm), ["## Основне", "## Напрями", "## Довідники мов (Markdown)", "## Службове", "## Optional"]);
-  const known = new Set([...pages.map((p) => SITE + (p.path === "/" ? "/" : p.path)), `${SITE}/sitemap.xml`, `${SITE}/llms-full.txt`, ...Object.keys(C).map((k) => `${SITE}/ref/${k}.md`)]);
+  const known = new Set([...pages.map((p) => SITE + (p.path === "/" ? "/" : p.path)), `${SITE}/sitemap.xml`, `${SITE}/llms-full.txt`, `${SITE}/en/`, ...Object.keys(C).map((k) => `${SITE}/ref/${k}.md`)]);
   const links = [...txt.matchAll(/^- \[[^\]]+\]\((https?:[^)]+)\): .+$/gm)].map((m) => m[1]);
   assert.ok(links.length >= 28, "посилань " + links.length);
   for (const l of links) assert.ok(known.has(l), "невідоме посилання " + l);

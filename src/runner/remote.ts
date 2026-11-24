@@ -17,12 +17,12 @@ interface Reply { passed?: boolean; results?: RunOutcome["results"] | { id: stri
 
 const fail = (error: string): RemoteOutcome => ({ results: [], stdout: "", stderr: "", passed: false, error });
 
-export async function runRemote(taskId: string, code: string, timeoutMs = 25000, url = "/api/run", idKey = "taskId"): Promise<RemoteOutcome> {
+export async function runRemote(taskId: string, code: string, timeoutMs = 25000, url = "/api/run", idKey = "taskId", extra: Record<string, unknown> = {}): Promise<RemoteOutcome> {
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [idKey]: taskId, code }), signal: AbortSignal.timeout(timeoutMs),
+      body: JSON.stringify({ [idKey]: taskId, code, ...extra }), signal: AbortSignal.timeout(timeoutMs),
     });
   } catch {
     return fail("Немає зв'язку з сервером запуску. Перевірте інтернет і спробуйте ще раз.");
