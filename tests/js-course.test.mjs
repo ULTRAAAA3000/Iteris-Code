@@ -102,7 +102,8 @@ const runNode = (code) => new Promise((resolve) => {
   p.on("close", (exitCode) => {
     clearTimeout(timer);
     rmSync(dir, { recursive: true, force: true });
-    const syntax = /^\s*SyntaxError\b/m.test(stderr);
+    // помилка компіляції: SyntaxError без кадрів стека з main.mjs (у SyntaxError від JSON.parse під час виконання такі кадри є)
+    const syntax = /^\s*SyntaxError\b/m.test(stderr) && !/^\s+at .*main\.mjs/m.test(stderr);
     resolve(syntax ? { stdout: "", stderr, error: stderr } : { stdout, stderr, exitCode: exitCode ?? 1 });
   });
 });
