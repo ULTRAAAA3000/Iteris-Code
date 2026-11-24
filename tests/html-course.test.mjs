@@ -6,13 +6,14 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { HTML_CHAPTERS } from "../content/html/chapters.js";
-import { TASKS as OLD_TASKS } from "../content/tasks/index.ts";
 import { buildPageDoc, evalPageChecks } from "../src/runner/page.ts";
 import { isPage } from "../src/tasks/types.ts";
 
 let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
 
+/** id завдань старого курсу з 12 уроків: нові уроки не повинні займати їх без keep */
+const OLD_IDS = new Set(["html-skeleton", "html-headings-lists", "html-text-format", "html-media", "html-table-form", "html-form-fields", "html-semantic", "html-a11y", "html-seo-meta", "html-project-paths", "html-portfolio"]);
 const only = process.env.HTML_CH, partial = !!process.env.HTML_PARTIAL, strict = !!process.env.HTML_STRICT;
 const chapters = HTML_CHAPTERS.filter((c) => !only || c.id === only);
 assert.ok(chapters.length, "немає такої глави: " + only);
@@ -134,7 +135,7 @@ for (const { c, lessons, tasks, solutions } of loaded) {
       const o = c.lessons[i];
       assert.equal(t.lesson, `html/${o.n}`, `завдання ${t.id} має бути прив'язане до html/${o.n}`);
       if (o.keep) assert.equal(t.id, o.keep, `html/${o.n}: збережіть id старого завдання ${o.keep}`);
-      else assert.ok(!OLD_TASKS.some((x) => x.id === t.id), `${t.id}: новий урок не повинен забирати id старого завдання`);
+      else assert.ok(!OLD_IDS.has(t.id), `${t.id}: новий урок не повинен забирати id старого завдання`);
       assert.ok(!seen.has(t.id), `повторний id ${t.id}`); seen.add(t.id);
       assert.ok(isPage(t) && t.course === "html" && t.edit === "html" && t.file === "index.html", t.id);
       assert.ok(solutions[t.id], `немає еталона для ${t.id}`);
@@ -162,5 +163,25 @@ for (const { c, lessons, tasks, solutions } of loaded) {
       assert.ok(red >= Math.ceil(t.checks.length / 2), `заготовка проходить забагато перевірок (червоних ${red} з ${t.checks.length}): завдання надто легке`);
     });
   }
+}
+
+// ---- Підключення до сайту: курс у LESSONS, завдання в TASKS, лічильники на лендингу ----
+if (!only && loaded.length === HTML_CHAPTERS.length) {
+  const { LESSONS } = await import("../content/lessons.js");
+  const { TASKS } = await import("../content/tasks/index.ts");
+  const { readFileSync } = await import("node:fs");
+  const { HTML_OUTLINE } = await import("../content/html/chapters.js");
+  await test("підключення: LESSONS.html і TASKS збігаються з планом (30 уроків, 7 просунутих, по завданню на урок)", () => {
+    assert.equal(LESSONS.html.length, HTML_OUTLINE.length);
+    LESSONS.html.forEach((l, i) => { assert.equal(l.t, HTML_OUTLINE[i].t); assert.equal(!!l.adv, HTML_OUTLINE[i].adv); });
+    assert.equal(LESSONS.html.filter((l) => l.adv).length, 7);
+    const tasks = TASKS.filter((t) => t.course === "html");
+    assert.equal(tasks.length, HTML_OUTLINE.length);
+    HTML_OUTLINE.forEach((o) => assert.equal(tasks.filter((t) => t.lesson === `html/${o.n}`).length, 1, `html/${o.n}: рівно одне завдання`));
+  });
+  await test("підключення: лічильники лендингу в src/data.ts (30 уроків, 23 базових)", () => {
+    const data = readFileSync(new URL("../src/data.ts", import.meta.url), "utf8");
+    assert.match(data, /html: \{ lessons: 30, base: 23,/);
+  });
 }
 console.log(`\nУсі тести курсу HTML пройдено: ${passed}`);
