@@ -67,7 +67,7 @@ export const TASKS_02: readonly JsTask[] = [
 });`,
   },
   {
-    ...base, id: "js-cart-total", lesson: "js/7", xp: 30,
+    ...base, id: "js-cart-total", lesson: "js/7", xp: 30, premium: true,
     title: "Сума кошика",
     context: "Розрахунок суми замовлення — серце будь-якого інтернет-магазину. Помилка в копійках чи в обробці порожнього кошика коштує реальних грошей і довіри клієнтів.",
     brief: [
