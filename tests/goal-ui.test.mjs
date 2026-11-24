@@ -57,6 +57,11 @@ t("картка серії теж попереджає про дедлайн", r
 
 const safe = await page({ me: user, dash: dash({ activity: { [today]: 1 } }) });
 t("сьогодні вже був крок: підказки немає, серія зарахована", !safe.$(".risk-banner") && safe.$(".streak-card").textContent.includes("Сьогодні вже зараховано"));
+const extended = await page({ me: { ...user, streakToday: true }, dash: dash({ user: { ...user, streakToday: true }, activity: {} }) });
+t("серію вже продовжено (повторне розв'язання): запису в історії немає, але підказки теж немає", !extended.$(".risk-banner") && extended.$(".streak-card").textContent.includes("Сьогодні вже зараховано"));
+t("картка серії: вогник горить, коли серію продовжено сьогодні", !!extended.$(".streak-card .flame.lit") && !extended.$(".streak-card .flame.dim"));
+const notYet = await page({ me: { ...user, streakToday: false }, dash: dash({ user: { ...user, streakToday: false }, activity: {} }) });
+t("серію не продовжено й історії немає: підказка на місці", !!notYet.$(".risk-banner"));
 const none = await page({ me: { ...user, streak: 0 }, dash: dash({ user: { ...user, streak: 0 } }) });
 t("серії немає: нема чого рятувати, підказки немає", !none.$(".risk-banner"));
 

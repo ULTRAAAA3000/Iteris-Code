@@ -39,5 +39,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const streak = bumpStreak(u);
   await env.DB.prepare("UPDATE users SET streak_count = ?1, last_active_at = CURRENT_TIMESTAMP WHERE id = ?2").bind(streak, u.id).run();
-  return json({ ok: true, streak });
+  return json({ ok: true, streak, streakToday: true });
 };

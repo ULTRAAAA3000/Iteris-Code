@@ -161,7 +161,7 @@ async function syncLocal(): Promise<void> {
 export function syncLesson(k: string, n: number, isDoneNow: boolean): void {
   if (!st.user) return;
   void post<{ streak: number }>("/api/progress", { lessonIds: [k + "/" + n], done: isDoneNow }).then((r) => {
-    if (r.ok && r.data && st.user) st.user.streak = r.data.streak;
+    if (r.ok && r.data && st.user) { st.user.streak = r.data.streak; if (isDoneNow) st.user.streakToday = true; }
     st.dash = null;
   });
 }
@@ -170,7 +170,7 @@ export interface CompleteResult { ok: boolean; status: number; streak?: number; 
 /** proof: підпис сервера з /api/run; потрібен для завдань, які запускає сервер (Go та ін.) */
 export async function completeTask(taskId: string, code: string, proof?: string): Promise<CompleteResult> {
   const r = await post<{ streak: number; firstSolve: boolean; xp: number }>("/api/progress/complete", { taskId, code, passed: true, proof });
-  if (r.ok && r.data && st.user) st.user.streak = r.data.streak;
+  if (r.ok && r.data && st.user) { st.user.streak = r.data.streak; st.user.streakToday = true; }
   st.dash = null;
   return { ok: r.ok, status: r.status, ...(r.data ?? {}) };
 }
@@ -296,7 +296,7 @@ function full(d: DashboardData): string {
     ? `<p class="plan-row"><span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button></p>`
     : "";
   return `<div class="dash">
-      ${streakRiskCard(u.streak, d.activity, f ? `/lesson/${f[0]}/${f[1]}` : "/courses")}
+      ${streakRiskCard(u.streak, d.activity, f ? `/lesson/${f[0]}/${f[1]}` : "/courses", !!u.streakToday)}
       <section class="card dash-head dash-hero">${heroFx()}${avatarRing(avatar(u, true), d.xp ?? 0)}
         <div class="grow"><span class="hero-hi">${greeting()}</span><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p>${plan}${heroChips(d.xp ?? 0, u.streak, set.size)}</div>
         <div class="hero-actions"><a class="btn small" href="/profile">Мій профіль</a><button class="btn small" data-act="logout">Вийти</button></div></section>
@@ -305,7 +305,7 @@ function full(d: DashboardData): string {
         <section class="card">${focus}</section>
         ${goalCard(d)}
         ${levelCard(d)}
-        ${streakCard(u.streak, d.activity)}
+        ${streakCard(u.streak, d.activity, !!u.streakToday)}
         <section class="card"><h3>Підсумки</h3><div class="stats3">
           <div><i class="srg">${ring(lessonsPct)}</i><strong>${set.size}</strong><span>${pl(set.size, "урок", "уроки", "уроків")}</span></div>
           <div><i class="srg">${ring(tasksPct, "ok")}</i><strong>${d.tasksPassed}</strong><span>${pl(d.tasksPassed, "завдання", "завдання", "завдань")}</span></div>
