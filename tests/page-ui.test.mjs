@@ -51,7 +51,7 @@ t("заготовка: перевірки не пройдені, є ✗ і по�
 
 h.setCode(SOLUTIONS["html-skeleton"]);
 await h.run();
-t("правильне рішення: усі перевірки ✓", h.term().includes("✓") && !h.term().includes("✗") && h.term().includes("Пройдено 5 з 5"));
+t("правильне рішення: усі перевірки ✓", h.term().includes("✓") && !h.term().includes("✗") && /Пройдено (\d+) з \1\b/.test(h.term()));   // кількість перевірок береться із завдання, а не з тексту
 t("перемога: вікно, свічення терміналу, конфетті", !!h.$(".ws-win") && !!h.$(".ws-term-ok") && !!h.$(".ws-win .confetti i"));
 const done = h.calls.find((c) => c.url === "/api/progress/complete");
 t("результат зберігається без proof (перевірка в браузері)", done?.body?.taskId === "html-skeleton" && done.body.passed === true && done.body.proof === undefined);

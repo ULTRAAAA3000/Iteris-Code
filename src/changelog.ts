@@ -18,6 +18,15 @@ export interface Release {
 
 /** Випущене, від новішого до старішого. Додаючи запис, ставте його першим */
 export const RELEASES: readonly Release[] = [
+  { date: "24.11.2026", items: [
+    "Курс HTML став значно більшим: 30 уроків по главах від першої сторінки до форм, семантики, доступності й SEO. Базовий рівень 23 уроки, ще 7 просунутих, а перемикати рівень можна будь-коли.",
+    "До кожного уроку HTML додано практичне завдання з живою перевіркою сторінки: ви пишете розмітку, натискаєте «Запустити» й бачите, які вимоги виконано.",
+    "Нові теми в HTML: посилання й шляхи, адаптивні зображення, аудіо й відео, таблиці та доступні таблиці, перевірка форм, ARIA, мета-теги й Open Graph, елементи details, dialog і progress."
+  ], en: [
+    "The HTML course is much bigger: 30 lessons in chapters, from your first page to forms, semantics, accessibility and SEO. The basic level is 23 lessons, with 7 more advanced ones, and you can switch the level at any time.",
+    "Every HTML lesson now has a practical task with live page checking: you write the markup, press “Run” and see which requirements are met.",
+    "New HTML topics: links and paths, responsive images, audio and video, tables and accessible tables, form validation, ARIA, meta tags and Open Graph, and the details, dialog and progress elements."
+  ] },
   { date: "23.11.2026", items: [
     "Курси Python і C++ тепер повні: по 110 уроків у 12 главах і по завданню до кожного уроку з перевіркою вашого коду.",
     "У Python і C++ є перемикач «Базовий / Просунутий»: 80 базових уроків і ще 30 просунутих, рівень можна змінити будь-коли.",
