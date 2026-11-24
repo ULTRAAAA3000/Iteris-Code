@@ -1,6 +1,6 @@
 # Розширення курсів HTML, CSS і SQL: план, норми, тести
 
-> Статус: **план затверджено, уроки пишуться по главах** (23.11.2026). **SQL: усі 10 глав (35 уроків, 35 завдань) написані 24.11.2026**, `SQL_STRICT=1 node tests/sql-course.test.mjs` проходить на справжньому sqlite3; курс чекає перечитування й підключення. Нові уроки лежать окремо в `content/html`, `content/css`, `content/sql` і **не підключені до сайту** (так само, як Go до підключення). Підключення після того, як курс дописано й перечитано.
+> Статус: **HTML (30 уроків), CSS (40) і SQL (35 уроків, 10 глав) написані й підключені до сайту** (HTML і SQL: 24.11.2026). Уроки лежать у `content/html`, `content/css`, `content/sql` (формат як у `content/go`). Підключення за зразком Go: `LESSONS.<мова> = <МОВА>_LESSONS`.
 > Цей документ **замінює** для HTML, CSS і SQL цифри «110 уроків, 12 глав» з [course-template.md](course-template.md): ці три мови не мають матеріалу на 110 уроків без води (розділ 1.6 шаблону: глибина важливіша за число). Решта шаблону (норми уроку, процес, перевірка справжніми інструментами) діє без змін.
 
 ## 1. Скільки уроків і чому
@@ -107,17 +107,19 @@
 
 Тест `tests/projects-draft-web.test.mjs` перевіряє, що урок проєкту існує в **поточному** плані, тому значення `lesson` змінюємо разом з підключенням нового курсу, а не раніше.
 
-## 6. Підключення до сайту (робиться один раз, коли курс дописано)
+## 6. Підключення до сайту (робиться один раз, коли курс дописано; **для HTML виконано 24.11.2026**)
 
 1. Зібрати `content/<мова>/index.js` (як `content/go/index.js`) і `content/tasks/<мова>/index.ts`; замінити старі записи в `content/lessons.js` і `content/tasks/index.ts`.
 2. Оновити місця, що залежать від кількості й номерів уроків: `tests/page-tasks.test.mjs` (`NO_TASK`), `tests/projects-draft-web.test.mjs`, `tests/stage2*.test.mjs`, `tests/ui.test.mjs`, `tests/demo.test.mjs`, `tests/facts.test.mjs`, `src/data.ts`, `src/demo.ts`, `src/seo.ts`.
 3. Переставити `lesson` у проєктах (розділ 5) і прогнати всі тести.
 4. Пройти по одному завданню в кожній главі на живому сервісі.
 
+**Як підключено HTML (зразок для CSS і SQL):** `content/html/index.js` збирає глави в `HTML_LESSONS`; у `content/lessons.js` додано `import { HTML_LESSONS }` і рядок `LESSONS.html = HTML_LESSONS;` (старі два блоки HTML і запис у `CHAPTERS` прибрано); `content/tasks/html/index.ts` збирає `HTML_TASKS`, `content/tasks/index.ts` бере їх звідти (старий `content/tasks/html.ts` видалено); `tests/solutions/html.mjs` збирає еталони з `html-chNN.mjs`; у `src/data.ts` картка курсу `html: { lessons: 30, base: 23, … }`, тож лендинг і сторінка довідника самі показують «30 уроків (23 базових і 7 просунутих)»; у `src/changelog.ts` додано запис у «Що нового»; у `tests/page-tasks.test.mjs` прибрано виняток `NO_TASK` для `html/1`; номери уроків у проєктах-чернетках HTML переставлено (`html/24`, `html/26`, `html/28`). **SQL підключено так само (24.11.2026):** `content/sql/index.js` → `SQL_LESSONS`, `content/tasks/sql/index.ts` → `SQL_TASKS`, у `content/lessons.js` прибрано старі 15 уроків (масив, блок-обгортку й запис у `CHAPTERS`), у `src/data.ts` `sql: { lessons: 35, base: 30 }`, еталони збирає `tests/solutions/sql.mjs` із `sql-chNN.mjs`; усі 15 старих id завдань збережено через `keep`.
+
 ## 7. Статус
 
 | Курс | План (`chapters.js`) | Написано уроків | Завдань | Примітка |
 |---|---|---|---|---|
-| HTML | так | 4 з 30 (глава 01) | 4 | глави пишуться по порядку; тест: `node tests/html-course.test.mjs` |
+| HTML | так | **30 з 30 (глави 01–08), підключено** | 30 | `HTML_STRICT=1 node tests/html-course.test.mjs` (87 перевірок, разом із перевіркою підключення) |
 | CSS | так | 0 з 40 | | після HTML |
-| SQL | так | 0 з 35 | | після CSS; чернетки проєктів SQL лежать окремо |
+| SQL | так | **35 з 35 (глави 01–10), підключено** | 35 | `SQL_STRICT=1 node tests/sql-course.test.mjs` (23 перевірки, 210 запусків на справжньому sqlite3, разом із перевіркою підключення); чернетки проєктів SQL лежать окремо |

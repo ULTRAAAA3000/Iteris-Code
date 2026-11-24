@@ -13,7 +13,7 @@ let JSDOM;
 try { ({ JSDOM } = await import("jsdom")); } catch { console.log("Потрібен jsdom: npm i --no-save jsdom"); process.exit(1); }
 
 /** Уроки без завдання із причиною (правило D13) */
-const NO_TASK = { html: { 1: "інструменти веброзробника: це робота в браузері, а не код" } };
+const NO_TASK = {};   // курс HTML (30 уроків): завдання є в кожному уроці
 
 const run = (task, code) => {
   const dom = new JSDOM(buildPageDoc(task, code));

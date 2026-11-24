@@ -175,4 +175,23 @@ if (!hasSqlite) {
     assert.equal(errors.length, 0, "\n" + errors.join("\n\n"));
   });
 }
+{
+  const { LESSONS } = await import("../content/lessons.js");
+  const { TASKS } = await import("../content/tasks/index.ts");
+  const { readFileSync } = await import("node:fs");
+  const { SQL_OUTLINE } = await import("../content/sql/chapters.js");
+  await test("підключення: LESSONS.sql і TASKS збігаються з планом (35 уроків, 5 просунутих, по завданню на урок)", () => {
+    assert.equal(LESSONS.sql.length, SQL_OUTLINE.length);
+    LESSONS.sql.forEach((l, i) => { assert.equal(l.t, SQL_OUTLINE[i].t); assert.equal(!!l.adv, !!SQL_OUTLINE[i].adv); assert.equal(l.ch, SQL_OUTLINE[i].ch); });
+    assert.equal(LESSONS.sql.filter((l) => l.adv).length, 5);
+    const tasks = TASKS.filter((t) => t.course === "sql");
+    assert.equal(tasks.length, SQL_OUTLINE.length);
+    SQL_OUTLINE.forEach((o, i) => assert.equal(tasks.filter((t) => t.lesson === `sql/${i + 1}`).length, 1, `sql/${i + 1}: рівно одне завдання`));
+  });
+  await test("підключення: лічильники лендингу в src/data.ts (35 уроків, 30 базових), старих 15 id завдань збережено", () => {
+    assert.match(readFileSync(new URL("../src/data.ts", import.meta.url), "utf8"), /sql: \{ lessons: 35, base: 30,/);
+    const ids = new Set(TASKS.filter((t) => t.course === "sql").map((t) => t.id));
+    for (const id of ["sql-hello", "sql-select-columns"]) assert.ok(ids.has(id), `старе завдання ${id} має лишитися`);
+  });
+}
 console.log(`\nУсі перевірки пройдено: ${passed}`);
