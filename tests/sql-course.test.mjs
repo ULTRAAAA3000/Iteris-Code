@@ -125,7 +125,7 @@ if (!hasSqlite) {
   /** Скрипт SQL виконується на порожній базі в пам'яті, як у пісочниці. Помилка SQLite (Parse error, Runtime error) = помилка скрипта */
   const runSql = async (code) => {
     const r = await exec("sqlite3", [":memory:"], "main.sql", code, code);
-    const failed = /(Parse error|Runtime error|Error:)/.test(r.stderr);
+    const failed = /(Parse error|Runtime error|Error near line|Error:)/.test(r.stderr);
     return failed ? { stdout: r.stdout, stderr: r.stderr, error: r.stderr } : { stdout: r.stdout, stderr: r.stderr, exitCode: r.exitCode };
   };
   const runPy = async (code) => {
