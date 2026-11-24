@@ -13,3 +13,7 @@ export const CONTACTS = raw`CREATE TABLE contacts (id INTEGER PRIMARY KEY, name 
 INSERT INTO contacts VALUES (1, '  Оля ', '067-111-22-33'), (2, 'Іван', '050-444-55-66');`;
 export const ORDERS = raw`CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT, amount INTEGER, placed TEXT);
 INSERT INTO orders VALUES (1, 'Оля', 120, '2026-10-30'), (2, 'Іван', 75, '2026-11-02'), (3, 'Оля', 200, '2026-11-15'), (4, 'Марія', 50, '2026-11-23'), (5, 'Іван', 90, '2026-12-01');`;
+export const ORDERS_AGG = raw`CREATE TABLE orders (id INTEGER PRIMARY KEY, customer TEXT, amount INTEGER);
+INSERT INTO orders VALUES (1, 'Оля', 50), (2, 'Іван', 120), (3, 'Оля', 80), (4, 'Марія', 30), (5, 'Іван', 60), (6, 'Оля', 20);`;
+export const PAYMENTS = raw`CREATE TABLE payments (id INTEGER PRIMARY KEY, customer TEXT, amount INTEGER);
+INSERT INTO payments VALUES (1, 'Оля', 100), (2, 'Іван', NULL), (3, 'Марія', 50), (4, 'Оля', NULL);`;
