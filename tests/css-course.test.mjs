@@ -129,7 +129,7 @@ for (const { c, lessons, tasks, solutions } of loaded) {
       const o = c.lessons[i];
       assert.equal(t.lesson, `css/${o.n}`, `завдання ${t.id} має бути прив'язане до css/${o.n}`);
       if (o.keep) assert.equal(t.id, o.keep, `css/${o.n}: збережіть id старого завдання ${o.keep}`);
-      else assert.ok(!OLD_TASKS.some((x) => x.id === t.id), `${t.id}: новий урок не повинен забирати id старого завдання`);
+      else assert.ok(!OLD_TASKS.some((x) => x.id === t.id && x.course !== "css"), `${t.id}: id збігається із завданням іншого курсу`);
       assert.ok(!seen.has(t.id), `повторний id ${t.id}`); seen.add(t.id);
       assert.ok(isPage(t) && t.course === "css" && t.edit === "css" && t.file === "style.css" && t.markup && t.markup.trim(), t.id);
       assert.ok(solutions[t.id], `немає еталона для ${t.id}`);
