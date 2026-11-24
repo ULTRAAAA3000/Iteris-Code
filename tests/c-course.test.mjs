@@ -58,7 +58,7 @@ for (const { c, lessons, tasks, solutions } of loaded) {
       }
       const total = words(l.easy) + l.p.reduce((s, x) => s + words(x), 0) + words(l.note) + words(l.work) + l.tasks.reduce((s, x) => s + words(x), 0);
       assert.ok(total >= 450 && total <= 1000, `${at}: ${total} слів теорії, норма 450–950`);
-      if (!l.code.some((x) => mode(x) === "compile-error" || mode(x) === "crash")) console.warn(`попередження: cpp/${o.n} «${o.t}» не показує жодного збою (маркер «// не компілюється:» або «// аварія:»), а там, де в теми є пастки, він потрібен`);
+      if (!l.code.some((x) => mode(x) === "compile-error" || mode(x) === "crash")) console.warn(`попередження: c/${o.n} «${o.t}» не показує жодного збою (маркер «// не компілюється:» або «// аварія:»), а там, де в теми є пастки, він потрібен`);
     });
   });
 
@@ -66,7 +66,7 @@ for (const { c, lessons, tasks, solutions } of loaded) {
     assert.equal(tasks.length, partial ? lessons.length : c.lessons.length, "по одному завданню на кожен урок глави");
     tasks.forEach((t, i) => {
       const o = c.lessons[i];
-      assert.equal(t.lesson, `c/${o.n}`, `завдання ${t.id} має бути прив'язане до cpp/${o.n}`);
+      assert.equal(t.lesson, `c/${o.n}`, `завдання ${t.id} має бути прив'язане до c/${o.n}`);
       if (o.keep) assert.equal(t.id, o.keep, `c/${o.n}: збережіть id старого завдання ${o.keep}`);
       assert.ok(isRemote(t) && t.lang === "c" && t.course === "c");
       assert.ok(solutions[t.id], `немає еталона для ${t.id}`);
@@ -111,7 +111,7 @@ if (!hasCc) {
     const dir = join(cache, String(seq++));
     mkdirSync(dir);
     writeFileSync(join(dir, "main.c"), code);
-    const flags = ["-std=c11", "-O0", "-pthread", ...(strict ? ["-Wall", "-Wextra", "-fsanitize=address,undefined", "-fno-sanitize-recover=undefined"] : []), "main.c", "-o", "prog"];
+    const flags = ["-std=c11", "-O0", "-pthread", ...(strict ? ["-Wall", "-Wextra", "-fsanitize=address,undefined", "-fno-sanitize-recover=undefined"] : []), "main.c", "-lm", "-o", "prog"];
     const c = await sh("gcc", flags, dir, 120000);
     if (c.code !== 0) { rmSync(dir, { recursive: true, force: true }); return { stdout: "", stderr: c.stderr, error: c.stderr || "компіляція не вдалась" }; }
     const r = await sh("./prog", [], dir, 20000);
