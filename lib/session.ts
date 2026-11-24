@@ -90,6 +90,11 @@ export function effectiveStreak(u: StreakInfo): number {
   return last === day(Date.now()) || last === day(Date.now() - 864e5) ? u.streak_count || 0 : 0;
 }
 
+/** Чи було сьогодні (за UTC) зараховано дію, що продовжує серію: так само, як її рахують effectiveStreak і bumpStreak */
+export function streakExtendedToday(u: StreakInfo): boolean {
+  return !!u.last_active_at && String(u.last_active_at).slice(0, 10) === day(Date.now());
+}
+
 export function bumpStreak(u: StreakInfo): number {
   const last = u.last_active_at ? String(u.last_active_at).slice(0, 10) : null;
   if (last === day(Date.now())) return Math.max(u.streak_count || 1, 1);
@@ -111,6 +116,7 @@ export const publicUser = (u: UserRow): PublicUser => ({
   isPro: isProActive(u),
   proUntil: u.pro_until || null,
   streak: effectiveStreak(u),
+  streakToday: streakExtendedToday(u),
   nick: u.nick ?? null,
   avatarId: u.avatar_id ?? null,
 });

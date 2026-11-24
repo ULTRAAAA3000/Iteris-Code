@@ -54,6 +54,8 @@ export interface PublicUser {
   isPro: boolean;
   proUntil: string | null;
   streak: number;
+  /** Серію вже продовжено сьогодні (за UTC): будь-яка зарахована дія, зокрема повторне розв'язання, де нового запису в історії немає */
+  streakToday?: boolean;
   /** Нікнейм публічного профілю (задається один раз) і вибраний герой-аватарка */
   nick?: string | null;
   avatarId?: string | null;
