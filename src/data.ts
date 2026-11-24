@@ -18,7 +18,7 @@ const META: Record<string, CourseMeta> = {
   cpp: { lessons: 110, base: 80, name: "C++", badge: "C+", color: "#00599C", cat: "program", desc: "Швидка компільована мова: типи, пам'ять, класи, стандартна бібліотека й сучасний C++." },
   pascal: { lessons: 8, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
   html: { lessons: 30, base: 23, name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: текст, посилання, медіа, таблиці, форми, семантика й доступність." },
-  css: { lessons: 13, name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
+  css: { lessons: 40, base: 35, name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
   js: { lessons: 22, name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви, DOM і запити до сервера.", next: "ts" },
   go: { lessons: 110, base: 80, name: "Go", badge: "Go", color: "#00ADD8", cat: "program", desc: "Проста й швидка мова від Google: типи, функції та горутини для паралельності." },
   java: { lessons: 11, name: "Java", badge: "Jv", color: "#E76F00", cat: "program", desc: "Мова великих застосунків і Android: класи, змінні, умови та цикли." },
