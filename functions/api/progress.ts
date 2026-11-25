@@ -1,4 +1,4 @@
-// GET /api/progress — список пройдених уроків; POST — відмітити / зняти відмітку (lessonIds: ["python/3"])
+// GET /api/progress — список пройдених уроків і розв'язаних завдань; POST — відмітити / зняти відмітку (lessonIds: ["python/3"])
 import type { Env } from "../../lib/env.ts";
 import { bumpStreak, currentUser, effectiveStreak, json, sameOrigin } from "../../lib/session.ts";
 
@@ -8,7 +8,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   const u = await currentUser(request, env);
   if (!u) return json({ error: "unauthorized" }, 401);
   const { results } = await env.DB.prepare("SELECT lesson_id FROM user_progress WHERE user_id = ?1").bind(u.id).all<{ lesson_id: string }>();
-  return json({ lessonIds: results.map((r) => r.lesson_id) });
+  // Розв'язані завдання: за ними клієнт сам відмічає пройдені уроки, тож урок і завдання не розходяться між пристроями
+  const passed = await env.DB.prepare("SELECT DISTINCT task_id FROM task_submissions WHERE user_id = ?1 AND is_passed = 1").bind(u.id).all<{ task_id: string }>();
+  return json({ lessonIds: results.map((r) => r.lesson_id), taskIds: passed.results.map((r) => r.task_id) });
 };
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
@@ -37,5 +39,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
   const streak = bumpStreak(u);
   await env.DB.prepare("UPDATE users SET streak_count = ?1, last_active_at = CURRENT_TIMESTAMP WHERE id = ?2").bind(streak, u.id).run();
-  return json({ ok: true, streak });
+  return json({ ok: true, streak, streakToday: true });
 };

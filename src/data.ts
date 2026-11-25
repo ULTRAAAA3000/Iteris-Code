@@ -3,7 +3,7 @@ import type { Outline, OutlineLesson, ProjectMeta, TaskMeta } from "./types.ts";
 
 export interface Category { title: string; desc: string; courses: string[] }
 /** lessons: кількість уроків (число публічне, тексти закриті); тест content.test.mjs звіряє його з content/lessons.js */
-export interface CourseMeta { lessons: number; /** Курс не показується на головній сторінці (лишається в каталозі й кабінеті) */ landingHidden?: boolean; /** Кількість базових уроків, якщо в курсі є рівні */ base?: number; name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
+export interface CourseMeta { lessons: number; /** Кількість базових уроків, якщо в курсі є рівні */ base?: number; name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
 export interface Course extends CourseMeta { L: OutlineLesson[] }
 
 export const CATS: Record<string, Category> = {
@@ -14,11 +14,11 @@ export const CATS: Record<string, Category> = {
   tools: { title: "Інструменти розробника", desc: "Те, без чого не обходиться жодна команда: контроль версій і командний рядок.", courses: ["git","bash"] }
 };
 const META: Record<string, CourseMeta> = {
-  python: { lessons: 20, name: "Python", badge: "Py", color: "#C99700", cat: "program", desc: "Проста мова для старту: змінні, розгалуження та цикли." },
-  cpp: { lessons: 10, name: "C++", badge: "C+", color: "#00599C", cat: "program", desc: "Швидка компільована мова: типи, ввід-вивід, умови та цикли." },
-  pascal: { lessons: 8, landingHidden: true, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
-  html: { lessons: 12, name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: структура, текст, списки, таблиці та форми." },
-  css: { lessons: 13, name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
+  python: { lessons: 110, base: 80, name: "Python", badge: "Py", color: "#C99700", cat: "program", desc: "Проста мова для старту: від print і змінних до функцій, класів, файлів і тестів." },
+  cpp: { lessons: 110, base: 80, name: "C++", badge: "C+", color: "#00599C", cat: "program", desc: "Швидка компільована мова: типи, пам'ять, класи, стандартна бібліотека й сучасний C++." },
+  pascal: { lessons: 8, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
+  html: { lessons: 30, base: 23, name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: текст, посилання, медіа, таблиці, форми, семантика й доступність." },
+  css: { lessons: 40, base: 35, name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
   js: { lessons: 22, name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви, DOM і запити до сервера.", next: "ts" },
   go: { lessons: 110, base: 80, name: "Go", badge: "Go", color: "#00ADD8", cat: "program", desc: "Проста й швидка мова від Google: типи, функції та горутини для паралельності." },
   java: { lessons: 11, name: "Java", badge: "Jv", color: "#E76F00", cat: "program", desc: "Мова великих застосунків і Android: класи, змінні, умови та цикли." },
@@ -26,7 +26,7 @@ const META: Record<string, CourseMeta> = {
   php: { lessons: 10, name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
   git: { lessons: 10, name: "Git", badge: "Gt", color: "#F05032", cat: "tools", desc: "Контроль версій: коміти, гілки, GitHub і робота в команді." },
   bash: { lessons: 8, name: "Командний рядок", badge: "Sh", color: "#3E4A59", cat: "tools", desc: "Термінал і Bash: файли, пошук, конвеєри та перші скрипти." },
-  sql: { lessons: 15, name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: вибірка, фільтрація, групування та об'єднання таблиць." }
+  sql: { lessons: 35, base: 30, name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: від SELECT до JOIN, підзапитів, віконних функцій, індексів і транзакцій." }
 };
 
 // До входу в кожного курсу L порожній: уроки з'являються лише після setOutline
@@ -68,5 +68,3 @@ export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c
 export const publicLessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.lessons, 0);
 
 export const darkText = (k: string): string => (k === "python" || k === "js" ? "color:#14213D" : "");
-/** Курси для головної сторінки: без прихованих */
-export const landingKeys = (): string[] => Object.keys(C).filter((k) => !C[k].landingHidden);

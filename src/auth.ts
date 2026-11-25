@@ -1,10 +1,11 @@
 // Особистий кабінет: вхід через Google і GitHub, синхронізація прогресу, дашборд (/dashboard)
 import { allTasks, C, inLevel, levelTotal, projectMeta, taskMeta } from "./data.ts";
 import { clearContent, loadOutline, outlineLoaded } from "./content.ts";
-import { done, isDone, persist } from "./progress.ts";
+import { done, isDone, isTaskPassed, lessonsOfPassedTasks, markTaskPassed, persist } from "./progress.ts";
 import { idolById, idolSrc } from "./data/idols.ts";
 import { toast, ui } from "./ui.ts";
 import { navigate, pathOf } from "./router.ts";
+import { tr } from "./i18n.ts";
 import type { DashboardData, PublicUser } from "./types.ts";
 import { calendarCard, factCard, goalCard, levelCard, pathCard, streakCard, streakRiskCard } from "./cabinet.ts";
 import { activityCard, avatarRing, greeting, heroChips, heroFx, medalsCard, radarCard, ring } from "./dashviz.ts";
@@ -75,8 +76,8 @@ export function updateHeader(): void {
   if (!el) return;
   if (!st.ready) { el.innerHTML = ""; return; }
   el.innerHTML = st.user
-    ? `<a class="acct-user" href="/dashboard" title="Особистий кабінет">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
-    : loginBtn("btn small", "Увійти");
+    ? `<a class="acct-user" href="/dashboard" title="${tr("Особистий кабінет", "My account")}">${avatar(st.user)}<span>${escA(st.user.name || st.user.email)}</span></a>`
+    : loginBtn("btn small", tr("Увійти", "Sign in"));
 }
 
 /** Випадковий state для входу через зовнішній сервіс; зберігається в сесії браузера й перевіряється при поверненні */
@@ -135,17 +136,23 @@ async function handleCallback(): Promise<void> {
 
 // Після входу: об'єднуємо локальний прогрес із серверним
 async function syncLocal(): Promise<void> {
-  const r = await api<{ lessonIds: string[] }>("/api/progress");
+  const r = await api<{ lessonIds: string[]; taskIds?: string[] }>("/api/progress");
   if (!r.ok || !r.data) return;
   const server = new Set(r.data.lessonIds);
-  const local: string[] = [];
-  for (const k of Object.keys(done)) if (C[k]) (done[k] || []).forEach((n) => local.push(k + "/" + n));
+  for (const id of r.data.taskIds ?? []) markTaskPassed(id);   // завдання, розв'язані на іншому пристрої, видно й тут
   let changed = false;
   server.forEach((id) => {
     const [k, n] = id.split("/");
     if (C[k] && +n >= 1 && +n <= C[k].L.length && !isDone(k, +n)) { done[k] = [...(done[k] || []), +n].sort((a, b) => a - b); changed = true; }
   });
+  // Розв'язане завдання = пройдений урок: добираємо уроки, які лишились без відмітки (так було до виправлення)
+  for (const id of lessonsOfPassedTasks(allTasks(), isTaskPassed, (k, n) => !!C[k] && n >= 1 && n <= C[k].L.length)) {
+    const [k, n] = id.split("/");
+    done[k] = [...(done[k] || []), +n].sort((a, b) => a - b); changed = true;
+  }
   if (changed) persist();
+  const local: string[] = [];
+  for (const k of Object.keys(done)) if (C[k]) (done[k] || []).forEach((n) => local.push(k + "/" + n));
   const extra = local.filter((id) => !server.has(id)).slice(0, 200);
   if (extra.length) await post("/api/progress", { lessonIds: extra, done: true, sync: true });
   st.dash = null;
@@ -154,7 +161,7 @@ async function syncLocal(): Promise<void> {
 export function syncLesson(k: string, n: number, isDoneNow: boolean): void {
   if (!st.user) return;
   void post<{ streak: number }>("/api/progress", { lessonIds: [k + "/" + n], done: isDoneNow }).then((r) => {
-    if (r.ok && r.data && st.user) st.user.streak = r.data.streak;
+    if (r.ok && r.data && st.user) { st.user.streak = r.data.streak; if (isDoneNow) st.user.streakToday = true; }
     st.dash = null;
   });
 }
@@ -163,7 +170,7 @@ export interface CompleteResult { ok: boolean; status: number; streak?: number; 
 /** proof: підпис сервера з /api/run; потрібен для завдань, які запускає сервер (Go та ін.) */
 export async function completeTask(taskId: string, code: string, proof?: string): Promise<CompleteResult> {
   const r = await post<{ streak: number; firstSolve: boolean; xp: number }>("/api/progress/complete", { taskId, code, passed: true, proof });
-  if (r.ok && r.data && st.user) st.user.streak = r.data.streak;
+  if (r.ok && r.data && st.user) { st.user.streak = r.data.streak; st.user.streakToday = true; }
   st.dash = null;
   return { ok: r.ok, status: r.status, ...(r.data ?? {}) };
 }
@@ -270,7 +277,7 @@ function full(d: DashboardData): string {
     const gt = allTasks().filter((t) => (ks as readonly string[]).includes(t.course)), gp = gt.filter((t) => passed.has(t.id)).length;
     return `<div class="card skill"><h3><span>${escA(g.t)}</span><span>${pct}%</span></h3>
         <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="${escA(g.t)}"><i style="width:${pct}%"></i></div>
-        <ul>${ks.map((k) => `<li><a href="/course/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${levelTotal(k)}</span></li>`).join("")}</ul>
+        <ul>${ks.map((k) => `<li><a href="/path/${k}">${escA(C[k].name)}</a><span>${doneIn(k)}/${levelTotal(k)}</span></li>`).join("")}</ul>
         <p class="locked">Теорія: ${pct}% · Практика: ${gt.length ? `${gp}/${gt.length}` : "скоро"}</p></div>`;
   }).join("");
   const lvlTotal = Object.keys(C).reduce((a, k) => a + levelTotal(k), 0), lvlDone = [...set].filter((id) => inLevel(id.split("/")[0], +id.split("/")[1])).length;
@@ -289,7 +296,7 @@ function full(d: DashboardData): string {
     ? `<p class="plan-row"><span class="plan pro">Pro</span> <span class="dash-muted">${u.proUntil ? "до " + escA(fmtDate(u.proUntil)) : ""}</span> <button class="btn small" data-act="manage">Керування підпискою</button></p>`
     : "";
   return `<div class="dash">
-      ${streakRiskCard(u.streak, d.activity, f ? `/lesson/${f[0]}/${f[1]}` : "/courses")}
+      ${streakRiskCard(u.streak, d.activity, f ? `/lesson/${f[0]}/${f[1]}` : "/courses", !!u.streakToday)}
       <section class="card dash-head dash-hero">${heroFx()}${avatarRing(avatar(u, true), d.xp ?? 0)}
         <div class="grow"><span class="hero-hi">${greeting()}</span><h1>${escA(u.name || "Користувач")}</h1><p>${escA(u.email)}</p>${plan}${heroChips(d.xp ?? 0, u.streak, set.size)}</div>
         <div class="hero-actions"><a class="btn small" href="/profile">Мій профіль</a><button class="btn small" data-act="logout">Вийти</button></div></section>
@@ -298,7 +305,7 @@ function full(d: DashboardData): string {
         <section class="card">${focus}</section>
         ${goalCard(d)}
         ${levelCard(d)}
-        ${streakCard(u.streak, d.activity)}
+        ${streakCard(u.streak, d.activity, !!u.streakToday)}
         <section class="card"><h3>Підсумки</h3><div class="stats3">
           <div><i class="srg">${ring(lessonsPct)}</i><strong>${set.size}</strong><span>${pl(set.size, "урок", "уроки", "уроків")}</span></div>
           <div><i class="srg">${ring(tasksPct, "ok")}</i><strong>${d.tasksPassed}</strong><span>${pl(d.tasksPassed, "завдання", "завдання", "завдань")}</span></div>

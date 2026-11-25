@@ -63,5 +63,5 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     await env.DB.prepare("UPDATE users SET streak_count = ?1, last_active_at = CURRENT_TIMESTAMP WHERE id = ?2").bind(streak, u.id).run();
   }
   const firstSolve = passed && !earlier;
-  return json({ ok: true, streak, firstSolve, xp: firstSolve ? task.xp : 0 });
+  return json({ ok: true, streak, streakToday: passed ? true : undefined, firstSolve, xp: firstSolve ? task.xp : 0 });
 };

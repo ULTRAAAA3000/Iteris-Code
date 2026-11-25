@@ -197,6 +197,37 @@ await test("дашборд повертає розв'язані завдання
   assert.deepEqual(r.data.passedTasks.sort(), ["js-cart-total", "js-safe-city", "js-sum"]);
   assert.equal(r.data.tasksPassed, 3);
 });
+await test("серія: повторне розв'язання продовжує серію (streakToday), хоча нового запису в історії за сьогодні немає", async () => {
+  const keepP = sqlite.prepare("SELECT rowid AS r, completed_at FROM user_progress WHERE user_id = 'g-123'").all();
+  const keepS = sqlite.prepare("SELECT rowid AS r, created_at FROM task_submissions WHERE user_id = 'g-123'").all();
+  const keepU = sqlite.prepare("SELECT streak_count, last_active_at FROM users WHERE id = 'g-123'").get();
+  try {
+    // «вчора»: уся історія й остання активність зсунуті на добу назад, серія 3 дні
+    sqlite.prepare("UPDATE user_progress SET completed_at = datetime('now', '-1 day') WHERE user_id = 'g-123'").run();
+    sqlite.prepare("UPDATE task_submissions SET created_at = datetime('now', '-1 day') WHERE user_id = 'g-123'").run();
+    sqlite.prepare("UPDATE users SET streak_count = 3, last_active_at = datetime('now', '-1 day') WHERE id = 'g-123'").run();
+    const today = new Date().toISOString().slice(0, 10);
+    const before = (await call(dashboard, req("/api/dashboard", { cookie }))).data;
+    assert.equal(before.user.streak, 3); assert.equal(before.user.streakToday, false, "сьогодні ще нічого: серія під загрозою");
+    assert.ok(!before.activity[today]);
+    // повторне розв'язання вже розв'язаного завдання
+    const again = await call(complete, req("/api/progress/complete", { method: "POST", body: { taskId: "js-safe-city", code: "ok3", passed: true }, cookie }));
+    assert.equal(again.data.firstSolve, false); assert.equal(again.data.streak, 4); assert.equal(again.data.streakToday, true);
+    const after = (await call(dashboard, req("/api/dashboard", { cookie }))).data;
+    assert.ok(!after.activity[today], "нового запису в історії немає: саме тому плашка висіла");
+    assert.equal(after.user.streak, 4); assert.equal(after.user.streakToday, true, "а серію сервер уже продовжив");
+    assert.equal((await call(me, req("/api/me", { cookie }))).data.user.streakToday, true);
+  } finally {
+    for (const x of keepP) sqlite.prepare("UPDATE user_progress SET completed_at = ?1 WHERE rowid = ?2").run(x.completed_at, x.r);
+    for (const x of keepS) sqlite.prepare("UPDATE task_submissions SET created_at = ?1 WHERE rowid = ?2").run(x.created_at, x.r);
+    sqlite.prepare("UPDATE users SET streak_count = ?1, last_active_at = ?2 WHERE id = 'g-123'").run(keepU.streak_count, keepU.last_active_at);
+  }
+});
+await test("/api/progress віддає й розв'язані завдання: за ними клієнт відмічає пройдені уроки", async () => {
+  const r = await call(progressGet, req("/api/progress", { cookie }));
+  assert.deepEqual(r.data.taskIds.sort(), ["js-cart-total", "js-safe-city", "js-sum"]);
+  assert.ok(!r.data.taskIds.includes("js-counter-bug"), "невдала спроба не рахується розв'язаною");
+});
 await test("ліміт відправок: не більше 20 за хвилину", async () => {
   const ins = sqlite.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES (?, 'g-123', 'rate', 'x', 0)");
   for (let i = 0; i < 20; i++) ins.run("r" + i);

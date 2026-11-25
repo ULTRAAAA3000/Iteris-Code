@@ -1,5 +1,7 @@
 // Заголовок, опис і канонічна адреса в <head> оновлюються разом зі сторінкою: так вкладка, закладка й пошуковик бачать актуальні дані.
-export interface Meta { title: string; desc: string; path: string; noindex?: boolean }
+import { HTML_LANG, OG_LOCALE, DEFAULT_LANG, LANGS, type Lang } from "./i18n.ts";
+
+export interface Meta { title: string; desc: string; path: string; noindex?: boolean; lang?: Lang; alts?: Record<Lang, string> | null }
 
 function tag(selector: string, make: () => HTMLElement): HTMLElement {
   let el = document.head.querySelector<HTMLElement>(selector);
@@ -24,6 +26,15 @@ export function setMeta(m: Meta): void {
   for (const [name, val] of [["twitter:title", m.title], ["twitter:description", m.desc]] as const) {
     const t = document.head.querySelector(`meta[name="${name}"]`);
     if (t) t.setAttribute("content", val);
+  }
+  // Мовні версії: hreflang на обидві адреси публічної сторінки, мова документа й локаль Open Graph
+  const lang = m.lang ?? DEFAULT_LANG;
+  document.documentElement.lang = HTML_LANG[lang];
+  tag('meta[property="og:locale"]', el("meta", { property: "og:locale", content: "" })).setAttribute("content", OG_LOCALE[lang]);
+  document.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach((x) => x.remove());
+  if (m.alts) {
+    for (const l of LANGS) document.head.appendChild(el("link", { rel: "alternate", hreflang: HTML_LANG[l], href: new URL(m.alts[l], location.origin).href })());
+    document.head.appendChild(el("link", { rel: "alternate", hreflang: "x-default", href: new URL(m.alts[DEFAULT_LANG], location.origin).href })());
   }
   const robots = document.head.querySelector('meta[name="robots"]');
   if (m.noindex) tag('meta[name="robots"]', el("meta", { name: "robots", content: "noindex" })).setAttribute("content", "noindex");

@@ -1,24 +1,27 @@
 // Сторінки, доступні лише після входу: список уроків курсу, урок із завданням. Публічні сторінки: src/pages.ts.
 import { C, CATS, darkText, inLevel, levelTotal, projectOf } from "./data.ts";
+import { COURSE_PAGE } from "./features.ts";
+import { lessonBody, readMinutes } from "./lesson-body.ts";
 import { levelLessons, levelProgress, levelSwitch, nextInLevel, prevInLevel } from "./levels.ts";
 import { badge } from "./pages.ts";
 import { done, isDone, isTaskPassed, progress } from "./progress.ts";
 import type { LessonPayload } from "./types.ts";
 import { count, esc, escA, pad, store, W } from "./util.ts";
+import { l, tr } from "./i18n.ts";
 import { workspaceHTML } from "./workspace.ts";
 
 /** Картка для сторінок, що доступні лише після входу (уроки, шлях, кабінет) */
 export function gate(): string {
-  return `<div class="card dash-guest"><h1>Уроки та завдання в кабінеті</h1>
-    <p>Увійдіть, щоб відкрити уроки й практику, зберігати прогрес на всіх пристроях і отримувати XP. Довідник по мовах доступний без входу.</p>
-    <button class="btn primary" data-act="login">Увійти</button> <a class="btn" href="/courses">До курсів</a></div>`;
+  return `<div class="card dash-guest"><h1>${tr("Уроки та завдання в кабінеті", "Lessons and tasks are in your account")}</h1>
+    <p>${tr("Увійдіть, щоб відкрити уроки й практику, зберігати прогрес на всіх пристроях і отримувати XP. Довідник по мовах доступний без входу.", "Sign in to open lessons and practice, save your progress on all devices and earn XP. The language reference is available without signing in.")}</p>
+    <button class="btn primary" data-act="login">${tr("Увійти", "Sign in")}</button> <a class="btn" href="${l("/courses")}">${tr("До курсів", "To courses")}</a></div>`;
 }
 
-export const loadingCard = (): string => `<div class="card dash-guest" aria-busy="true" aria-label="Завантаження"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
+export const loadingCard = (): string => `<div class="card dash-guest" aria-busy="true" aria-label="${tr("Завантаження", "Loading")}"><i class="sk h"></i><i class="sk"></i><i class="sk"></i><i class="sk s"></i></div>`;
 
 export function loadError(retry: string): string {
-  return `<div class="card dash-guest"><h1>Не вдалося завантажити уроки</h1>
-    <p>Перевірте з'єднання та спробуйте ще раз.</p><button class="btn primary" data-act="${retry}">Спробувати ще раз</button></div>`;
+  return `<div class="card dash-guest"><h1>${tr("Не вдалося завантажити уроки", "Could not load the lessons")}</h1>
+    <p>${tr("Перевірте з'єднання та спробуйте ще раз.", "Check your connection and try again.")}</p><button class="btn primary" data-act="${retry}">${tr("Спробувати ще раз", "Try again")}</button></div>`;
 }
 
 /** Рядок проєкту за ТЗ у списку курсу: виділений, одразу після уроку, до якого прив'язаний */
@@ -64,20 +67,15 @@ function projectCard(k: string, n: number): string {
 export function lesson(k: string, n: number, data: LessonPayload): string {
   const c = C[k], i = n - 1, l = data.lesson, d = isDone(k, n);
   store.set("ic-last", { k, n });
-  const crumbs = `<nav class="crumbs" aria-label="Де ви"><a href="/">Головна</a> / <a href="/courses">Курси</a> / <a href="/${c.cat}">${CATS[c.cat].title}</a> / <a href="/course/${k}">${c.name}</a> / Урок ${n}</nav>`;
-  const meta = `<div class="meta"><span class="tag" style="background:${c.color};${darkText(k)}">${c.name}</span><span>Урок ${n} з ${c.L.length}</span>${c.L[i].adv ? `<span class="lv-tag">просунутий рівень</span>` : ""}<span>Глава: ${l.ch}</span></div>`;
+  const crumbs = COURSE_PAGE
+    ? `<nav class="crumbs" aria-label="Де ви"><a href="/">Головна</a> / <a href="/courses">Курси</a> / <a href="/${c.cat}">${CATS[c.cat].title}</a> / <a href="/course/${k}">${c.name}</a> / Урок ${n}</nav>`
+    : `<nav class="crumbs" aria-label="Де ви"><a href="/">Головна</a> / <a href="/path">Шлях</a> / <a href="/path/${k}">${c.name}</a> / Урок ${n}</nav>`;
+  const meta = `<div class="meta"><span class="tag" style="background:${c.color};${darkText(k)}">${c.name}</span><span>Урок ${n} з ${c.L.length}</span><span>≈ ${readMinutes(l)} хв читання</span>${c.L[i].adv ? `<span class="lv-tag">просунутий рівень</span>` : ""}<span>Глава: ${l.ch}</span></div>`;
   const actions = `<div class="lesson-actions"><button class="btn small" data-toggle="${k}:${n}" aria-pressed="${d}">${d ? "Пройдено" : "Позначити пройденим"}</button><a class="btn small" href="/contact?topic=bug&amp;from=${encodeURIComponent(`/lesson/${k}/${n}`)}">Повідомити про помилку</a></div>${levelSwitch(k)}`;
-  const prose = `${l.easy ? `<div class="callout"><b>Простими словами.</b> ${l.easy}</div>` : ""}
-        ${l.p.map((x) => `<p>${x}</p>`).join("")}
-        <h2>Приклад коду</h2>
-        ${l.code.map((x) => `<pre class="code">${esc(x)}</pre>`).join("")}
-        <div class="callout"><b>Запам'ятайте.</b> ${l.note}</div>
-        ${l.work ? `<h2>Як це в роботі</h2><p>${l.work}</p>` : ""}
-        <h2>Завдання для самоперевірки</h2>
-        <ul class="tasks">${l.tasks.map((t, j) => `<li><input type="checkbox" id="t${j}"><label for="t${j}">${t}</label></li>`).join("")}</ul>${projectCard(k, n)}`;
+  const prose = `${lessonBody(l)}${projectCard(k, n)}`;
   const pager = `<div class="pager">
         ${prevInLevel(k, n) ? `<a class="btn small" href="/lesson/${k}/${prevInLevel(k, n)}">Попередній урок</a>` : "<span></span>"}
-        ${nextInLevel(k, n) ? `<a class="btn primary small" href="/lesson/${k}/${nextInLevel(k, n)}">Наступний урок</a>` : `<a class="btn primary small" href="/course/${k}">До списку уроків</a>`}
+        ${nextInLevel(k, n) ? `<a class="btn primary small" href="/lesson/${k}/${nextInLevel(k, n)}">Наступний урок</a>` : COURSE_PAGE ? `<a class="btn primary small" href="/course/${k}">До списку уроків</a>` : `<a class="btn primary small" href="/path/${k}">До шляху</a>`}
       </div>`;
 
   if (data.task) return workspaceHTML({ crumbs, meta, title: l.t, actions, prose, pager, task: data.task });
@@ -102,5 +100,5 @@ export function lesson(k: string, n: number, data: LessonPayload): string {
 }
 
 export function notFound(): string {
-  return `<div class="empty"><h1>Такої сторінки немає</h1><p>Можливо, посилання застаріло. Поверніться на головну й оберіть курс.</p><a class="btn primary" href="/">На головну</a></div>`;
+  return `<div class="empty"><h1>${tr("Такої сторінки немає", "This page does not exist")}</h1><p>${tr("Можливо, посилання застаріло. Поверніться на головну й оберіть курс.", "The link may be out of date. Go back to the home page and choose a course.")}</p><a class="btn primary" href="${l("/")}">${tr("На головну", "Home")}</a></div>`;
 }

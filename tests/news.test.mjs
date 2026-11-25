@@ -57,7 +57,10 @@ t("текст екранується (вставка розмітки не пр�
   assert.ok(!/<script/i.test(html));
 });
 t("підвал має посилання «Що нового» на кожній готовій сторінці, а головна лишається без заборонених слів (D15)", () => {
-  for (const f of files) assert.ok(f.html.includes('<a href="/whats-new">Що нового</a>'), f.file);
+  for (const f of files) {
+    const en = f.file.startsWith("en/");   // в англійській версії той самий пункт із англійською назвою й адресою /en/whats-new
+    assert.ok(f.html.includes(en ? '<a href="/en/whats-new">What\'s new</a>' : '<a href="/whats-new">Що нового</a>'), f.file);
+  }
   const home = files.find((f) => f.file === "index.html").html.toLowerCase();
   for (const w of ["профіл", "монет", "магазин", "пошт"]) assert.ok(!home.includes(w), "головна: " + w);
 });

@@ -24,11 +24,12 @@ export function levelCard(d: DashboardData): string {
     <p class="dash-muted lvl-hint">Урок: +${LESSON_XP} XP · завдання: до +${maxTaskXp} XP · бонус за серію</p></section>`;
 }
 
-/** Серія під загрозою: вона є, а сьогодні ще не було жодного кроку. Новий день за UTC, тому дедлайн це найближча північ UTC у часі користувача */
-export function streakRisk(streak: number, activity: Record<string, number> = {}, now: Date = new Date()): { risk: boolean; deadline: Date; at: string; left: string } {
+/** Серія під загрозою: вона є, а сьогодні ще не було жодного кроку. Новий день за UTC, тому дедлайн це найближча північ UTC у часі користувача.
+ *  Крок «є», якщо в історії за сьогодні щось записано АБО сервер каже, що серію вже продовжено (повторне розв'язання серію продовжує, але нового запису в історії не лишає) */
+export function streakRisk(streak: number, activity: Record<string, number> = {}, now: Date = new Date(), extendedToday = false): { risk: boolean; deadline: Date; at: string; left: string } {
   const deadline = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
   return {
-    risk: streak > 0 && (activity[utcKey(now)] || 0) === 0,
+    risk: streak > 0 && !extendedToday && (activity[utcKey(now)] || 0) === 0,
     deadline,
     at: deadline.toLocaleTimeString("uk-UA", { hour: "2-digit", minute: "2-digit" }),
     left: eta(deadline.getTime() - now.getTime()),
@@ -36,8 +37,8 @@ export function streakRisk(streak: number, activity: Record<string, number> = {}
 }
 
 /** Заметна підказка вгорі кабінету: серія є, а сьогодні ще нічого не пройдено */
-export function streakRiskCard(streak: number, activity: Record<string, number> | undefined, href: string): string {
-  const r = streakRisk(streak, activity);
+export function streakRiskCard(streak: number, activity: Record<string, number> | undefined, href: string, extendedToday = false): string {
+  const r = streakRisk(streak, activity, new Date(), extendedToday);
   if (!r.risk) return "";
   return `<section class="card risk-banner" role="status" aria-live="polite"><span class="risk-ico" aria-hidden="true">🔥</span>
     <div class="risk-text"><b>Серія ${streak} ${pl(streak, "день", "дні", "днів")} сьогодні під загрозою</b>
@@ -58,12 +59,12 @@ export function goalCard(d: DashboardData): string {
     <div class="goal-pick" role="group" aria-label="Змінити денну ціль"><span class="dash-muted">Ціль:</span>${pick}</div></section>`;
 }
 
-export function streakCard(streak: number, activity: Record<string, number> = {}): string {
-  const today = new Date(), todayKey = utcKey(today), active = (activity[todayKey] || 0) > 0;
+export function streakCard(streak: number, activity: Record<string, number> = {}, extendedToday = false): string {
+  const today = new Date(), todayKey = utcKey(today), active = extendedToday || (activity[todayKey] || 0) > 0;
   const week = Array.from({ length: 7 }, (_, i) => { const x = new Date(today); x.setUTCDate(x.getUTCDate() - (6 - i)); return x; })
     .map((x, i) => { const k = utcKey(x); return `<li class="${(activity[k] || 0) > 0 ? "on" : ""}${k === todayKey ? " today" : ""}" style="--i:${i}" title="${k}"><span>${DAY[x.getUTCDay()]}</span><i></i></li>`; }).join("");
   const next = STREAK_MILESTONES.find((m) => m > streak);
-  const risk = streakRisk(streak, activity);
+  const risk = streakRisk(streak, activity, today, extendedToday);
   const msg = active ? "Сьогодні вже зараховано ✓" : streak ? `Серія під загрозою: зробіть урок або завдання до ${risk.at}, щоб не втратити серію.` : "Позначте урок пройденим, щоб почати серію.";
   return `<section class="card streak-card"><h3>Серія занять</h3>
     <div class="streak2"><span class="flame ${active ? "lit" : "dim"}" aria-hidden="true">🔥</span><b class="streak-n" data-to="${streak}">${streak}</b><span>${pl(streak, "день", "дні", "днів")} поспіль</span></div>
