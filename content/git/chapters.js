@@ -1,0 +1,151 @@
+/* Курс Git: глави й уроки в порядку проходження. adv: true — урок лише для просунутого рівня, без нього базовий рівень лишається цілісним.
+   Шаблон і слоти: Documentation/course-template.md (лист Git), інструкція авторам: Documentation/git-course-authoring.md.
+   Завдання запускаються як скрипти Bash (lang: "bash", файл main.sh): репозиторій створюється в тимчасовій папці.
+   Старих уроків із завданнями немає (у content/lessons.js є 10 оглядових уроків без завдань), тому keep не використовується. */
+const ch = (id, name, lessons) => ({ id, name, lessons });
+const L = (t, adv = false, keep) => ({ t, adv, ...(keep ? { keep } : {}) });
+
+const CHAPTERS = [
+  ch("01", "Старт: репозиторій і коміт", [
+    L("Що таке Git і навіщо контроль версій"),
+    L("Налаштування: git config і автор комітів"),
+    L("Перший репозиторій: git init і git status"),
+    L("Перший коміт: git add і git commit"),
+    L("Повідомлення комітів, що пояснюють зміни"),
+    L("Що лежить усередині: папка .git"),
+  ]),
+  ch("02", "Історія й перегляд змін", [
+    L("git log: читання історії"),
+    L("Компактна історія: --oneline, --graph і --stat"),
+    L("git show: один коміт"),
+    L("git diff: що змінилося в робочій папці"),
+    L("git diff --staged і порівняння комітів"),
+    L("Посилання на коміти: HEAD, ~ і ^"),
+    L("Пошук в історії: --grep, --author і -S"),
+    L("git blame: хто змінив рядок"),
+    L("Формат історії: --format і шаблони", true),
+    L("Об'єкти Git: blob, tree і commit", true),
+  ]),
+  ch("03", "Індекс, staging і .gitignore", [
+    L("Три області: робоча папка, індекс і репозиторій"),
+    L("git add: вибіркове індексування"),
+    L("Скасування індексування: git restore --staged"),
+    L(".gitignore: шаблони й правила"),
+    L("Видалення й перейменування: git rm і git mv"),
+    L("Глобальний ignore й .git/info/exclude"),
+    L("Часткові коміти: git add -p", true),
+    L("Індекс зсередини: ls-files і intent-to-add", true),
+  ]),
+  ch("04", "Гілки", [
+    L("Що таке гілка"),
+    L("Створення й перемикання: git switch"),
+    L("Робота в гілці й повернення в main"),
+    L("Перегляд гілок: branch -v і --merged"),
+    L("Видалення й перейменування гілок"),
+    L("Detached HEAD"),
+    L("Назви гілок і домовленості"),
+    L("Гілки як вказівники: refs", true),
+    L("git worktree: кілька папок з одного репозиторію", true),
+    L("Порівняння гілок: A..B і A...B", true),
+  ]),
+  ch("05", "Злиття й конфлікти", [
+    L("git merge: перемотування (fast-forward)"),
+    L("Злиття з merge-комітом"),
+    L("Конфлікти: що це і як Git їх показує"),
+    L("Розв'язання конфлікту вручну"),
+    L("Скасування злиття: merge --abort"),
+    L("--no-ff і --squash"),
+    L("Стратегії злиття й параметри", true),
+    L("rerere: пам'ять про розв'язання", true),
+    L("Складні конфлікти: ours, theirs і mergetool", true),
+  ]),
+  ch("06", "Віддалені репозиторії", [
+    L("Що таке remote і origin"),
+    L("git remote: додавання й перегляд"),
+    L("git clone"),
+    L("git fetch: отримати без змін"),
+    L("git pull: fetch і merge"),
+    L("git push і відстежувані гілки"),
+    L("Bare-репозиторій: власний «сервер»", true),
+    L("Відхилений push: що робити"),
+    L("push --force-with-lease", true),
+    L("Кілька remote: origin і upstream", true),
+  ]),
+  ch("07", "Скасування й відновлення", [
+    L("git restore: відкат файлів"),
+    L("Файл із минулого коміту: restore --source"),
+    L("git reset: --soft, --mixed і --hard"),
+    L("git revert: безпечне скасування"),
+    L("git commit --amend"),
+    L("git clean: прибирання неслідкованих файлів"),
+    L("reflog: захисна сітка"),
+    L("Видалення секретів з історії", true),
+    L("fsck і збирання сміття: git gc", true),
+    L("Практикум: п'ять аварій і їх виправлення", true),
+  ]),
+  ch("08", "Rebase і чиста історія", [
+    L("rebase: ідея"),
+    L("rebase на main"),
+    L("Конфлікти під час rebase"),
+    L("rebase -i: reword і squash"),
+    L("fixup і autosquash", true),
+    L("rebase проти merge: коли що"),
+    L("Золоте правило: не переписувати спільну історію"),
+    L("rebase --onto", true),
+    L("rebase --rebase-merges", true),
+    L("exec: перевірка кожного коміту", true),
+  ]),
+  ch("09", "Stash, теги, cherry-pick і bisect", [
+    L("git stash: відкласти роботу"),
+    L("stash: список, apply, pop і drop"),
+    L("Теги: легкі й анотовані"),
+    L("Версії: SemVer і git describe"),
+    L("git cherry-pick"),
+    L("git bisect: пошук коміту з помилкою"),
+    L("bisect run: автоматичний пошук", true),
+    L("stash -p, --keep-index і гілка зі stash", true),
+    L("git notes і trailers", true),
+  ]),
+  ch("10", "Робочі процеси", [
+    L("Pull request: як це працює"),
+    L("GitHub Flow"),
+    L("Trunk-based development"),
+    L("GitFlow"),
+    L("Рев'ю коду й чисті коміти"),
+    L("Conventional Commits"),
+    L("Релізи й гілки підтримки", true),
+    L("Внесок у open source: fork і PR", true),
+  ]),
+  ch("11", "Хуки, CI, підпис і великі репозиторії", [
+    L("Хуки: pre-commit"),
+    L("Хук commit-msg"),
+    L("Хук pre-push"),
+    L("CI: автоматична перевірка кожного коміту"),
+    L("GitHub Actions: простий workflow"),
+    L("Підпис комітів: GPG і SSH"),
+    L("Підмодулі: git submodule"),
+    L("git subtree"),
+    L("Великі файли: Git LFS"),
+    L("sparse-checkout і partial clone", true),
+    L("Розмір репозиторію: gc, prune і repack", true),
+    L(".gitattributes: кінці рядків і diff", true),
+  ]),
+  ch("12", "Проєкти й сценарії порятунку", [
+    L("Проєкт: репозиторій із нуля"),
+    L("Проєкт: командна робота з гілками"),
+    L("Проєкт: розв'язання конфліктів"),
+    L("Проєкт: чиста історія перед PR"),
+    L("Проєкт: випуск версії з тегом"),
+    L("Сценарій: врятувати зламаний main"),
+    L("Проєкт: хуки для контролю якості", true),
+    L("Підсумок курсу й шляхи далі", true),
+  ]),
+];
+
+let n = 0;
+export const GIT_CHAPTERS = CHAPTERS.map((c) => {
+  const from = n + 1;
+  n += c.lessons.length;
+  return { id: c.id, name: c.name, from, to: n, lessons: c.lessons.map((l, i) => ({ n: from + i, ...l })) };
+});
+export const GIT_OUTLINE = GIT_CHAPTERS.flatMap((c) => c.lessons.map((l) => ({ ...l, ch: c.name })));
