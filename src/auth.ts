@@ -20,10 +20,10 @@ const GROUPS = [
   { t: "Server & Backend", courses: ["python", "go", "java", "php"] },
   { t: "Бази даних", courses: ["sql"] },
   { t: "Інструменти розробника", courses: ["git", "bash"] },
-  { t: "Основи мов", courses: ["cpp", "pascal"] },
+  { t: "Основи мов", courses: ["c", "cpp", "pascal"] },
 ] as const;
 const SHORT: Record<string, string> = { "Server & Backend": "Backend", "Інструменти розробника": "Інструменти" };   // короткі підписи осей радара
-const FOCUS_ORDER = ["python", "html", "js", "sql", "git", "go", "java", "php", "ts", "css", "bash", "cpp", "pascal"];
+const FOCUS_ORDER = ["python", "html", "js", "sql", "git", "go", "java", "php", "ts", "css", "bash", "c", "cpp", "pascal"];
 
 const safeImg = (u: string | null | undefined): string => (typeof u === "string" && /^https:\/\//.test(u) ? u : "");
 const fmtDate = (s: string): string => {

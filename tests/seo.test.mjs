@@ -19,7 +19,7 @@ const pages = publicPages();
 const ukOnly = (list) => list.filter((f) => !f.file.startsWith("en/"));
 const files = ukOnly(buildPages(template, SITE));
 
-t("сторінок 26: головна, каталог, як це працює, про проєкт, що нового, підтримка, політика, умови, 5 напрямів, 13 довідників", () => assert.equal(pages.length, 26));
+t("сторінок 27: головна, каталог, як це працює, про проєкт, що нового, підтримка, політика, умови, 5 напрямів, 14 довідників", () => assert.equal(pages.length, 27));
 t("адреси унікальні, заголовки й описи унікальні та не порожні", () => {
   assert.equal(new Set(pages.map((p) => p.path)).size, pages.length);
   assert.equal(new Set(pages.map((p) => p.title)).size, pages.length);
@@ -224,7 +224,7 @@ t("sitemap: дата зміни — переданий день, а для «Щ�
 });
 
 const tf = textFiles(SITE, { modified: "2026-11-17" }), byFile = new Map(tf.map((x) => [x.file, x.text]));
-t("файли для ІІ: llms.txt, llms-full.txt, manifest, security.txt і 13 Markdown-довідників", () => {
+t("файли для ІІ: llms.txt, llms-full.txt, manifest, security.txt і 14 Markdown-довідників", () => {
   for (const n of ["llms.txt", "llms-full.txt", "manifest.webmanifest", ".well-known/security.txt"]) assert.ok(byFile.get(n)?.length > 100, n);
   for (const k of Object.keys(C)) assert.ok(byFile.has(`ref/${k}.md`), k);
   assert.equal(tf.length, 4 + Object.keys(C).length);

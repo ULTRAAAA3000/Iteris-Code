@@ -102,7 +102,7 @@ await t("некоректні параметри: 404", async () => {
   }
 });
 
-await t("довідник: 13 мов, у кожної розділи з прикладами коду", async () => {
+await t("довідник: 14 мов, у кожної розділи з прикладами коду", async () => {
   assert.deepEqual(Object.keys(REF).sort(), Object.keys(LESSONS).sort());
   for (const [k, secs] of Object.entries(REF)) {
     assert.ok(secs.length >= 5, k + ": мало розділів");

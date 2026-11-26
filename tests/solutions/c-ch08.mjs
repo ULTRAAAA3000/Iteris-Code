@@ -505,7 +505,7 @@ int main(void) {
     return 0;
 }
 `,
-  "c-utf8-count": raw`#include <stdio.h>
+  "c-locale-utf8": raw`#include <stdio.h>
 #include <string.h>
 #include <uchar.h>
 

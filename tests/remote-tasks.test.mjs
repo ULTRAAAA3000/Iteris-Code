@@ -39,7 +39,7 @@ const LANGS = {
   },
   c: {
     file: "main.c", probe: ["gcc", "--version"],
-    run: (d) => { const c = sh("gcc", ["-std=c11", "-O0", "main.c", "-o", "prog"], d); return c.status !== 0 ? { r: c, compileFailed: () => true } : { r: sh("./prog", [], d), compileFailed: () => false }; },
+    run: (d) => { const c = sh("gcc", ["-std=c11", "-O0", "-pthread", "main.c", "-o", "prog", "-lm"], d); return c.status !== 0 ? { r: c, compileFailed: () => true } : { r: sh("./prog", [], d), compileFailed: () => false }; },
   },
   cpp: {
     file: "main.cpp", probe: ["g++", "--version"],

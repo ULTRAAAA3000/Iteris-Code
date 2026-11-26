@@ -82,6 +82,10 @@ for (const { c, lessons, tasks, solutions } of loaded) {
 }
 
 if (!only) {
+  await test("id завдань усіх глав унікальні", () => {
+    const ids = loaded.flatMap(({ tasks }) => tasks.map((t) => t.id));
+    assert.equal(new Set(ids).size, ids.length, "дублікати id: " + ids.filter((x, i) => ids.indexOf(x) !== i).join(", "));
+  });
   const ids = chapters.flatMap((c) => c.lessons.map((l) => l.keep).filter(Boolean));
   await test("план: 110 уроків, з них 30 просунутих, план без старих id", () => {
     const all = C_CHAPTERS.flatMap((c) => c.lessons);
