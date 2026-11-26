@@ -81,4 +81,27 @@ await test("API: адмін бачить зведення, інші й гост�
   assert.equal(JSON.parse(ok.body).funnel.registered, 7);
 });
 
+await test("мови: обрали (онбординг), вчаться (є уроки), уроків, просунутий рівень; зіпсований JSON пропускається", async () => {
+  sqlite.prepare("UPDATE user_onboarding SET courses = ?2 WHERE user_id = ?1").run("u1", '["js","python"]');
+  sqlite.prepare("UPDATE user_onboarding SET courses = ?2 WHERE user_id = ?1").run("u2", "не json");
+  lesson("u4", "go/1", 1);
+  sqlite.prepare("INSERT INTO user_course_levels (user_id, course, level) VALUES ('u1', 'js', 'adv')").run();
+  const t = await computeStats(DB);
+  const by = Object.fromEntries(t.courses.map((c) => [c.course, c]));
+  assert.deepEqual(by.js, { course: "js", chosen: 1, learning: 2, lessons: 4, advanced: 1 });
+  assert.deepEqual(by.python, { course: "python", chosen: 1, learning: 0, lessons: 0, advanced: 0 });
+  assert.deepEqual(by.go, { course: "go", chosen: 0, learning: 1, lessons: 1, advanced: 0 });
+  assert.equal(t.courses[0].course, "js");   // найпопулярніші першими
+});
+await test("розподіли й активність: рівні, способи входу, активні за 1/7/30 днів, відправки", async () => {
+  sqlite.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES ('s1','u1','t',' ',1), ('s2','u1','t',' ',0)").run();
+  const t = await computeStats(DB);
+  assert.deepEqual(t.levels, [{ key: "beginner", count: 2 }]);
+  assert.equal(t.methods.reduce((n, m) => n + m.count, 0), t.totals.users);
+  assert.ok(t.methods.some((m) => m.key === "password") && t.methods.some((m) => m.key === "social"));
+  assert.equal(t.activity.month >= t.activity.week && t.activity.week >= t.activity.today, true);
+  assert.deepEqual([t.activity.today, t.activity.week, t.activity.month], [1, 2, 3]);   // сьогодні активний u1: щойно додано відправку
+  assert.deepEqual([t.activity.submissions, t.activity.passed, t.activity.lessonsDone], [2, 1, 5]);
+});
+
 console.log(`\nУсі перевірки аналітики пройдено: ${passed}`);

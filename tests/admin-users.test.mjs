@@ -64,6 +64,27 @@ await test("пошук: за поштою, ім'ям; регістр не важ
   assert.equal((await listUsers(DB, { q: "'; DROP TABLE users;--" })).total, 0);
   assert.equal((await listUsers(DB)).total, 64);                         // таблиця на місці
 });
+sqlite.prepare("INSERT INTO user_onboarding (user_id, level, courses) VALUES ('u1', 'beginner', '[\"python\",\"c\"]'), ('u2', 'advanced', '[\"cpp\"]')").run();
+sqlite.prepare("INSERT INTO user_progress (user_id, lesson_id) VALUES ('u1','python/1'),('u1','python/2'),('u1','c/1'),('u3','cpp/1')").run();
+sqlite.prepare("INSERT INTO xp_events (user_id, amount, reason, ref) VALUES ('u1', 10, 'lesson', 'python/1'), ('u1', 20, 'task', 'py-hello')").run();
+await test("мови й прогрес: обрані мови, рівень, уроки за курсами, XP, завдання", async () => {
+  const u = Object.fromEntries((await listUsers(DB, { limit: 100 })).users.map((x) => [x.email, x]));
+  assert.deepEqual(u["anna@x.example"].courses, ["python", "c"]);
+  assert.equal(u["anna@x.example"].level, "beginner");
+  assert.deepEqual(u["anna@x.example"].progress, [{ course: "python", lessons: 2 }, { course: "c", lessons: 1 }]);
+  assert.deepEqual([u["anna@x.example"].xp, u["anna@x.example"].lessons, u["anna@x.example"].tasks], [30, 3, 1]);
+  assert.deepEqual([u["bob@x.example"].courses, u["bob@x.example"].level, u["bob@x.example"].progress, u["bob@x.example"].xp], [["cpp"], "advanced", [], 0]);
+  assert.deepEqual([u["carol@x.example"].courses, u["carol@x.example"].level], [[], null]);
+});
+await test("фільтр за мовою: «c» не плутається з «cpp», враховуються і вибір, і реальний прогрес", async () => {
+  const mails = async (course) => (await listUsers(DB, { course })).users.map((u) => u.email).sort();
+  assert.deepEqual(await mails("c"), ["anna@x.example"]);
+  assert.deepEqual(await mails("cpp"), ["bob@x.example", "carol@x.example"]);
+  assert.deepEqual(await mails("python"), ["anna@x.example"]);
+  assert.equal((await listUsers(DB, { course: "cpp", q: "bob" })).total, 1);
+  assert.equal((await listUsers(DB, { course: "go" })).total, 0);
+  assert.equal((await listUsers(DB, { course: "c' OR '1'='1" })).total, 0);
+});
 await test("API: адмін бачить список, інші й гості отримують 404 без жодних даних", async () => {
   const call = async (cookie, qs = "") => { const r = await usersApi({ request: new Request("https://iteris-code.pages.dev/api/admin/users" + qs, { headers: cookie ? { Cookie: cookie } : {} }), env, params: {} }); return { status: r.status, cache: r.headers.get("Cache-Control"), body: await r.text() }; };
   const guest = await call(null), rnd = await call("session=" + (await createSession(env, "u1")));
