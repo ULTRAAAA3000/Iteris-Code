@@ -12,7 +12,17 @@ export interface Stats {
   dau: DayCount[];
   /** D1: з тих, хто зареєструвався вчора або раніше, скільки були активні наступного дня; D7: рівно через 7 днів */
   retention: { d1: Retention; d7: Retention };
+  /** Що кому цікаво: скільки людей обрали курс в онбордингу, скільки справді вчаться (є пройдені уроки), скільки уроків пройдено, скільки на просунутому рівні */
+  courses: CourseStat[];
+  /** Розподіл за рівнем із онбордингу, денною ціллю, способом входу */
+  levels: Bucket[];
+  goals: Bucket[];
+  methods: Bucket[];
+  /** Активність: унікальні люди за 1, 7 і 30 днів; усього пройдено уроків; відправок завдань і частка успішних; звернень у підтримку */
+  activity: { today: number; week: number; month: number; lessonsDone: number; submissions: number; passed: number; support: number; verified: number };
 }
+export interface CourseStat { course: string; chosen: number; learning: number; lessons: number; advanced: number }
+export interface Bucket { key: string; count: number }
 
 // Дні активності користувача: будь-який урок, будь-яка відправка, будь-яке XP
 const ACT = `act AS (
@@ -41,6 +51,28 @@ function fill(rows: DayCount[], days: number, today: string): DayCount[] {
   }
   return out;
 }
+
+const rows = async <T>(db: D1Database, sql: string, ...p: unknown[]): Promise<T[]> => {
+  try { return (await db.prepare(sql).bind(...p).all<T>()).results ?? []; } catch { return []; }
+};
+
+/** Вибрані курси лежать у user_onboarding.courses як JSON-масив; зіпсований рядок просто пропускаємо */
+export const parseCourses = (raw: string | null): string[] => {
+  try { const a: unknown = JSON.parse(raw ?? "[]"); return Array.isArray(a) ? a.filter((x): x is string => typeof x === "string") : []; } catch { return []; }
+};
+
+async function courseStats(db: D1Database): Promise<CourseStat[]> {
+  const map = new Map<string, CourseStat>();
+  const get = (k: string): CourseStat => { let c = map.get(k); if (!c) { c = { course: k, chosen: 0, learning: 0, lessons: 0, advanced: 0 }; map.set(k, c); } return c; };
+  for (const r of await rows<{ courses: string }>(db, "SELECT courses FROM user_onboarding")) for (const k of new Set(parseCourses(r.courses))) get(k).chosen++;
+  for (const r of await rows<{ c: string; users: number; lessons: number }>(db,
+    "SELECT substr(lesson_id, 1, instr(lesson_id, '/') - 1) AS c, COUNT(DISTINCT user_id) AS users, COUNT(*) AS lessons FROM user_progress WHERE instr(lesson_id, '/') > 1 GROUP BY c"))
+    { const c = get(r.c); c.learning = r.users; c.lessons = r.lessons; }
+  for (const r of await rows<{ course: string; n: number }>(db, "SELECT course, COUNT(*) AS n FROM user_course_levels WHERE level = 'adv' GROUP BY course")) get(r.course).advanced = r.n;
+  return [...map.values()].sort((a, b) => (b.chosen + b.learning) - (a.chosen + a.learning) || a.course.localeCompare(b.course));
+}
+
+const buckets = async (db: D1Database, sql: string): Promise<Bucket[]> => (await rows<{ k: string | number | null; n: number }>(db, sql)).map((r) => ({ key: String(r.k ?? "—"), count: r.n }));
 
 export async function computeStats(db: D1Database, days = 30): Promise<Stats> {
   const today = (await db.prepare("SELECT date('now') AS d").first<{ d: string }>())?.d ?? new Date().toISOString().slice(0, 10);
@@ -72,6 +104,18 @@ export async function computeStats(db: D1Database, days = 30): Promise<Stats> {
     return { cohort: r?.cohort ?? 0, returned: r?.returned ?? 0 };
   };
 
+  const active = async (n: number): Promise<number> => num(db, `WITH ${ACT} SELECT COUNT(DISTINCT user_id) AS n FROM act WHERE d > date('now', ?1)`, `-${n} days`);
+  const activity = {
+    today: await num(db, `WITH ${ACT} SELECT COUNT(DISTINCT user_id) AS n FROM act WHERE d = date('now')`),
+    week: await active(7),
+    month: await active(30),
+    lessonsDone: await num(db, "SELECT COUNT(*) AS n FROM user_progress"),
+    submissions: await num(db, "SELECT COUNT(*) AS n FROM task_submissions"),
+    passed: await num(db, "SELECT COUNT(*) AS n FROM task_submissions WHERE is_passed = 1"),
+    support: await num(db, "SELECT COUNT(*) AS n FROM support_messages"),
+    verified: await num(db, "SELECT COUNT(*) AS n FROM users WHERE password_hash IS NOT NULL AND email_verified = 1"),
+  };
+
   return {
     generatedAt: new Date().toISOString(),
     totals,
@@ -79,5 +123,10 @@ export async function computeStats(db: D1Database, days = 30): Promise<Stats> {
     signups: fill(signups.results ?? [], days, today),
     dau: fill(dau.results ?? [], Math.min(days, 14), today),
     retention: { d1: await retention(1), d7: await retention(7) },
+    courses: await courseStats(db),
+    levels: await buckets(db, "SELECT level AS k, COUNT(*) AS n FROM user_onboarding GROUP BY level ORDER BY n DESC"),
+    goals: await buckets(db, "SELECT daily_goal AS k, COUNT(*) AS n FROM user_goals GROUP BY daily_goal ORDER BY daily_goal"),
+    methods: await buckets(db, "SELECT CASE WHEN password_hash IS NULL THEN 'social' ELSE 'password' END AS k, COUNT(*) AS n FROM users GROUP BY k ORDER BY n DESC"),
+    activity,
   };
 }
