@@ -198,7 +198,7 @@ export function seoHeaders(): string {
 
 /* ---------- Файли для ІІ: llms.txt, llms-full.txt, Markdown-довідники ---------- */
 
-const FENCE: Readonly<Record<string, string>> = { python: "python", cpp: "cpp", pascal: "pascal", html: "html", css: "css", js: "javascript", ts: "typescript", go: "go", java: "java", php: "php", sql: "sql", git: "bash", bash: "bash" };
+const FENCE: Readonly<Record<string, string>> = { python: "python", c: "c", cpp: "cpp", pascal: "pascal", html: "html", css: "css", js: "javascript", ts: "typescript", go: "go", java: "java", php: "php", sql: "sql", git: "bash", bash: "bash" };
 
 const lang = (): string => Object.values(C).map((c) => c.name).join(", ");
 

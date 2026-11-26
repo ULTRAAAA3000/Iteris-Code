@@ -39,6 +39,7 @@ const BASE = {
 import { BASH } from "./solutions/bash.mjs";
 import { CPP } from "./solutions/cpp.mjs";
 import { CSS } from "./solutions/css.mjs";
+import { C_SOLUTIONS } from "./solutions/c.mjs";
 import { GO_SOLUTIONS } from "./solutions/go.mjs";
 import { HTML } from "./solutions/html.mjs";
 import { JAVA } from "./solutions/java.mjs";
@@ -49,7 +50,7 @@ import { PYTHON } from "./solutions/python.mjs";
 import { SQL } from "./solutions/sql.mjs";
 import { TS } from "./solutions/ts.mjs";
 
-export const SOLUTIONS = { ...BASE, ...GO_SOLUTIONS, ...PYTHON, ...JAVA, ...CPP, ...PHP, ...PASCAL, ...TS, ...JS, ...HTML, ...CSS, ...SQL, ...BASH };
+export const SOLUTIONS = { ...BASE, ...C_SOLUTIONS, ...GO_SOLUTIONS, ...PYTHON, ...JAVA, ...CPP, ...PHP, ...PASCAL, ...TS, ...JS, ...HTML, ...CSS, ...SQL, ...BASH };
 
 // Еталонні рішення проєктів за ТЗ (HTML, CSS і JS в одному файлі)
 export const PROJECT_SOLUTIONS = {

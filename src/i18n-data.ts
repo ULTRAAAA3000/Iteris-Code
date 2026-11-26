@@ -12,6 +12,7 @@ export const CAT_EN: Record<string, { title: string; desc: string }> = {
 
 export const COURSE_EN: Record<string, { name: string; desc: string }> = {
   python: { name: "Python", desc: "A simple language to start with: variables, branching and loops." },
+  c: { name: "C", desc: "The language operating systems are written in: types, pointers, memory, structures and files." },
   cpp: { name: "C++", desc: "A fast compiled language: types, input and output, conditions and loops." },
   pascal: { name: "Pascal", desc: "A teaching language with a clear structure, ideal for your first algorithms." },
   html: { name: "HTML", desc: "Page markup: structure, text, lists, tables and forms." },

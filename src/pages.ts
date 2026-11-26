@@ -1,6 +1,6 @@
 // Публічні сторінки сайту (доступні без входу): головна-лендинг, каталог курсів, «Як це працює», «Про проєкт», напрями й довідник мови.
 // Модуль чистий (без DOM, мережі й входу): той самий HTML малює браузер, а збірка заздалегідь створює з нього готові сторінки для пошуковиків.
-import { C, CATS, darkText, publicLessonTotal } from "./data.ts";
+import { C, CATS, darkText, landingKeys, publicLessonTotal } from "./data.ts";
 import { refSections } from "./i18n-ref.ts";
 import { catDesc, catTitle, courseDesc, courseName } from "./i18n-data.ts";
 import { cnt, getLang, inLang, l, setPublicMatcher, tr, type Lang } from "./i18n.ts";
@@ -42,6 +42,9 @@ const crumbsHtml = (items: readonly (readonly [string, string])[]): string =>
 const nCourses = Object.keys(C).length;
 const nLessons = publicLessonTotal();
 const langNames = (): string[] => Object.keys(C).map(courseName);
+const nLanding = landingKeys().length;
+const nLandingLessons = landingKeys().reduce((n, k) => n + C[k].lessons, 0);
+const landingNames = (): string[] => landingKeys().map(courseName);
 
 /** Кнопка-заклик: гостю відкриває вхід, користувачу веде в кабінет */
 const cta = (loggedIn: boolean, text = tr("Зареєструйся і вчись безкоштовно", "Sign up and learn for free")): string =>
@@ -73,7 +76,7 @@ export const homeHtml = (loggedIn: boolean): string => `
   <section class="hero" aria-labelledby="h1">
     <div>
       <h1 id="h1">${tr("Вчися програмувати. Безкоштовно.", "Learn to code. For free.")}</h1>
-      <p class="lead">${tr(`Уроки українською: читаєш, пишеш код у терміналі й одразу бачиш перевірку. ${nCourses} мов, ${nLessons} уроків, без встановлення програм.`, `You read, write code in the terminal and see the check straight away. ${nCourses} languages, ${nLessons} lessons, nothing to install. The lessons are in Ukrainian for now, an English version is on the way.`)}</p>
+      <p class="lead">${tr(`Уроки українською: читаєш, пишеш код у терміналі й одразу бачиш перевірку. ${nLanding} мов, ${nLandingLessons} уроків, без встановлення програм.`, `You read, write code in the terminal and see the check straight away. ${nLanding} languages, ${nLandingLessons} lessons, nothing to install. The lessons are in Ukrainian for now, an English version is on the way.`)}</p>
       <div class="actions">${cta(loggedIn)}<a class="btn" href="${l("/courses")}">${tr("Дивитись курси", "Browse courses")}</a></div>
       <p class="lp-note">${tr("Довідник по мовах відкритий усім, без входу.", "The language reference is open to everyone, no sign-in needed.")}</p>
     </div>
@@ -157,13 +160,13 @@ print("Hello,", name + "!")`)}</pre>
   </section>
 
   <section aria-labelledby="langs">
-    <h2 class="section-title" id="langs">${tr(`${nCourses} мов і технологій`, `${nCourses} languages and technologies`)}</h2>
+    <h2 class="section-title" id="langs">${tr(`${nLanding} мов і технологій`, `${nLanding} languages and technologies`)}</h2>
     <p class="section-sub">${tr("Оберіть мову, щоб відкрити довідник. Уроки й завдання чекають у кабінеті.", "Choose a language to open its reference. Lessons and tasks are waiting in your account.")}</p>
     <div class="ruled">
       ${Object.entries(CATS).map(([key, c]) => `
       <div class="dir">
         <div><h3><a href="${l("/" + key)}">${catTitle(key)}</a></h3><p>${catDesc(key)}</p></div>
-        <div class="chips">${c.courses.map(chip).join("")}</div>
+        <div class="chips">${c.courses.filter((k) => !C[k].landingHidden).map(chip).join("")}</div>
       </div>`).join("")}
     </div>
   </section>
@@ -247,7 +250,7 @@ const aboutHtml = (loggedIn: boolean): string => `
       <li>${tr("<b>Простота.</b> Короткі пояснення, зрозумілі аналогії, код блоками.", "<b>Simplicity.</b> Short explanations, clear analogies, code in blocks.")}</li>
     </ul>
     <h2>${tr("Що всередині", "What is inside")}</h2>
-    <p>${tr(`${cnt(nCourses, "course")}: ${langNames().join(", ")}. Разом ${cnt(nLessons, "lesson")}, розбитих на глави, і довідник по кожній мові. Сайт працює на телефоні.`, `${cnt(nCourses, "course")}: ${langNames().join(", ")}. In total ${cnt(nLessons, "lesson")} split into chapters, plus a reference for every language. The site works on a phone. The lessons are in Ukrainian for now.`)}</p>
+    <p>${tr(`${cnt(nLanding, "course")}: ${landingNames().join(", ")}. Разом ${cnt(nLandingLessons, "lesson")}, розбитих на глави, і довідник по кожній мові. Сайт працює на телефоні.`, `${cnt(nCourses, "course")}: ${langNames().join(", ")}. In total ${cnt(nLessons, "lesson")} split into chapters, plus a reference for every language. The site works on a phone. The lessons are in Ukrainian for now.`)}</p>
     <h2>${tr("Технології", "Technology")}</h2>
     <p>${tr("Сайт написаний на TypeScript і працює на Cloudflare.", "The site is written in TypeScript and runs on Cloudflare.")}</p>
   </div>
@@ -304,7 +307,7 @@ function buildPages(lang: Lang): PageDef[] {
     {
       ...base, path: "/", kind: "home", active: "home", crumbs: [], faq: faq(), html: homeHtml,
       title: T(`${BRAND}: вчися програмувати безкоштовно українською`, `${BRAND}: learn to code for free`),
-      desc: trim(T(`Безкоштовні уроки програмування українською: ${langNames().slice(0, 8).join(", ")} та інші. Читай урок, пиши код у терміналі, отримуй перевірку й XP.`, `Free programming lessons: ${langNames().slice(0, 8).join(", ")} and more. Read a lesson, write code in the terminal, get checked and earn XP. The lessons are in Ukrainian for now.`)),
+      desc: trim(T(`Безкоштовні уроки програмування українською: ${landingNames().slice(0, 8).join(", ")} та інші. Читай урок, пиши код у терміналі, отримуй перевірку й XP.`, `Free programming lessons: ${landingNames().slice(0, 8).join(", ")} and more. Read a lesson, write code in the terminal, get checked and earn XP. The lessons are in Ukrainian for now.`)),
     },
     {
       ...base, path: "/courses", kind: "catalog", active: "courses", crumbs: [[T("Курси", "Courses"), "/courses"]], html: catalogHtml,

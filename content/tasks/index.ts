@@ -1,4 +1,5 @@
 import { BASH_TASKS } from "./bash.ts";
+import { C_TASKS } from "./c/index.ts";
 import { CPP_TASKS } from "./cpp/index.ts";
 import { CSS_TASKS } from "./css/index.ts";
 import { GO_TASKS } from "./go/index.ts";
@@ -15,6 +16,7 @@ import type { Task } from "../../src/tasks/types.ts";
 export type { Task };
 
 export const TASKS: readonly Task[] = [
+  ...C_TASKS,
   ...GO_TASKS,
   ...PYTHON_TASKS,
   ...JAVA_TASKS,

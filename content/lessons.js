@@ -1,4 +1,5 @@
 /* Iteris Code — уроки. Кожен урок: t (назва), p (абзаци), code (блоки коду), note (важливе), tasks (завдання) */
+import { C_LESSONS } from "./c/index.js";
 import { GO_LESSONS } from "./go/index.js";
 import { HTML_LESSONS } from "./html/index.js";
 import { PYTHON_LESSONS } from "./python/index.js";
@@ -69,6 +70,7 @@ load();`],
   note: "Слово <code>await</code> можна використовувати лише всередині функції, оголошеної як <code>async</code>.",
   tasks: ["Виведіть у консоль кількість публічних репозиторіїв будь-якого користувача GitHub.", "Додайте обробку помилки на випадок, якщо мережі немає."] }
 );
+LESSONS.c = C_LESSONS;   // курс C: 110 уроків (80 базових + 30 просунутих), content/c/
 LESSONS.go = GO_LESSONS;   // курс Go: 110 уроків (80 базових + 30 просунутих), content/go/
 LESSONS.html = HTML_LESSONS;   // курс HTML: 30 уроків (23 базових + 7 просунутих), content/html/
 LESSONS.python = PYTHON_LESSONS;   // курс Python: 110 уроків (80 базових + 30 просунутих), content/python/

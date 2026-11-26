@@ -64,10 +64,10 @@ t("підвал має посилання «Що нового» на кожні�
   const home = files.find((f) => f.file === "index.html").html.toLowerCase();
   for (const w of ["профіл", "монет", "магазин", "пошт"]) assert.ok(!home.includes(w), "головна: " + w);
 });
-t("сторінку знаходить findPage зі скісною рискою й без неї; усього публічних сторінок 26", () => {
+t("сторінку знаходить findPage зі скісною рискою й без неї; усього публічних сторінок 27", () => {
   assert.equal(findPage("/whats-new/")?.path, "/whats-new");
   assert.equal(findPage("whats-new")?.path, "/whats-new");
-  assert.equal(publicPages().length, 26);
+  assert.equal(publicPages().length, 27);
 });
 
 console.log(`\nУсі перевірки «Що нового» пройдено: ${ok}`);

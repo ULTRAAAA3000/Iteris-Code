@@ -3,11 +3,11 @@ import type { Outline, OutlineLesson, ProjectMeta, TaskMeta } from "./types.ts";
 
 export interface Category { title: string; desc: string; courses: string[] }
 /** lessons: кількість уроків (число публічне, тексти закриті); тест content.test.mjs звіряє його з content/lessons.js */
-export interface CourseMeta { lessons: number; /** Кількість базових уроків, якщо в курсі є рівні */ base?: number; name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
+export interface CourseMeta { lessons: number; /** Курс не показується на головній сторінці (лишається в каталозі й кабінеті) */ landingHidden?: boolean; /** Кількість базових уроків, якщо в курсі є рівні */ base?: number; name: string; badge: string; color: string; cat: string; desc: string; req?: string; next?: string }
 export interface Course extends CourseMeta { L: OutlineLesson[] }
 
 export const CATS: Record<string, Category> = {
-  program: { title: "Програмування", desc: "Логічне мислення, алгоритми та мови, з яких починають і на яких працюють.", courses: ["python","go","java","cpp","pascal"] },
+  program: { title: "Програмування", desc: "Логічне мислення, алгоритми та мови, з яких починають і на яких працюють.", courses: ["python","go","java","c","cpp","pascal"] },
   web: { title: "Web-технології", desc: "Розмітка, стилі та скрипти: усе, щоб створити живий сайт з нуля.", courses: ["html","css","js","ts"] },
   server: { title: "Серверна розробка", desc: "Код, що працює на сервері: обробка запитів, форм і даних.", courses: ["php"] },
   data: { title: "Бази даних", desc: "Зберігання даних і запити до них мовою SQL.", courses: ["sql"] },
@@ -15,8 +15,9 @@ export const CATS: Record<string, Category> = {
 };
 const META: Record<string, CourseMeta> = {
   python: { lessons: 110, base: 80, name: "Python", badge: "Py", color: "#C99700", cat: "program", desc: "Проста мова для старту: від print і змінних до функцій, класів, файлів і тестів." },
+  c: { lessons: 110, base: 80, name: "C", badge: "C", color: "#5B6EAE", cat: "program", desc: "Мова, на якій написано операційні системи: типи, вказівники, пам'ять, структури й робота з файлами." },
   cpp: { lessons: 110, base: 80, name: "C++", badge: "C+", color: "#00599C", cat: "program", desc: "Швидка компільована мова: типи, пам'ять, класи, стандартна бібліотека й сучасний C++." },
-  pascal: { lessons: 8, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
+  pascal: { lessons: 8, landingHidden: true, name: "Pascal", badge: "Pa", color: "#7A4DD8", cat: "program", desc: "Навчальна мова з чіткою структурою: ідеальна для перших алгоритмів." },
   html: { lessons: 30, base: 23, name: "HTML", badge: "<>", color: "#E8531F", cat: "web", desc: "Розмітка сторінок: текст, посилання, медіа, таблиці, форми, семантика й доступність." },
   css: { lessons: 40, base: 35, name: "CSS", badge: "{}", color: "#1C8FE0", cat: "web", desc: "Оформлення сторінок: селектори, блочна модель і flexbox." },
   js: { lessons: 22, name: "JavaScript", badge: "JS", color: "#E0B400", cat: "web", desc: "Мова браузера: функції, масиви, DOM і запити до сервера.", next: "ts" },
@@ -66,5 +67,8 @@ export const taskOf = (k: string, n: number): TaskMeta | undefined => { const id
 export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.L.length, 0);
 /** Кількість уроків усіх курсів без входу (для публічних сторінок) */
 export const publicLessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.lessons, 0);
+
+/** Курси для головної сторінки: без прихованих */
+export const landingKeys = (): string[] => Object.keys(C).filter((k) => !C[k].landingHidden);
 
 export const darkText = (k: string): string => (k === "python" || k === "js" ? "color:#14213D" : "");
