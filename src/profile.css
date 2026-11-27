@@ -102,3 +102,8 @@
 .adm-bars{display:flex;align-items:flex-end;gap:3px;height:120px}.adm-bar{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
 .adm-bar i{display:block;width:100%;background:var(--accent,#8246FC);border-radius:3px 3px 0 0}.adm-bar span{font-size:.62rem;color:var(--muted)}
 .adm-note{color:var(--muted);font-size:.85rem;margin:8px 0 0}
+.adm-q{width:100%;padding:11px 12px;margin:0 0 12px;border:2px solid var(--ink);border-radius:8px;background:var(--paper);font:inherit;font-weight:400;color:inherit}
+.adm-tbl-wrap{overflow-x:auto}.adm-tbl{width:100%;border-collapse:collapse;font-size:.9rem}
+.adm-tbl th,.adm-tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.adm-tbl th{color:var(--muted);font-weight:700}
+.adm-email{font-weight:700}
+.adm h3{margin:0 0 8px;font-size:1rem}

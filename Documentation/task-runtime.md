@@ -39,7 +39,7 @@
 | `lib/proof.ts` | Подпись «сервер сам запустил и проверил этот код» (защита от подделки результата) |
 | `functions/api/run.ts` | Эндпоинт запуска: лимиты, запуск, проверка, подпись |
 | `functions/api/progress/complete.ts` | Сохранение результата: для remote-заданий требует подпись сервера |
-| `content/tasks/<язык>.ts` | Задания языка: `go`, `python`, `java`, `cpp`, `php`, `pascal` |
+| `content/tasks/<язык>.ts` | Задания языка: `go`, `python`, `java`, `c`, `cpp`, `php`, `pascal` |
 | `tests/solutions.mjs`, `tests/solutions/<язык>.mjs` | Эталонные решения всех заданий (в сайт не попадают) |
 | `tests/remote-tasks.test.mjs` | Для каждого языка запускает **настоящим компилятором** заготовку (не должна проходить) и эталон (обязан пройти все проверки) каждого задания. Список языков и команд запуска лежит в начале файла |
 | `src/runner/page.ts` | Задания HTML/CSS: сборка документа и проверка страницы по `PageCheck` (см. раздел 8) |
@@ -103,7 +103,7 @@
 | Язык | Песочница | Адаптер |
 |---|---|---|
 | Go | Go Playground (`go.dev/_/compile`) | `goPlayground` в `lib/runners.ts` |
-| Python, Java, C++, PHP, Pascal, TypeScript, SQL (SQLite), Bash | Wandbox (`wandbox.org/api`), бесплатный, без ключа | `wandbox(язык, шаблон имени, файл)` в `lib/runners.ts` |
+| Python, Java, C, C++, PHP, Pascal, TypeScript, SQL (SQLite), Bash | Wandbox (`wandbox.org/api`), бесплатный, без ключа | `wandbox(язык, шаблон имени, файл)` в `lib/runners.ts` |
 
 **Go Playground.** Отправляет один файл `package main` формой `version=2&body=...&withVet=false`, собирает `stdout` и `stderr` из событий, ошибки компиляции получает текстом.
 

@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { publicPages, findPage } from "../src/pages.ts";
 import { AI_BOTS, PRIVATE_PATHS, buildPages, fileOf, lastmodOf, llmsFullTxt, llmsTxt, manifest, refMarkdown, robots, securityTxt, seoHeaders, sitemap, textFiles } from "../src/seo.ts";
-import { C, CATS } from "../src/data.ts";
+import { C, CATS, refKeys, refMeta } from "../src/data.ts";
 import { REF } from "../src/data/reference/index.ts";
 import { NEWS_PATH, RELEASES } from "../src/changelog.ts";
 import { FACTS } from "../content/facts.ts";
@@ -19,7 +19,7 @@ const pages = publicPages();
 const ukOnly = (list) => list.filter((f) => !f.file.startsWith("en/"));
 const files = ukOnly(buildPages(template, SITE));
 
-t("сторінок 26: головна, каталог, як це працює, про проєкт, що нового, підтримка, політика, умови, 5 напрямів, 13 довідників", () => assert.equal(pages.length, 26));
+t("сторінок 35: головна, каталог, як це працює, про проєкт, що нового, підтримка, політика, умови, 5 напрямів, 22 довідники", () => assert.equal(pages.length, 35));
 t("адреси унікальні, заголовки й описи унікальні та не порожні", () => {
   assert.equal(new Set(pages.map((p) => p.path)).size, pages.length);
   assert.equal(new Set(pages.map((p) => p.title)).size, pages.length);
@@ -176,11 +176,11 @@ t("JSON-LD: каталог і напрями мають ItemList курсів (C
   }
 });
 t("JSON-LD: довідник мови це TechArticle і LearningResource з розділами в teaches", () => {
-  for (const k of Object.keys(C)) {
+  for (const k of refKeys()) {
     const a = graphOf(filesO.find((x) => x.file === `ref/${k}.html`).html).find((n) => typesOf(n).includes("TechArticle"));
     assert.ok(typesOf(a).includes("LearningResource"), k);
     assert.deepEqual(a.teaches, REF[k].map((s) => s.t), k);
-    assert.equal(a.about.name, C[k].name); assert.equal(a.inLanguage, "uk"); assert.equal(a.isAccessibleForFree, true); assert.equal(a.dateModified, "2026-11-17");
+    assert.equal(a.about.name, refMeta(k).name); assert.equal(a.inLanguage, "uk"); assert.equal(a.isAccessibleForFree, true); assert.equal(a.dateModified, "2026-11-17");
   }
 });
 t("JSON-LD: сторінка з HTML у назві не ламає розмітку (символ < екранується в \\u003c)", () => {
@@ -224,20 +224,20 @@ t("sitemap: дата зміни — переданий день, а для «Щ�
 });
 
 const tf = textFiles(SITE, { modified: "2026-11-17" }), byFile = new Map(tf.map((x) => [x.file, x.text]));
-t("файли для ІІ: llms.txt, llms-full.txt, manifest, security.txt і 13 Markdown-довідників", () => {
+t("файли для ІІ: llms.txt, llms-full.txt, manifest, security.txt і 22 Markdown-довідники", () => {
   for (const n of ["llms.txt", "llms-full.txt", "manifest.webmanifest", ".well-known/security.txt"]) assert.ok(byFile.get(n)?.length > 100, n);
-  for (const k of Object.keys(C)) assert.ok(byFile.has(`ref/${k}.md`), k);
-  assert.equal(tf.length, 4 + Object.keys(C).length);
+  for (const k of refKeys()) assert.ok(byFile.has(`ref/${k}.md`), k);
+  assert.equal(tf.length, 4 + refKeys().length);
 });
 t("llms.txt: за специфікацією (H1, цитата-опис, розділи H2), усі посилання абсолютні, ведуть на наші публічні сторінки або файли", () => {
   const txt = llmsTxt(SITE);
   assert.ok(txt.startsWith("# Iteris Code\n\n> "));
   assert.deepEqual(txt.match(/^## .+$/gm), ["## Основне", "## Напрями", "## Довідники мов (Markdown)", "## Службове", "## Optional"]);
-  const known = new Set([...pages.map((p) => SITE + (p.path === "/" ? "/" : p.path)), `${SITE}/sitemap.xml`, `${SITE}/llms-full.txt`, `${SITE}/en/`, ...Object.keys(C).map((k) => `${SITE}/ref/${k}.md`)]);
+  const known = new Set([...pages.map((p) => SITE + (p.path === "/" ? "/" : p.path)), `${SITE}/sitemap.xml`, `${SITE}/llms-full.txt`, `${SITE}/en/`, ...refKeys().map((k) => `${SITE}/ref/${k}.md`)]);
   const links = [...txt.matchAll(/^- \[[^\]]+\]\((https?:[^)]+)\): .+$/gm)].map((m) => m[1]);
   assert.ok(links.length >= 28, "посилань " + links.length);
   for (const l of links) assert.ok(known.has(l), "невідоме посилання " + l);
-  for (const k of Object.keys(C)) assert.ok(links.includes(`${SITE}/ref/${k}.md`), k);
+  for (const k of refKeys()) assert.ok(links.includes(`${SITE}/ref/${k}.md`), k);
 });
 t("llms.txt: не веде на закриті адреси й не містить слів, заборонених на публічних сторінках (D15)", () => {
   const txt = llmsTxt(SITE).toLowerCase();
@@ -248,14 +248,14 @@ t("llms-full.txt: опис, усі запитання й відповіді, с�
   const txt = llmsFullTxt(SITE);
   assert.ok(txt.startsWith("# Iteris Code: повний опис і довідники"));
   for (const [q, a] of pages[0].faq) assert.ok(txt.includes(`### ${q}`) && txt.includes(a), q);
-  for (const [k, c] of Object.entries(C)) assert.ok(txt.includes(`\n### ${c.name}: довідник синтаксису українською`) && txt.includes(`Сторінка: ${SITE}/ref/${k}`), k);
+  for (const [k, c] of refKeys().map((k) => [k, refMeta(k)])) assert.ok(txt.includes(`\n### ${c.name}: довідник синтаксису українською`) && txt.includes(`Сторінка: ${SITE}/ref/${k}`), k);
   assert.equal((txt.match(/^```/gm) || []).length % 2, 0, "кодові блоки парні");
   assert.ok(txt.length > 50000 && txt.length < 400000, "розмір " + txt.length);
 });
 t("Markdown-довідник: заголовок, розділи й приклади збігаються з довідником на сторінці, блоки коду з мовою", () => {
   for (const [k, secs] of Object.entries(REF)) {
     const md = refMarkdown(k, SITE);
-    assert.ok(md.startsWith(`# ${C[k].name}: довідник синтаксису українською\n\n> ${C[k].desc}`), k);
+    assert.ok(md.startsWith(`# ${refMeta(k).name}: довідник синтаксису українською\n\n> ${refMeta(k).desc}`), k);
     assert.equal((md.match(/^## /gm) || []).length, secs.length, k + " розділи");
     assert.equal((md.match(/^### /gm) || []).length, secs.reduce((n, s) => n + s.items.length, 0), k + " приклади");
     assert.equal((md.match(/^```/gm) || []).length, secs.reduce((n, s) => n + s.items.length, 0) * 2, k + " блоки");
