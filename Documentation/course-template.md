@@ -355,7 +355,7 @@
 
 - **Запуск:** Wandbox (`bash`); локально `bash main.sh`.
 - **Сейчас:** 8 уроков и 8 заданий, дописать 102.
-- **Статус (26.11.2026):** план всех 110 уроков лежит в `content/bash/chapters.js` (12 глав, 30 `adv`, 8 `keep`), тестовый стенд `tests/bash-course.test.mjs`, инструкция авторам [bash-course-authoring.md](bash-course-authoring.md); написаны главы 01–03 (28 уроков), остальные в работе. Ветка `feature-bash-course-levels`, курс на сайт пока не подключён.
+- **Статус (26.11.2026):** план всех 110 уроков лежит в `content/bash/chapters.js` (12 глав, 30 `adv`, 8 `keep`), тестовый стенд `tests/bash-course.test.mjs`, инструкция авторам [bash-course-authoring.md](bash-course-authoring.md); написаны главы 01–04 (35 уроков), остальные в работе. Ветка `feature-bash-course-levels`, курс на сайт пока не подключён.
 
 | № | Глава | Уроков | из них adv |
 |---|---|---|---|
