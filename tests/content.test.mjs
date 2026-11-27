@@ -10,7 +10,7 @@ import { LESSONS } from "../content/lessons.js";
 import { TASKS } from "../content/tasks/index.ts";
 import { REF } from "../src/data/reference/index.ts";
 import { isRemote } from "../src/tasks/types.ts";
-import { C, publicLessonTotal } from "../src/data.ts";
+import { C, R, publicLessonTotal } from "../src/data.ts";
 
 const sqlite = new DatabaseSync(":memory:");
 sqlite.exec(readFileSync(new URL("../schema.sql", import.meta.url), "utf8"));
@@ -92,7 +92,7 @@ await t("урок із Go-завданням: очікувані перевір�
 });
 
 await t("урок без завдання: task = null", async () => {
-  const r = await get(lessonApi, "/api/lesson?k=php&n=8", cookie);   // PDO: у пісочниці немає бази даних, завдання немає
+  const r = await get(lessonApi, "/api/lesson?k=php&n=105", cookie);   // PDO: у пісочниці немає бази даних, завдання немає
   assert.equal(r.data.task, null);
 });
 
@@ -102,8 +102,9 @@ await t("некоректні параметри: 404", async () => {
   }
 });
 
-await t("довідник: 14 мов, у кожної розділи з прикладами коду", async () => {
-  assert.deepEqual(Object.keys(REF).sort(), Object.keys(LESSONS).sort());
+await t("довідник: мови курсів і мови лише з довідником, у кожної розділи з прикладами коду", async () => {
+  assert.deepEqual(Object.keys(REF).sort(), [...Object.keys(LESSONS), ...Object.keys(R)].sort());
+  assert.ok(Object.keys(R).every((k) => !(k in LESSONS)), "мова не може бути і в курсах, і лише в довіднику");
   for (const [k, secs] of Object.entries(REF)) {
     assert.ok(secs.length >= 5, k + ": мало розділів");
     for (const s of secs) {

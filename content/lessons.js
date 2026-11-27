@@ -8,6 +8,7 @@ import { CSS_LESSONS } from "./css/index.js";
 import { SQL_LESSONS } from "./sql/index.js";
 import { JAVA_LESSONS } from "./java/index.js";
 import { JS_LESSONS } from "./js/index.js";
+import { PHP_LESSONS } from "./php/index.js";
 const LESSONS = {
 pascal: [
 { t: "Структура програми на Pascal",
@@ -36,6 +37,7 @@ LESSONS.cpp = CPP_LESSONS;   // курс C++: 110 уроків (80 базови�
 LESSONS.css = CSS_LESSONS;   // курс CSS: 40 уроків (35 базових + 5 просунутих), content/css/
 LESSONS.java = JAVA_LESSONS;   // курс Java: 110 уроків (80 базових + 30 просунутих), content/java/
 LESSONS.js = JS_LESSONS;   // курс JavaScript: 110 уроків (80 базових + 30 просунутих), content/js/
+LESSONS.php = PHP_LESSONS;   // курс PHP: 110 уроків (80 базових + 30 просунутих), content/php/
 LESSONS.sql = SQL_LESSONS;   // курс SQL: 35 уроків у 10 главах (30 базових + 5 просунутих), content/sql/
 LESSONS.ts = [
 { t: "Від JavaScript до TypeScript",
@@ -115,99 +117,7 @@ Object.keys(CHAPTERS).forEach(k => CHAPTERS[k].forEach(([name, from], i, a) => {
   for (let j = from; j < to; j++) LESSONS[k][j].ch = name;
 }));
 
-/* ===== PHP, Git, Bash ===== */
-LESSONS.php = [
-{ t: "Перша програма на PHP",
-  p: ["PHP — мова для серверної частини сайтів: на ній працює WordPress та значна частина вебу. Код PHP виконується на сервері, а браузер отримує вже готовий HTML.", "PHP-код пишуть між тегами <code>&lt;?php</code> і <code>?&gt;</code>. Вивід на сторінку робить <code>echo</code>. Локальний сервер запускають командою <code>php -S localhost:8000</code>."],
-  code: [String.raw`<?php
-// це коментар
-echo "Привіт, світе!";
-echo "<p>2 + 3 = " . (2 + 3) . "</p>";
-?>`],
-  note: "Кожна інструкція завершується крапкою з комою, а склеювання рядків виконує крапка <code>.</code>, а не плюс.",
-  tasks: ["Виведіть на сторінку заголовок і два абзаци за допомогою echo.", "Запустіть вбудований сервер і відкрийте файл у браузері."] },
-{ t: "Змінні та типи даних",
-  p: ["Імена змінних у PHP починаються зі знака долара. Тип визначається автоматично за значенням: <code>int</code>, <code>float</code>, <code>string</code>, <code>bool</code>.", "У рядках у подвійних лапках змінні підставляються прямо в текст, а в одинарних лапках виводиться буквальний текст."],
-  code: [String.raw`<?php
-$name = "Олена";
-$age = 16;
-$height = 1.75;
-$isStudent = true;
-
-echo "Привіт, $name! Вам $age років.<br>";
-echo 'У одинарних лапках: $name<br>';
-var_dump($age, $height, $isStudent);
-echo gettype($name);
-?>`],
-  note: "Функція <code>var_dump</code> показує і значення, і тип. Це головний інструмент налагодження для початківця.",
-  tasks: ["Обчисліть площу кола за радіусом і виведіть її з двома знаками (<code>round($s, 2)</code>).", "Виведіть тип значень 7, 7.0 і \"7\" через gettype."] },
-{ t: "Умови та цикли",
-  p: ["Умови записують через <code>if / elseif / else</code>. Цикли <code>for</code> і <code>while</code> працюють так само, як у C-подібних мовах.", "Для спрощення вибору з багатьох варіантів є <code>match</code>, який повертає значення."],
-  code: [String.raw`<?php
-$score = 85;
-
-if ($score >= 90) {
-    echo "Відмінно";
-} elseif ($score >= 75) {
-    echo "Добре";
-} else {
-    echo "Потрібно підтягнути";
-}
-
-for ($i = 1; $i <= 5; $i++) {
-    echo "Крок $i<br>";
-}
-
-$day = 3;
-echo match ($day) {
-    1 => "Понеділок",
-    2 => "Вівторок",
-    3 => "Середа",
-    default => "Інший день",
-};
-?>`],
-  note: "Оператор <code>===</code> порівнює значення разом із типом, тому <code>0 === \"0\"</code> дає false.",
-  tasks: ["Виведіть парні числа від 1 до 20.", "Визначте за номером місяця пору року через match."] },
-{ t: "Масиви",
-  p: ["Масив у PHP — універсальна структура. Індексований масив зберігає значення за номерами, асоціативний — за ключами-рядками.", "Перебирають масиви циклом <code>foreach</code>. Корисні функції: <code>count</code>, <code>in_array</code>, <code>array_map</code>, <code>sort</code>."],
-  code: [String.raw`<?php
-$langs = ["PHP", "Go", "Python"];
-$langs[] = "Java";
-echo count($langs);
-
-$user = ["name" => "Олена", "age" => 16];
-echo $user["name"];
-
-foreach ($user as $key => $value) {
-    echo "$key: $value<br>";
-}
-
-$nums = [3, 1, 2];
-sort($nums);
-$sq = array_map(fn($n) => $n * $n, $nums);
-print_r($sq);
-?>`],
-  note: "Додати елемент у кінець масиву можна коротким записом <code>$arr[] = значення</code>.",
-  tasks: ["Створіть асоціативний масив товару з назвою та ціною й виведіть його циклом.", "Підрахуйте суму чисел масиву за допомогою foreach."] },
-{ t: "Функції та обробка форм",
-  p: ["Функції оголошують словом <code>function</code>. Для типів параметрів і результату можна додавати анотації, це робить код надійнішим.", "Дані з форми приходять у суперглобальний масив <code>$_POST</code>. Будь-який введений користувачем текст перед виведенням обов'язково екранують функцією <code>htmlspecialchars</code>, щоб захиститись від XSS."],
-  code: [String.raw`<?php
-function greet(string $name): string {
-    return "Привіт, " . htmlspecialchars($name) . "!";
-}
-
-if ($_SERVER["REQUEST_METHOD"] === "POST") {
-    $name = trim($_POST["name"] ?? "");
-    echo $name !== "" ? greet($name) : "Введіть ім'я";
-}
-?>
-<form method="post">
-  <input type="text" name="name">
-  <button>Надіслати</button>
-</form>`],
-  note: "Ніколи не виводьте дані користувача на сторінку без екранування: це одна з найпоширеніших вразливостей.",
-  tasks: ["Зробіть форму з двома числами, що виводить їхню суму.", "Додайте перевірку, що поле не порожнє."] }
-];
+/* ===== Git, Bash ===== */
 LESSONS.git = [
 { t: "Що таке Git і перші коміти",
   p: ["Git — система контролю версій: вона запам'ятовує всі зміни коду, дозволяє повернутися до будь-якого стану й працювати над проєктом удвох чи більше людей. Без Git не обходиться жодна команда розробників.", "Основний цикл простий: змінюєте файли, додаєте їх у індекс командою <code>add</code> і фіксуєте стан командою <code>commit</code>."],
@@ -319,11 +229,10 @@ done
   tasks: ["Напишіть скрипт, що створює папку з поточною датою (<code>date +%F</code>).", "Додайте скрипту права на виконання й запустіть його."] }
 ];
 Object.assign(CHAPTERS, {
-  php: [["Основи", 0], ["Керування й дані", 2], ["Веб і форми", 4]],
   git: [["Основи Git", 0], ["Робота в команді", 2]],
   bash: [["Файли й папки", 0], ["Текст і скрипти", 1]]
 });
-["php", "git", "bash"].forEach(k => CHAPTERS[k].forEach(([name, from], i, a) => {
+["git", "bash"].forEach(k => CHAPTERS[k].forEach(([name, from], i, a) => {
   const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[k].length;
   for (let j = from; j < to; j++) LESSONS[k][j].ch = name;
 }));
@@ -374,23 +283,6 @@ Object.assign(CHAPTERS, {
   const T = t => { if (!byTitle[t]) throw new Error("Немає уроку: " + t); return byTitle[t]; };
   LESSONS[key] = [T("Командний рядок: файли та папки"), T("Перегляд тексту, пошук і конвеєри"), N.find, N.env, T("Права доступу та перші скрипти"), N.logic, N.proc, N.net];
   CHAPTERS[key] = [["Файли й текст", 0], ["Середовище та скрипти", 3], ["Система й мережа", 6]];
-  CHAPTERS[key].forEach(([name, from], i, a) => {
-    const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[key].length;
-    for (let j = from; j < to; j++) LESSONS[key][j].ch = name;
-  });
-})();
-
-/* ===== PHP ===== */
-(function () {
-  const key = "php";
-  const N = {"strings": {"t": "Рядки та вбудовані функції", "p": ["У PHP багато готових функцій для роботи з рядками: <code>strlen</code> (довжина в байтах), <code>mb_strlen</code> (довжина в символах, правильна для кирилиці), <code>strtoupper</code>, <code>trim</code>, <code>str_replace</code>, <code>substr</code>, <code>strpos</code>, <code>explode</code> (рядок у масив) та <code>implode</code> (масив у рядок).", "Для кирилиці обирайте функції з префіксом <code>mb_</code>: звичайні рахують байти й ламають українські літери. Вивід чисел із форматуванням робить <code>number_format</code>, а дати — <code>date</code>."], "code": ["<?php\n$text = \"  Привіт, PHP!  \";\necho strlen($text), \" \", mb_strlen($text), \"<br>\";   // байти й символи\necho mb_strtoupper(trim($text)), \"<br>\";\necho str_replace(\"PHP\", \"світе\", $text), \"<br>\";\n\n$parts = explode(\",\", \"яблуко,груша,слива\");\necho count($parts), \" \", implode(\" | \", $parts), \"<br>\";\n\necho str_contains($text, \"PHP\") ? \"є\" : \"немає\", \"<br>\";\necho number_format(1234567.891, 2, \",\", \" \"), \"<br>\";   // 1 234 567,89\necho date(\"d.m.Y H:i\"), \"<br>\";\necho ucfirst(\"олена\"), \" \", mb_substr(\"Привіт\", 0, 3);\n?>"], "note": "Для рядків із кирилицею використовуйте лише функції з префіксом <code>mb_</code>, інакше текст може «зламатися».", "easy": "Рядкові функції — це набір ножиць, лінійок і клею для тексту: обрізати, склеїти, розбити, замінити.", "work": "Обробка введеного тексту (очищення, перевірка, форматування) трапляється в кожній формі й кожному звіті. Проблеми з кирилицею (<code>strlen</code> замість <code>mb_strlen</code>) — типова помилка початківців.", "tasks": ["Напишіть функцію, що перетворює ім'я на формат «Іван П.».", "Розбийте рядок із словами через explode і виведіть найдовше слово."]}, "oop": {"t": "Класи та об'єкти в PHP", "p": ["Клас описується словом <code>class</code>, а об'єкт створюється через <code>new</code>. Модифікатори доступу: <code>public</code>, <code>protected</code>, <code>private</code>. Конструктор — метод <code>__construct</code>. З PHP 8 властивості можна оголошувати прямо в параметрах конструктора.", "Наслідування працює через <code>extends</code>, а спільну поведінку описують інтерфейсами (<code>interface</code>) і трейтами. Простір імен <code>namespace</code> розділяє класи за папками, як у файловій системі."], "code": ["<?php\ndeclare(strict_types=1);\n\ninterface Describable {\n    public function describe(): string;\n}\n\nclass Product implements Describable {\n    public function __construct(\n        private string $title,\n        private float $price,\n    ) {}\n\n    public function getPrice(): float { return $this->price; }\n\n    public function withDiscount(int $percent): float {\n        return $this->price * (100 - $percent) / 100;\n    }\n\n    public function describe(): string {\n        return \"{$this->title}: {$this->price} грн\";\n    }\n}\n\nclass DigitalProduct extends Product {\n    public function describe(): string {\n        return parent::describe() . \" (цифровий)\";\n    }\n}\n\n$p = new DigitalProduct(\"Курс PHP\", 500.0);\necho $p->describe(), \"<br>\";\necho $p->withDiscount(20);\n?>"], "note": "Директива <code>declare(strict_types=1)</code> вмикає сувору перевірку типів аргументів: у сучасних проєктах вона стоїть на початку кожного файлу.", "easy": "Клас — це креслення, а об'єкт — виріб за ним. Модифікатори доступу — замки: private відчиняється лише зсередини.", "work": "Сучасний PHP — це в основному ООП: Laravel, Symfony і WordPress-плагіни складаються з класів. Розуміння класів, інтерфейсів і просторів імен потрібне на кожній PHP-вакансії.", "tasks": ["Опишіть клас User із приватними полями та методом, що повертає повне ім'я.", "Створіть клас-нащадок Admin і перевизначте метод опису."]}, "pdo": {"t": "База даних із PHP: PDO", "p": ["PDO (PHP Data Objects) — єдиний спосіб підключення до різних баз даних: MySQL, PostgreSQL, SQLite. Підключення створює об'єкт <code>PDO</code>. Запити виконують через підготовлені вирази: у текст запиту вставляють позначки <code>:name</code> або <code>?</code>, а значення передають окремо.", "Підготовлені вирази — головний захист від SQL-ін'єкцій: значення ніколи не вставляються в текст запиту напряму. Режим помилок <code>ERRMODE_EXCEPTION</code> змушує PDO кидати винятки замість мовчазних збоїв."], "code": ["<?php\n$pdo = new PDO(\"sqlite:app.db\");\n$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);\n$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);\n\n$pdo->exec(\"CREATE TABLE IF NOT EXISTS users (\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\n    name TEXT NOT NULL,\n    email TEXT UNIQUE NOT NULL\n)\");\n\n$stmt = $pdo->prepare(\"INSERT INTO users (name, email) VALUES (:name, :email)\");\n$stmt->execute([\":name\" => \"Олена\", \":email\" => \"o@x.ua\"]);\n\n$stmt = $pdo->prepare(\"SELECT * FROM users WHERE email = :email\");\n$stmt->execute([\":email\" => \"o@x.ua\"]);\n$user = $stmt->fetch();\necho htmlspecialchars($user[\"name\"]);\n\nforeach ($pdo->query(\"SELECT id, name FROM users\") as $row) {\n    echo $row[\"id\"], \": \", htmlspecialchars($row[\"name\"]), \"<br>\";\n}\n?>"], "note": "Ніколи не збирайте SQL склеюванням рядків із даними користувача. Тільки <code>prepare</code> та <code>execute</code>.", "easy": "Підготовлений вираз — шаблон бланка з порожніми клітинками: значення вписують окремо, і база сприймає їх лише як дані, а не як команди.", "work": "Практично кожен PHP-проєкт працює з базою, а SQL-ін'єкції досі входять у топ вразливостей. Підготовлені вирази і екранування виводу (<code>htmlspecialchars</code>) — вимога на будь-якому ревʼю.", "tasks": ["Створіть таблицю товарів і додайте три записи через PDO.", "Виведіть усі записи у вигляді HTML-списку."]}, "auth": {"t": "Сесії, cookies та авторизація", "p": ["HTTP не пам'ятає користувача між запитами, тому використовують <b>сесії</b>: сервер зберігає дані й видає браузеру ідентифікатор у cookie. Сесію запускає <code>session_start()</code>, а дані лежать у масиві <code>$_SESSION</code>.", "Паролі не зберігають у відкритому вигляді. Функція <code>password_hash</code> створює безпечний хеш, а <code>password_verify</code> перевіряє пароль. Після входу в сесію записують id користувача, а після виходу знищують її."], "code": ["<?php\nsession_start();\n\n// реєстрація: зберігаємо лише хеш\n$hash = password_hash(\"MySecret123\", PASSWORD_DEFAULT);\n\n// вхід\nfunction login(PDO $pdo, string $email, string $password): bool {\n    $stmt = $pdo->prepare(\"SELECT id, password_hash FROM users WHERE email = :e\");\n    $stmt->execute([\":e\" => $email]);\n    $user = $stmt->fetch();\n    if ($user && password_verify($password, $user[\"password_hash\"])) {\n        session_regenerate_id(true);\n        $_SESSION[\"user_id\"] = $user[\"id\"];\n        return true;\n    }\n    return false;\n}\n\n// захищена сторінка\nif (!isset($_SESSION[\"user_id\"])) {\n    header(\"Location: /login.php\");\n    exit;\n}\n\n// вихід\n$_SESSION = [];\nsession_destroy();\n?>"], "note": "Після успішного входу викликайте <code>session_regenerate_id(true)</code>: це захищає від підміни сесії.", "easy": "Сесія — гардеробний номерок: сервер пам'ятає вміст, а у вас лише номер. password_hash — незворотний «відбиток» пароля: навіть адміністратор не прочитає оригінал.", "work": "Реєстрація і вхід — найчастіше завдання в тестових для PHP-розробників. Перевіряють, чи не зберігаєте ви паролі відкрито, чи використовуєте підготовлені вирази й екранування.", "tasks": ["Реалізуйте сторінки реєстрації та входу з password_hash.", "Додайте захищену сторінку, доступну лише після входу."]}, "composer": {"t": "Composer та структура проєкту", "p": ["Composer — менеджер залежностей PHP: він встановлює бібліотеки з packagist.org і налаштовує автозавантаження класів. Залежності описані в <code>composer.json</code>, а точні версії фіксує <code>composer.lock</code>. Папку <code>vendor</code> у Git не додають.", "Стандарт PSR-4 пов'язує простір імен із папкою: клас <code>App\\Models\\User</code> лежить у <code>src/Models/User.php</code>. Точка входу сайту зазвичай одна — <code>public/index.php</code>, а решта коду лежить поза публічною папкою."], "code": ["# термінал\ncomposer init\ncomposer require vlucas/phpdotenv\ncomposer require --dev phpunit/phpunit\ncomposer install        # встановити залежності з composer.lock\ncomposer dump-autoload\n\n# composer.json (скорочено)\n{\n  \"require\": { \"vlucas/phpdotenv\": \"^5.6\" },\n  \"autoload\": { \"psr-4\": { \"App\\\\\": \"src/\" } }\n}\n\n# структура\nproject/\n├── public/index.php\n├── src/Models/User.php\n├── .env\n├── composer.json\n└── vendor/\n\n// public/index.php\n<?php\nrequire __DIR__ . \"/../vendor/autoload.php\";\nuse App\\Models\\User;\n$user = new User(\"Олена\");"], "note": "Файл <code>.env</code> із паролями й ключами додайте в <code>.gitignore</code> і не публікуйте в репозиторій.", "easy": "Composer — це магазин бібліотек із чіткою накладною: composer.lock фіксує, яку саме версію кожного товару ви купили.", "work": "Жодна сучасна PHP-вакансія не обходиться без Composer і PSR-4. Laravel, Symfony і більшість бібліотек підключаються саме так, тому створення проєкту із застосуванням Composer — перше, що показують на роботі.", "tasks": ["Створіть проєкт через composer init і підключіть будь-яку бібліотеку.", "Розкладіть свої класи за PSR-4 і підключіть автозавантаження."]}};
-  const easyOld = {"Перша програма на PHP": "PHP виконується на сервері: він збирає сторінку й віддає браузеру вже готовий HTML.", "Змінні та типи даних": "Змінна в PHP починається зі знака долара й сама визначає тип за вмістом.", "Умови та цикли": "if — розвилка, for і foreach — повтори. match — зручний перемикач із кількох варіантів.", "Масиви": "Масив у PHP — універсальна шафа: нумеровані полиці або полиці з назвами.", "Функції та обробка форм": "Функція — рецепт, а форма — спосіб отримати дані від людини. Дані від користувача завжди екрануємо."};
-  const workOld = {"Перша програма на PHP": "У роботі PHP майже ніколи не пишуть «голим»: використовують фреймворки (Laravel, Symfony) та CMS (WordPress). Але базове розуміння того, що відбувається на сервері, потрібне всім.", "Змінні та типи даних": "У сучасних проєктах вмикають сувору типізацію та анотації типів: так помилки видно до запуску.", "Умови та цикли": "Умови й цикли — основа обробки даних із бази та форм. Читабельні умови (ранній вихід замість вкладених if) цінуються в рев'ю.", "Масиви": "Асоціативні масиви в PHP — це й словники, й записи з бази, і конфігурація. Функції <code>array_map</code>, <code>array_filter</code> використовують постійно.", "Функції та обробка форм": "Валідація й екранування даних форм — обов'язкові. XSS досі одна з найпоширеніших вразливостей, і її шукають на кожному ревʼю."};
-  const byTitle = {};
-  LESSONS[key].forEach(l => { byTitle[l.t] = l; l.easy = easyOld[l.t]; l.work = workOld[l.t]; });
-  const T = t => { if (!byTitle[t]) throw new Error("Немає уроку: " + t); return byTitle[t]; };
-  LESSONS[key] = [T("Перша програма на PHP"), T("Змінні та типи даних"), N.strings, T("Умови та цикли"), T("Масиви"), T("Функції та обробка форм"), N.oop, N.pdo, N.auth, N.composer];
-  CHAPTERS[key] = [["Основи", 0], ["Функції та форми", 5], ["ООП і бази даних", 6], ["Авторизація та проєкт", 8]];
   CHAPTERS[key].forEach(([name, from], i, a) => {
     const to = i + 1 < a.length ? a[i + 1][1] : LESSONS[key].length;
     for (let j = from; j < to; j++) LESSONS[key][j].ch = name;

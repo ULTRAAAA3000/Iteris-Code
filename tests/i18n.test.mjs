@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { JSDOM } from "jsdom";
 
-import { C, CATS } from "../src/data.ts";
+import { C, CATS, refKeys } from "../src/data.ts";
 import { REF } from "../src/data/reference/index.ts";
 import { CHROME_EN, altsFor, chromeHtml } from "../src/chrome.ts";
 import { catDesc, catTitle, CAT_EN, COURSE_EN, courseDesc, courseName } from "../src/i18n-data.ts";
@@ -163,7 +163,7 @@ await test("шапка й підвал: англійський шаблон бе
 });
 
 await test("довідники: англійська версія має ту саму структуру, код без кирилиці, рядки без українських слів не змінені", () => {
-  for (const k of Object.keys(C)) {
+  for (const k of Object.keys(REF)) {
     const a = REF[k], b = inLang("en", () => refSections(k));
     assert.equal(b.length, a.length, k);
     a.forEach((s, i) => {
@@ -183,8 +183,8 @@ await test("довідники: англійська версія має ту с
 });
 
 await test("напрями й курси: переклад є для кожного ключа, без кирилиці", () => {
-  assert.deepEqual(Object.keys(CAT_EN).sort(), Object.keys(CATS).sort()); assert.deepEqual(Object.keys(COURSE_EN).sort(), Object.keys(C).sort());
-  inLang("en", () => { for (const k of Object.keys(C)) { assert.ok(!CY.test(courseName(k)) && !CY.test(courseDesc(k)), k); } for (const k of Object.keys(CATS)) assert.ok(!CY.test(catTitle(k)) && !CY.test(catDesc(k)), k); });
+  assert.deepEqual(Object.keys(CAT_EN).sort(), Object.keys(CATS).sort()); assert.deepEqual(Object.keys(COURSE_EN).sort(), refKeys().sort());
+  inLang("en", () => { for (const k of refKeys()) { assert.ok(!CY.test(courseName(k)) && !CY.test(courseDesc(k)), k); } for (const k of Object.keys(CATS)) assert.ok(!CY.test(catTitle(k)) && !CY.test(catDesc(k)), k); });
   assert.equal(inLang("en", () => courseName("bash")), "Command line"); assert.equal(courseName("bash"), C.bash.name);
 });
 

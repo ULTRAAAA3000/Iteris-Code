@@ -24,7 +24,7 @@ const META: Record<string, CourseMeta> = {
   go: { lessons: 110, base: 80, name: "Go", badge: "Go", color: "#00ADD8", cat: "program", desc: "Проста й швидка мова від Google: типи, функції та горутини для паралельності." },
   java: { lessons: 110, base: 80, name: "Java", badge: "Jv", color: "#E76F00", cat: "program", desc: "Мова великих застосунків: типи, класи, колекції, потоки, мережа та архітектура сервісу." },
   ts: { lessons: 12, landingHidden: true, name: "TypeScript", badge: "TS", color: "#3178C6", cat: "web", req: "js", desc: "JavaScript із типами: менше помилок, зрозуміліший код. Продовження курсу JavaScript." },
-  php: { lessons: 10, landingHidden: true, name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
+  php: { lessons: 110, base: 80, landingHidden: true, name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
   git: { lessons: 10, landingHidden: true, name: "Git", badge: "Gt", color: "#F05032", cat: "tools", desc: "Контроль версій: коміти, гілки, GitHub і робота в команді." },
   bash: { lessons: 8, landingHidden: true, name: "Командний рядок", badge: "Sh", color: "#3E4A59", cat: "tools", desc: "Термінал і Bash: файли, пошук, конвеєри та перші скрипти." },
   sql: { lessons: 35, base: 30, name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: від SELECT до JOIN, підзапитів, віконних функцій, індексів і транзакцій." }
@@ -67,6 +67,23 @@ export const taskOf = (k: string, n: number): TaskMeta | undefined => { const id
 export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.L.length, 0);
 /** Кількість уроків усіх курсів без входу (для публічних сторінок) */
 export const publicLessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.lessons, 0);
+
+/** Мова, яка поки має лише довідник (без уроків і завдань): сторінка /ref/<ключ>, чип на головній, файли для ІІ. Курс з'явиться згодом і тоді переїде в META */
+export interface RefLang { name: string; badge: string; color: string; cat: string; desc: string }
+export const R: Record<string, RefLang> = {
+  rust: { name: "Rust", badge: "Rs", color: "#B7410E", cat: "program", desc: "Мова без збирача сміття: безпека пам'яті, володіння, трейти й швидкість рівня C++." },
+  csharp: { name: "C#", badge: "C#", color: "#68217A", cat: "program", desc: "Мова платформи .NET: застосунки, ігри на Unity, веб і сервіси." },
+  kotlin: { name: "Kotlin", badge: "Kt", color: "#7F52FF", cat: "program", desc: "Сучасна мова для Android і сервера: лаконічний синтаксис, null-безпека й корутини." },
+  swift: { name: "Swift", badge: "Sw", color: "#F05138", cat: "program", desc: "Мова Apple: застосунки для iPhone, iPad і Mac, опціонали, структури й протоколи." },
+  ruby: { name: "Ruby", badge: "Rb", color: "#CC342D", cat: "program", desc: "Виразна мова для скриптів і вебу: блоки, символи й читабельний код, як у Rails." },
+  dart: { name: "Dart", badge: "Da", color: "#0175C2", cat: "program", desc: "Мова Flutter: один код для Android, iOS і вебу, null-безпека й асинхронність." },
+  lua: { name: "Lua", badge: "Lu", color: "#2C2D72", cat: "program", desc: "Маленька вбудовувана мова для ігор і скриптів: таблиці, замикання й корутини." },
+  r: { name: "R", badge: "R", color: "#276DC3", cat: "data", desc: "Мова статистики й аналізу даних: вектори, таблиці даних, функції та графіки." },
+};
+/** Опис мови для сторінки довідника: курс або мова лише з довідником */
+export const refMeta = (k: string): RefLang & { lessons?: number; base?: number } => C[k] ?? R[k];
+/** Ключі всіх довідників: спершу курси, потім мови лише з довідником */
+export const refKeys = (): string[] => [...Object.keys(C), ...Object.keys(R)];
 
 /** Курси для головної сторінки: без прихованих */
 export const landingKeys = (): string[] => Object.keys(C).filter((k) => !C[k].landingHidden);
