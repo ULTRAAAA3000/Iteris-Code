@@ -93,7 +93,7 @@ t("OAuth: правильний state обмінює код і веде в каб
 
 /* ---- звичайні сторінки ---- */
 const home = await page({ me: null, hash: "" });
-t("головна: курси та вкладки працюють", home.html().includes("13 мов") && !home.html().includes("lesson-layout") && home.$("[data-tab=h]") !== null);
+t("головна: курси та вкладки працюють", home.html().includes("7 мов") && !home.html().includes("lesson-layout") && home.$("[data-tab=h]") !== null);
 const ghPage = await page({ me: null, hash: "#/login", githubClientId: "ghid" });
 t("вхід: кнопка GitHub з'являється, лише коли GitHub налаштовано; Google при цьому лишається", !!ghPage.$('[data-act=github]') && !!ghPage.$('[data-act=google]') && !page_noGh_has(await page({ me: null, hash: "#/login" })));
 const ghBack = await page({ me: null, hash: "", search: "?code=abc&state=gh.good", state: "gh.good", githubClientId: "ghid" });

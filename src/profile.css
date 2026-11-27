@@ -106,3 +106,4 @@
 .adm-tbl-wrap{overflow-x:auto}.adm-tbl{width:100%;border-collapse:collapse;font-size:.9rem}
 .adm-tbl th,.adm-tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.adm-tbl th{color:var(--muted);font-weight:700}
 .adm-email{font-weight:700}
+.adm h3{margin:0 0 8px;font-size:1rem}
