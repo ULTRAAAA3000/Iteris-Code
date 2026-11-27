@@ -64,8 +64,8 @@ await test("дані проєктів: унікальні id, урок і кур
 });
 
 await test("пошук: projectById, projectForLesson, practiceById знаходять і проєкти, і завдання", () => {
-  assert.equal(projectById("js-todo")?.lesson, "js/17");
-  assert.equal(projectForLesson("js/17")?.id, "js-todo");
+  assert.equal(projectById("js-todo")?.lesson, "js/97");
+  assert.equal(projectForLesson("js/97")?.id, "js-todo");
   assert.equal(projectById("nope"), undefined);
   assert.equal(practiceById("js-todo")?.xp, 60);
   assert.equal(practiceById("js-safe-city")?.xp, 20);
@@ -145,13 +145,13 @@ await test("/api/project: гостю 401, вошедшему повний про
   for (const id of ["nope", "", "JS-TODO", "../x", "x".repeat(60)]) assert.equal((await call(projectApi, req("/api/project?id=" + encodeURIComponent(id), { cookie: c }))).status, 404, id);
 });
 
-await test("/api/courses: у структурі є список проєктів і позначка проєкту біля уроку js/17; гостю 401", async () => {
+await test("/api/courses: у структурі є список проєктів і позначка проєкту біля уроку js/97; гостю 401", async () => {
   const c = await login("pj6");
   assert.equal((await call(coursesApi, req("/api/courses"))).status, 401);
   const r = await call(coursesApi, req("/api/courses", { cookie: c }));
-  assert.deepEqual(r.data.projects.filter((p) => p.course === "js"), [{ id: "js-todo", title: "Проєкт: список справ", xp: 60, course: "js", lesson: "js/17" }]);
-  assert.equal(r.data.courses.js[16].project, "js-todo");
-  assert.equal(r.data.courses.js[15].project, undefined);
+  assert.deepEqual(r.data.projects.filter((p) => p.course === "js"), [{ id: "js-todo", title: "Проєкт: список справ", xp: 60, course: "js", lesson: "js/97" }]);
+  assert.equal(r.data.courses.js[96].project, "js-todo");
+  assert.equal(r.data.courses.js[95].project, undefined);
   assert.ok(!JSON.stringify(r.data).includes("task-input"), "структура курсів не містить умов і перевірок проєкту");
 });
 

@@ -99,12 +99,12 @@ await test("complete: без proof XP немає, з proof від цього к�
   assert.equal(again.data.xp, 0);
 });
 
-await test("/api/courses: у Go, Python і C++ позначені просунуті уроки, у курсів без рівнів їх немає; рівень за замовчуванням порожній (базовий); гостю 401", async () => {
+await test("/api/courses: у Go, Python, C++, Java і JS позначені просунуті уроки, у курсів без рівнів їх немає; рівень за замовчуванням порожній (базовий); гостю 401", async () => {
   assert.equal((await call(courses, get("/api/courses"))).status, 401);
   const r = await call(courses, get("/api/courses", ck));
   assert.equal(r.data.courses.go.length, 110); assert.equal(r.data.courses.go.filter((l) => l.adv).length, 30);
-  for (const k of ["python", "cpp"]) { assert.equal(r.data.courses[k].length, 110, k); assert.equal(r.data.courses[k].filter((l) => l.adv).length, 30, k); }
-  for (const k of ["java", "pascal", "js"]) assert.equal(r.data.courses[k].filter((l) => l.adv).length, 0, k);
+  for (const k of ["python", "cpp", "java", "js"]) { assert.equal(r.data.courses[k].length, 110, k); assert.equal(r.data.courses[k].filter((l) => l.adv).length, 30, k); }
+  for (const k of ["pascal"]) assert.equal(r.data.courses[k].filter((l) => l.adv).length, 0, k);
   assert.deepEqual(r.data.levels, {});
   assert.ok(r.data.projects.some((p) => p.id === "go-pipeline"));
 });
@@ -124,7 +124,7 @@ await test("/api/level: зберігається по користувачу, л
   assert.deepEqual((await call(courses, get("/api/courses", ck2))).data.levels, {});
   await call(level, post("/api/level", { course: "go", level: "base" }, ck));
   assert.deepEqual((await call(courses, get("/api/courses", ck))).data.levels, { go: "base" });
-  for (const b of [{ course: "java", level: "adv" }, { course: "go", level: "pro" }, { course: "__proto__", level: "adv" }, {}]) assert.equal((await call(level, post("/api/level", b, ck))).status, 400);
+  for (const b of [{ course: "pascal", level: "adv" }, { course: "go", level: "pro" }, { course: "__proto__", level: "adv" }, {}]) assert.equal((await call(level, post("/api/level", b, ck))).status, 400);
   assert.equal((await call(level, post("/api/level", { course: "go", level: "adv" }))).status, 401);
 });
 

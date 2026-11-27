@@ -418,7 +418,7 @@ export const PROJECTS: readonly ProgramProject[] = [
   {
     id: "java-wordstat",
     lang: "java",
-    lesson: "java/8",
+    lesson: "java/30",
     title: "Проєкт: статистика тексту",
     xp: 60,
     context:
@@ -450,7 +450,7 @@ export const PROJECTS: readonly ProgramProject[] = [
   {
     id: "java-shapes",
     lang: "java",
-    lesson: "java/10",
+    lesson: "java/40",
     title: "Проєкт: геометричні фігури",
     xp: 75,
     context:
@@ -483,7 +483,7 @@ export const PROJECTS: readonly ProgramProject[] = [
   {
     id: "java-library",
     lang: "java",
-    lesson: "java/11",
+    lesson: "java/54",
     title: "Проєкт: бібліотека",
     xp: 90,
     context:

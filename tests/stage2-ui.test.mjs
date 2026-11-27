@@ -141,16 +141,16 @@ await sleep(50);
 t("повторне перемальовування: вступні анімації не повторюються (клас again на .dash)", again.$(".dash")?.className.includes("again"));
 
 /* ---- шлях ---- */
-const jsN = LESSONS.js.length;
-const gGate = await page({ me: null, hash: "#/path/js", done: { js: [1, 2, 3] } });
+const jsN = LESSONS.php.length;
+const gGate = await page({ me: null, hash: "#/path/php", done: { php: [1, 2, 3] } });
 t("шлях: гостю закритий, замість нього запрошення увійти", gGate.html().includes("Уроки та завдання в кабінеті") && gGate.$$(".path-node").length === 0 && !gGate.calls.some((c) => c.url === "/api/courses"));
-const g = await page({ me: user, hash: "#/path/js", done: { js: [1, 2, 3] } });
+const g = await page({ me: user, hash: "#/path/php", done: { php: [1, 2, 3] } });
 const nodes = g.$$(".path-node");
-t("шлях: по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.js).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
-t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `/lesson/js/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
-t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="/lesson/js/4"]'));
-t("шлях: вкладки курсів, активний позначено", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("JavaScript"));
-const withTask = TASKS.find((x) => x.course === "js");
+t("шлях: по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.php).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
+t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `/lesson/php/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
+t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="/lesson/php/4"]'));
+t("шлях: вкладки курсів, активний позначено", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("PHP"));
+const withTask = TASKS.find((x) => x.course === "php");
 t("шлях: у підписах практики немає емодзі блискавки", !g.$(".path").textContent.includes("⚡"));
 t("шлях: після уроку із завданням є вузол практики", g.$$(".path-prac").length >= 1 && !!g.$(`.path-node:nth-of-type(1) ~ .path-node .path-prac, .path-prac[href="/lesson/${withTask.lesson}"]`));
 t("шлях: невідомий курс у адресі дає курс за замовчуванням, а не помилку", (await page({ me: user, hash: "#/path/nope" })).$$(".path-node").length > 0);
@@ -158,15 +158,15 @@ const lineEdges = g.$$(".path-line .e");
 t("шлях: лінія з'єднує сусідні вузли, пройдені ділянки суцільні", g.$$(".path-line").length === 1 && lineEdges.length === jsN - 1 && g.$$(".path-line .e.done").length === 3);
 t("шлях: лінія не накопичується при повторному рендері", (() => { g.w.dispatchEvent(new g.w.Event("hashchange")); return g.$$(".path-line").length === 1; })());
 const chapCnt = g.$$(".path-chap .chap-cnt");
-t("шлях: у кожної глави лічильник «пройдено/усього», завершена глава позначена", chapCnt.length === chaptersOf(LESSONS.js).length && chapCnt[0].textContent.includes("/") && g.$$(".path-chap")[0].className.includes("complete") === (chaptersOf(LESSONS.js)[0].to <= 3));
+t("шлях: у кожної глави лічильник «пройдено/усього», завершена глава позначена", chapCnt.length === chaptersOf(LESSONS.php).length && chapCnt[0].textContent.includes("/") && g.$$(".path-chap")[0].className.includes("complete") === (chaptersOf(LESSONS.php)[0].to <= 3));
 t("шлях: пункт «Шлях» є в основній навігації й підсвічується на цій сторінці", g.$$("#nav a").some((a) => a.textContent === "Шлях" && a.getAttribute("aria-current") === "page"));
 
-const lv = await page({ me: user, dash: base, hash: "#/path/js", onboarding: { level: "intermediate", courses: ["js", "python"] } });
+const lv = await page({ me: user, dash: base, hash: "#/path/php", onboarding: { level: "intermediate", courses: ["php", "python"] } });
 await sleep(120);
-const startN = startLesson(LESSONS.js, "intermediate");
+const startN = startLesson(LESSONS.php, "intermediate");
 t("шлях (вхід): рівень завантажується один раз і перемальовує сторінку, позначено «Ваш старт»", lv.calls.filter((c) => c.url === "/api/onboarding" && c.method === "GET").length === 1 && lv.$$(".path-chap.start").length === 1 && lv.$(".path-chap.start .flag").textContent === "Ваш старт" && lv.html().includes("Середній"));
-t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `/lesson/js/${startN}` && startN > 1 && lv.$$(".path-node.before").length === startN - 1 && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
-t("шлях: курси онбордингу йдуть першими зі зірочкою", lv.$$(".path-tab")[0].textContent.includes("★ JavaScript") && lv.$$(".path-tab")[1].textContent.includes("★ Python"));
+t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `/lesson/php/${startN}` && startN > 1 && lv.$$(".path-node.before").length === startN - 1 && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
+t("шлях: курси онбордингу йдуть першими зі зірочкою", lv.$$(".path-tab")[0].textContent.includes("★ PHP") && lv.$$(".path-tab")[1].textContent.includes("★ Python"));
 
 /* ---- XP-ефекти ---- */
 const fx = await page({ me: user, dash: { ...base, onboarding: { level: "beginner", courses: ["js"] }, xp: 0 }, syncReply: { xp: 20, gained: [{ amount: 10 }, { amount: 10 }], level: 1, prevLevel: 1, leveledUp: false } });

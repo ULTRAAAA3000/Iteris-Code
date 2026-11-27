@@ -40,7 +40,7 @@ const withText = (t: string, rest: string): string => `const TEXT = ${JSON.strin
 export const PROJECTS: readonly Project[] = [
   {
     id: "js-todo",
-    lesson: "js/17",
+    lesson: "js/97",
     course: "js",
     title: "Проєкт: список справ",
     premium: false,

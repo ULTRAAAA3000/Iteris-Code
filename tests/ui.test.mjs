@@ -93,14 +93,14 @@ t("OAuth: правильний state обмінює код і веде в каб
 
 /* ---- звичайні сторінки ---- */
 const home = await page({ me: null, hash: "" });
-t("головна: курси та вкладки працюють", home.html().includes("7 мов") && !home.html().includes("lesson-layout") && home.$("[data-tab=h]") !== null);
+t("головна: курси та вкладки працюють", home.html().includes("9 мов") && !home.html().includes("lesson-layout") && home.$("[data-tab=h]") !== null);
 const ghPage = await page({ me: null, hash: "#/login", githubClientId: "ghid" });
 t("вхід: кнопка GitHub з'являється, лише коли GitHub налаштовано; Google при цьому лишається", !!ghPage.$('[data-act=github]') && !!ghPage.$('[data-act=google]') && !page_noGh_has(await page({ me: null, hash: "#/login" })));
 const ghBack = await page({ me: null, hash: "", search: "?code=abc&state=gh.good", state: "gh.good", githubClientId: "ghid" });
 t("OAuth GitHub: state з префіксом gh. обмінює код через /api/auth/github, а не Google", ghBack.calls.some((c) => c.url === "/api/auth/github") && !ghBack.calls.some((c) => c.url === "/api/auth/google") && ghBack.w.location.pathname === "/dashboard");
 const ref = await page({ me: null, hash: "#/ref/js" });
 t("довідник мови відкритий гостю: розділи з прикладами коду, без запитів за уроками", ref.$$(".ref section").length >= 5 && ref.html().includes("console.log") && !ref.calls.some((c) => c.url.startsWith("/api/lesson") || c.url === "/api/courses"));
-const gate = await page({ me: null, hash: "#/lesson/js/3" });
+const gate = await page({ me: null, hash: "#/lesson/js/10" });
 t("гість: урок закритий, є запрошення увійти, тексту уроку й редактора немає", gate.html().includes("Уроки та завдання в кабінеті") && !!gate.$('[data-act="login"]') && !gate.html().includes("lesson-layout") && !gate.$(".ws-plain") && !gate.calls.some((c) => c.url.startsWith("/api/lesson") || c.url === "/api/courses"));
 const gateCourse = await page({ me: null, hash: "#/course/js" });
 t("гість: список уроків курсу закритий", gateCourse.html().includes("Уроки та завдання в кабінеті") && !gateCourse.html().includes('class="lessons"'));
@@ -118,8 +118,8 @@ await sleep(30);
 t("урок: для користувача позначка синхронізується із сервером", logged.calls.some((c) => c.method === "POST" && c.url === "/api/progress" && c.body.lessonIds[0] === "php/8"));
 
 /* ---- екран із завданням ---- */
-let ws = await page({ me: user, dash, hash: "#/lesson/js/3" });
-t("урок із завданням: є кнопка «Повідомити про помилку» з темою і сторінкою", ws.html().includes("/contact?topic=bug&amp;from=%2Flesson%2Fjs%2F3"));
+let ws = await page({ me: user, dash, hash: "#/lesson/js/10" });
+t("урок із завданням: є кнопка «Повідомити про помилку» з темою і сторінкою", ws.html().includes("/contact?topic=bug&amp;from=%2Flesson%2Fjs%2F10"));
 t("завдання: одна колонка, спершу теорія, нижче постановка і редактор із заготовкою", ws.html().includes('class="ws"') && ws.html().includes("Навіщо це в роботі") && ws.$(".ws-left").compareDocumentPosition(ws.$("#task")) & 4 && !ws.$(".ws-left").contains(ws.$("#task")) && ws.$("#task").contains(ws.$("#editor")) && ws.$(".ws-plain").value.includes("user.address.city"));
 t("безкоштовне завдання: без пейволу, кнопка запуску активна", !ws.$(".paywall") && ws.$("#ws-run").disabled === false);
 await ws.run();
@@ -138,44 +138,44 @@ ws.type("console.log('привіт з консолі'); function getCity(){retur
 await ws.run();
 t("console.log користувача видно в терміналі", ws.term().includes("привіт з консолі"));
 
-ws = await page({ me: user, dash, hash: "#/lesson/js/3" });
+ws = await page({ me: user, dash, hash: "#/lesson/js/10" });
 ws.type(SOLUTIONS["js-safe-city"]);
 await ws.run();
 const sent = ws.calls.find((c) => c.url === "/api/progress/complete");
 t("користувач: рішення відправляється з taskId і кодом", sent && sent.body.taskId === "js-safe-city" && sent.body.code.includes("Невідомо") && sent.body.passed === true);
 t("користувач: показано +XP і серію", ws.$(".ws-win")?.textContent.includes("+30 XP") && ws.$(".ws-win").textContent.includes("4 дні"));
 
-const pw = await page({ me: null, hash: "#/lesson/js/8" });
+const pw = await page({ me: null, hash: "#/lesson/js/7" });
 t("Pro-завдання, гість: урок закритий, запрошення увійти замість редактора", pw.html().includes('data-act="login"') && !pw.$("#ws-run") && !pw.$(".paywall"));
-const pf = await page({ me: user, dash, hash: "#/lesson/js/8" });
+const pf = await page({ me: user, dash, hash: "#/lesson/js/7" });
 t("Pro-завдання, Free-користувач: кнопка апгрейду, запуск заблокований", pf.html().includes('data-act="upgrade"') && pf.$("#ws-run").disabled === true);
 pf.type(SOLUTIONS["js-cart-total"]);
 pf.$("[data-ws=run]").click();
 await sleep(100);
 t("заблокований запуск нічого не виконує і не шле на сервер", pf.term().includes("Натисніть") && !pf.calls.some((c) => c.url === "/api/progress/complete"));
-const pp = await page({ me: { ...user, isPro: true }, dash, hash: "#/lesson/js/8" });
+const pp = await page({ me: { ...user, isPro: true }, dash, hash: "#/lesson/js/7" });
 t("Pro-завдання, Pro-користувач: без пейволу", !pp.$(".paywall") && pp.$("#ws-run").disabled === false);
 pp.type(SOLUTIONS["js-cart-total"]);
 await pp.run();
 t("Pro-користувач проходить завдання з першої спроби", pp.term().includes("Пройдено 5 з 5") && pp.calls.some((c) => c.url === "/api/progress/complete"));
 
-const denied = await page({ me: { ...user, isPro: true }, dash, hash: "#/lesson/js/8", complete: () => ({ ok: false, status: 402, json: async () => ({ error: "pro_required" }) }) });
+const denied = await page({ me: { ...user, isPro: true }, dash, hash: "#/lesson/js/7", complete: () => ({ ok: false, status: 402, json: async () => ({ error: "pro_required" }) }) });
 denied.type(SOLUTIONS["js-cart-total"]);
 await denied.run();
 t("сервер відхилив Pro (402): показано повідомлення, перемоги немає", denied.w.document.querySelector(".toast")?.textContent.includes("Pro") && !denied.$(".ws-win"));
-const again = await page({ me: user, dash, hash: "#/lesson/js/3", complete: () => ({ ok: true, status: 200, json: async () => ({ ok: true, streak: 4, firstSolve: false, xp: 0 }) }) });
+const again = await page({ me: user, dash, hash: "#/lesson/js/10", complete: () => ({ ok: true, status: 200, json: async () => ({ ok: true, streak: 4, firstSolve: false, xp: 0 }) }) });
 again.type(SOLUTIONS["js-safe-city"]);
 await again.run();
 t("повторне розв'язання: XP не нараховується", again.$(".ws-win")?.textContent.includes("вже розв'язували"));
 
 
 /* ---- оплата ---- */
-const payFree = await page({ me: user, dash, hash: "#/lesson/js/8" });
+const payFree = await page({ me: user, dash, hash: "#/lesson/js/7" });
 payFree.w.window_open = [];
 payFree.$("[data-act=upgrade]").click();
 await sleep(60);
 t("оплата: «Перейти на Pro» запитує посилання на оплату в сервера", payFree.calls.some((c) => c.method === "POST" && c.url === "/api/billing/checkout"));
-const payOff = await page({ me: user, dash, hash: "#/lesson/js/8", billing: () => ({ ok: false, status: 503, json: async () => ({ error: "not_configured" }) }) });
+const payOff = await page({ me: user, dash, hash: "#/lesson/js/7", billing: () => ({ ok: false, status: 503, json: async () => ({ error: "not_configured" }) }) });
 payOff.$("[data-act=upgrade]").click();
 await sleep(60);
 t("оплата не налаштована (503): зрозуміле повідомлення", payOff.w.document.querySelector(".toast")?.textContent.includes("Оплату ще не налаштовано"));
@@ -190,15 +190,15 @@ const payNoPortal = await page({ me: { ...user, isPro: true }, dash: proDash });
 payNoPortal.$("[data-act=manage]").click();
 await sleep(60);
 t("немає порталу (404): повідомлення замість тиші", payNoPortal.w.document.querySelector(".toast")?.textContent.includes("недоступне"));
-const paid = await page({ me: user, dash: proDash, hash: "#/lesson/js/8" });
+const paid = await page({ me: user, dash: proDash, hash: "#/lesson/js/7" });
 await sleep(60);
 t("після оплати статус Pro з кабінету зніме пейвол у завданні", paid.$(".paywall") !== null);
 paid.w.location.hash = "#/dashboard";
 await sleep(150);
-paid.w.location.hash = "#/lesson/js/8";
+paid.w.location.hash = "#/lesson/js/7";
 await sleep(150);
 t("кабінет оновив статус: пейвол зник", paid.$(".paywall") === null && paid.$("#ws-run").disabled === false);
-const nav = await page({ me: user, dash, hash: "#/lesson/js/3" });
+const nav = await page({ me: user, dash, hash: "#/lesson/js/10" });
 nav.w.location.hash = "#/";
 await sleep(60);
 t("перехід зі сторінки завдання не лишає сміття", nav.html().includes("Вчися програмувати") && !nav.$("#editor"));
