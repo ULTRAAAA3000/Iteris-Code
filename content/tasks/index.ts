@@ -7,7 +7,7 @@ import { HTML_TASKS } from "./html/index.ts";
 import { JAVA_TASKS } from "./java.ts";
 import { JS_TASKS } from "./js.ts";
 import { PASCAL_TASKS } from "./pascal.ts";
-import { PHP_TASKS } from "./php.ts";
+import { PHP_TASKS } from "./php/index.ts";
 import { PYTHON_TASKS } from "./python/index.ts";
 import { SQL_TASKS } from "./sql/index.ts";
 import { TS_TASKS } from "./ts.ts";

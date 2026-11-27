@@ -24,7 +24,7 @@ const META: Record<string, CourseMeta> = {
   go: { lessons: 110, base: 80, name: "Go", badge: "Go", color: "#00ADD8", cat: "program", desc: "Проста й швидка мова від Google: типи, функції та горутини для паралельності." },
   java: { lessons: 11, landingHidden: true, name: "Java", badge: "Jv", color: "#E76F00", cat: "program", desc: "Мова великих застосунків і Android: класи, змінні, умови та цикли." },
   ts: { lessons: 12, landingHidden: true, name: "TypeScript", badge: "TS", color: "#3178C6", cat: "web", req: "js", desc: "JavaScript із типами: менше помилок, зрозуміліший код. Продовження курсу JavaScript." },
-  php: { lessons: 10, landingHidden: true, name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
+  php: { lessons: 110, base: 80, landingHidden: true, name: "PHP", badge: "Ph", color: "#777BB4", cat: "server", desc: "Серверна мова вебу: змінні, масиви, функції та безпечна обробка форм." },
   git: { lessons: 10, landingHidden: true, name: "Git", badge: "Gt", color: "#F05032", cat: "tools", desc: "Контроль версій: коміти, гілки, GitHub і робота в команді." },
   bash: { lessons: 8, landingHidden: true, name: "Командний рядок", badge: "Sh", color: "#3E4A59", cat: "tools", desc: "Термінал і Bash: файли, пошук, конвеєри та перші скрипти." },
   sql: { lessons: 35, base: 30, name: "SQL", badge: "DB", color: "#1E8E4E", cat: "data", desc: "Мова запитів: від SELECT до JOIN, підзапитів, віконних функцій, індексів і транзакцій." }

@@ -100,7 +100,7 @@ show('зняття 1000', $acc->withdraw(1000));
 show('внесок -5', $acc->deposit(-5));
 echo 'Баланс: ' . $acc->balance() . PHP_EOL;
 `,
-  "php-static-counter": raw`<?php
+  "php-class-static-counter": raw`<?php
 class Ticket
 {
     public const PREFIX = 'T-';

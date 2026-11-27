@@ -97,7 +97,7 @@ echo 'Баланс: ' . $acc->balance() . PHP_EOL;
     ],
   },
   {
-    ...base, id: "php-static-counter", lesson: "php/34", xp: 30,
+    ...base, id: "php-class-static-counter", lesson: "php/34", xp: 30,
     title: "Квитки з лічильником і константою",
     context: "Статичний лічильник живе в класі, а не в об'єкті, тому нумерує всі створені квитки підряд. Константа класу тримає префікс в одному місці.",
     brief: [
