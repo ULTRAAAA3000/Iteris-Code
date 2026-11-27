@@ -1,6 +1,6 @@
 // Шлях (лінійка уроків): курс → глави → вузли-уроки. Без блокувань (D6): будь-який урок відкривається, є лише підказка «ви тут».
 // Між уроками показуємо вузли практики там, де вже є завдання (етап 3 додасть нові).
-import { C, CATS, levelTotal, taskOf, projectOf } from "./data.ts";
+import { C, CATS, levelTotal, pickable, taskOf, projectOf } from "./data.ts";
 import { levelLessons, levelProgress, levelSwitch } from "./levels.ts";
 import { isDone, isTaskPassed } from "./progress.ts";
 import { escA, pad, store } from "./util.ts";
@@ -26,7 +26,7 @@ export function renderPath(k: string | undefined, ctx: PathCtx): string {
   const cur = vis.find((n) => n >= start && !isDone(key, n)) ?? vis.find((n) => !isDone(key, n)) ?? 0;
   const p = levelProgress(key), pct = Math.round((p / total) * 100);
   const mine = ctx.onboarding?.courses ?? [];
-  const tabs = [...mine, ...Object.keys(C).filter((x) => !mine.includes(x))]
+  const tabs = [...mine, ...Object.keys(C).filter((x) => !mine.includes(x) && pickable(x))]
     .map((x) => `<a class="path-tab" href="/path/${x}"${x === key ? ' aria-current="page"' : ""}>${mine.includes(x) ? "★ " : ""}${escA(C[x].name)}</a>`).join("");
 
   const nodes = chaptersOf(c.L).map((ch) => {

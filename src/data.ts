@@ -7,7 +7,7 @@ export interface CourseMeta { lessons: number; /** Курс не показує�
 export interface Course extends CourseMeta { L: OutlineLesson[] }
 
 export const CATS: Record<string, Category> = {
-  program: { title: "Програмування", desc: "Логічне мислення, алгоритми та мови, з яких починають і на яких працюють.", courses: ["python","go","java","c","cpp","pascal"] },
+  program: { title: "Програмування", desc: "Логічне мислення, алгоритми та мови, з яких починають і на яких працюють.", courses: ["python","go","java","c","cpp"] },
   web: { title: "Web-технології", desc: "Розмітка, стилі та скрипти: усе, щоб створити живий сайт з нуля.", courses: ["html","css","js","ts"] },
   server: { title: "Серверна розробка", desc: "Код, що працює на сервері: обробка запитів, форм і даних.", courses: ["php"] },
   data: { title: "Бази даних", desc: "Зберігання даних і запити до них мовою SQL.", courses: ["sql"] },
@@ -86,6 +86,8 @@ export const refMeta = (k: string): RefLang & { lessons?: number; base?: number 
 export const refKeys = (): string[] => [...Object.keys(C), ...Object.keys(R)];
 
 /** Курси для головної сторінки: без прихованих */
+/** Курс, який пропонується для вибору: стоїть у якомусь напрямі (CATS). Курс поза напрямами, як-от Pascal, поки приховано з вибору (онбординг, шлях, каталог, напрями), але його довідник і прогрес лишаються */
+export const pickable = (k: string): boolean => Object.values(CATS).some((c) => c.courses.includes(k));
 export const landingKeys = (): string[] => Object.keys(C).filter((k) => !C[k].landingHidden);
 
 export const darkText = (k: string): string => (k === "python" || k === "js" ? "color:#14213D" : "");
