@@ -2,7 +2,7 @@
 // Структура (розділи, приклади, код) однакова в обох мовах, перекладається лише текст: заголовки, пояснення й українські слова всередині коду.
 import { REF, type RefSection } from "./data/reference/index.ts";
 import { getLang } from "./i18n.ts";
-import { NOTES_EN, RUNS_EN, TITLES_EN } from "./i18n-ref-data.ts";
+import { NOTES_ALL, RUNS_ALL, TITLES_ALL } from "./i18n-ref-extra.ts";
 
 const CY = "А-ЯІЇЄҐа-яіїєґ";
 /** Українське слово або фраза всередині рядка коду (слова, розділені пробілами й розділовими знаками) */
@@ -13,8 +13,8 @@ const cache = new Map<string, readonly RefSection[]>();
 
 function toEn(secs: readonly RefSection[]): RefSection[] {
   return secs.map((s) => ({
-    t: own(TITLES_EN, s.t),
-    items: s.items.map((x) => ({ t: own(TITLES_EN, x.t), ...(x.note ? { note: own(NOTES_EN, x.note) } : {}), code: x.code.replace(RUN_RE, (m) => own(RUNS_EN, m)) })),
+    t: own(TITLES_ALL, s.t),
+    items: s.items.map((x) => ({ t: own(TITLES_ALL, x.t), ...(x.note ? { note: own(NOTES_ALL, x.note) } : {}), code: x.code.replace(RUN_RE, (m) => own(RUNS_ALL, m)) })),
   }));
 }
 

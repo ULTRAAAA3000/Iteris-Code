@@ -68,6 +68,23 @@ export const lessonTotal = (): number => Object.values(C).reduce((s, c) => s + c
 /** Кількість уроків усіх курсів без входу (для публічних сторінок) */
 export const publicLessonTotal = (): number => Object.values(C).reduce((s, c) => s + c.lessons, 0);
 
+/** Мова, яка поки має лише довідник (без уроків і завдань): сторінка /ref/<ключ>, чип на головній, файли для ІІ. Курс з'явиться згодом і тоді переїде в META */
+export interface RefLang { name: string; badge: string; color: string; cat: string; desc: string }
+export const R: Record<string, RefLang> = {
+  rust: { name: "Rust", badge: "Rs", color: "#B7410E", cat: "program", desc: "Мова без збирача сміття: безпека пам'яті, володіння, трейти й швидкість рівня C++." },
+  csharp: { name: "C#", badge: "C#", color: "#68217A", cat: "program", desc: "Мова платформи .NET: застосунки, ігри на Unity, веб і сервіси." },
+  kotlin: { name: "Kotlin", badge: "Kt", color: "#7F52FF", cat: "program", desc: "Сучасна мова для Android і сервера: лаконічний синтаксис, null-безпека й корутини." },
+  swift: { name: "Swift", badge: "Sw", color: "#F05138", cat: "program", desc: "Мова Apple: застосунки для iPhone, iPad і Mac, опціонали, структури й протоколи." },
+  ruby: { name: "Ruby", badge: "Rb", color: "#CC342D", cat: "program", desc: "Виразна мова для скриптів і вебу: блоки, символи й читабельний код, як у Rails." },
+  dart: { name: "Dart", badge: "Da", color: "#0175C2", cat: "program", desc: "Мова Flutter: один код для Android, iOS і вебу, null-безпека й асинхронність." },
+  lua: { name: "Lua", badge: "Lu", color: "#2C2D72", cat: "program", desc: "Маленька вбудовувана мова для ігор і скриптів: таблиці, замикання й корутини." },
+  r: { name: "R", badge: "R", color: "#276DC3", cat: "data", desc: "Мова статистики й аналізу даних: вектори, таблиці даних, функції та графіки." },
+};
+/** Опис мови для сторінки довідника: курс або мова лише з довідником */
+export const refMeta = (k: string): RefLang & { lessons?: number; base?: number } => C[k] ?? R[k];
+/** Ключі всіх довідників: спершу курси, потім мови лише з довідником */
+export const refKeys = (): string[] => [...Object.keys(C), ...Object.keys(R)];
+
 /** Курси для головної сторінки: без прихованих */
 export const landingKeys = (): string[] => Object.keys(C).filter((k) => !C[k].landingHidden);
 

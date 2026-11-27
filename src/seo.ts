@@ -3,7 +3,7 @@
 // Запускається лише під час збірки (Node), у браузер не потрапляє.
 import { NEWS_PATH, RELEASES } from "./changelog.ts";
 import { altsFor, chromeHtml } from "./chrome.ts";
-import { C, CATS, publicLessonTotal } from "./data.ts";
+import { C, CATS, publicLessonTotal, refKeys, refMeta } from "./data.ts";
 import { REF } from "./data/reference/index.ts";
 import { catDesc, courseDesc, courseName } from "./i18n-data.ts";
 import { refSections } from "./i18n-ref.ts";
@@ -91,7 +91,7 @@ export function jsonLd(p: PageDef, site: string, opts: SeoOptions = {}): string 
       graph.push({
         "@type": ["TechArticle", "LearningResource"], "@id": u + "#article", headline: p.title, description: p.desc, inLanguage: HTML_LANG[lang], url: u,
         mainEntityOfPage: { "@id": u + "#webpage" }, about: { "@type": "Thing", name: courseName(k) }, teaches: secs.map((s) => s.t),
-        keywords: tr([C[k].name, "довідник", "синтаксис", "приклади коду", "українською"], [courseName(k), "reference", "syntax", "code examples"]).join(", "), educationalLevel: "Beginner", learningResourceType: tr("Довідник", "Reference"),
+        keywords: tr([refMeta(k).name, "довідник", "синтаксис", "приклади коду", "українською"], [courseName(k), "reference", "syntax", "code examples"]).join(", "), educationalLevel: "Beginner", learningResourceType: tr("Довідник", "Reference"),
         isAccessibleForFree: true, image: site + "/og.png", author: { "@id": orgId }, publisher: { "@id": orgId },
         ...(opts.modified ? { dateModified: opts.modified } : {}),
       });
@@ -198,7 +198,7 @@ export function seoHeaders(): string {
 
 /* ---------- Файли для ІІ: llms.txt, llms-full.txt, Markdown-довідники ---------- */
 
-const FENCE: Readonly<Record<string, string>> = { python: "python", c: "c", cpp: "cpp", pascal: "pascal", html: "html", css: "css", js: "javascript", ts: "typescript", go: "go", java: "java", php: "php", sql: "sql", git: "bash", bash: "bash" };
+const FENCE: Readonly<Record<string, string>> = { python: "python", c: "c", cpp: "cpp", pascal: "pascal", html: "html", css: "css", js: "javascript", ts: "typescript", go: "go", java: "java", php: "php", sql: "sql", git: "bash", bash: "bash", rust: "rust", csharp: "csharp", kotlin: "kotlin", swift: "swift", ruby: "ruby", dart: "dart", lua: "lua", r: "r" };
 
 const lang = (): string => Object.values(C).map((c) => c.name).join(", ");
 
@@ -211,7 +211,7 @@ const about = (site: string): string[] => [
 
 /** Довідник однієї мови у форматі Markdown. base — на скільки рівнів зсунути заголовки (для вставки в llms-full.txt) */
 export function refMarkdown(k: string, site: string, base = 0): string {
-  const c = C[k], h = (n: number): string => "#".repeat(n + base);
+  const c = refMeta(k), h = (n: number): string => "#".repeat(n + base);
   const out = [`${h(1)} ${c.name}: довідник синтаксису українською`, "", `> ${c.desc}`, "", `Сторінка: ${site}/ref/${k}`, ""];
   for (const s of REF[k] ?? []) {
     out.push(`${h(2)} ${s.t}`, "");
@@ -236,7 +236,7 @@ export function llmsTxt(site: string): string {
     line("Про проєкт", url(site, "/about"), "принципи платформи, зміст курсів і технології"),
   ];
   const dirs = Object.entries(CATS).map(([key, c]) => line(c.title, url(site, "/" + key), c.desc));
-  const refs = Object.entries(C).map(([k, c]) => line(`${c.name}: довідник`, `${site}/ref/${k}.md`, `${c.desc} Сторінка для людей: ${site}/ref/${k}`));
+  const refs = refKeys().map((k) => [k, refMeta(k)] as const).map(([k, c]) => line(`${c.name}: довідник`, `${site}/ref/${k}.md`, `${c.desc} Сторінка для людей: ${site}/ref/${k}`));
   const info = [
     line("Підтримка", url(site, "/contact"), "форма звернення до команди: помилка на сайті, ідея, побажання"),
     line("Політика конфіденційності", url(site, "/privacy"), "які дані збираються, навіщо й як їх переглянути чи видалити"),
@@ -268,7 +268,7 @@ export function llmsFullTxt(site: string): string {
     "## Курси", "", ...Object.entries(C).map(([k, c]) => `- **${c.name}** (${c.lessons} уроків): ${c.desc} Довідник: ${site}/ref/${k}`), "",
     "## Довідники мов", "",
   ];
-  for (const k of Object.keys(C)) parts.push(refMarkdown(k, site, 2), "");
+  for (const k of refKeys()) parts.push(refMarkdown(k, site, 2), "");
   return parts.join("\n");
 }
 
@@ -300,6 +300,6 @@ export function textFiles(site: string, opts: SeoOptions = {}): TextFile[] {
     { file: "llms-full.txt", text: llmsFullTxt(site) },
     { file: "manifest.webmanifest", text: manifest(site) },
     { file: ".well-known/security.txt", text: securityTxt(site, today) },
-    ...Object.keys(C).map((k) => ({ file: `ref/${k}.md`, text: refMarkdown(k, site) })),
+    ...refKeys().map((k) => ({ file: `ref/${k}.md`, text: refMarkdown(k, site) })),
   ];
 }

@@ -1,6 +1,6 @@
 // Публічні сторінки сайту (доступні без входу): головна-лендинг, каталог курсів, «Як це працює», «Про проєкт», напрями й довідник мови.
 // Модуль чистий (без DOM, мережі й входу): той самий HTML малює браузер, а збірка заздалегідь створює з нього готові сторінки для пошуковиків.
-import { C, CATS, darkText, landingKeys, publicLessonTotal } from "./data.ts";
+import { C, CATS, R, darkText, landingKeys, publicLessonTotal, refKeys, refMeta } from "./data.ts";
 import { refSections } from "./i18n-ref.ts";
 import { catDesc, catTitle, courseDesc, courseName } from "./i18n-data.ts";
 import { cnt, getLang, inLang, l, setPublicMatcher, tr, type Lang } from "./i18n.ts";
@@ -32,7 +32,7 @@ export interface PageDef {
   html: (loggedIn: boolean) => string;
 }
 
-export const badge = (k: string, cls = ""): string => `<span class="badge ${cls}" style="background:${C[k].color};${darkText(k)}" aria-hidden="true">${esc(C[k].badge)}</span>`;
+export const badge = (k: string, cls = ""): string => `<span class="badge ${cls}" style="background:${refMeta(k).color};${darkText(k)}" aria-hidden="true">${esc(refMeta(k).badge)}</span>`;
 const sections = (k: string): number => refSections(k).length;
 /** Текст у довіднику: `код` у зворотних апострофах стає <code> */
 const inline = (s: string): string => esc(s).replace(/`([^`]+)`/g, "<code>$1</code>");
@@ -171,6 +171,12 @@ print("Hello,", name + "!")`)}</pre>
     </div>
   </section>
 
+  <section aria-labelledby="refonly">
+    <h2 class="section-title" id="refonly">${tr("Ще в довіднику", "Also in the reference")}</h2>
+    <p class="section-sub">${tr("Ці мови поки лише в довіднику, він відкритий без реєстрації. Уроки із завданнями з'являться згодом.", "These languages are only in the reference for now, and it is open without signing in. Lessons and tasks will follow.")}</p>
+    <div class="ruled"><div class="dir"><div><h3>${tr("Тільки довідник", "Reference only")}</h3><p>${tr(`${cnt(Object.keys(R).length, "ref")} із коротким синтаксисом і прикладами коду.`, `${cnt(Object.keys(R).length, "ref")} with short syntax notes and code examples.`)}</p></div><div class="chips">${Object.keys(R).map(chip).join("")}</div></div></div>
+  </section>
+
   <section aria-labelledby="faq">
     <h2 class="section-title" id="faq">${tr("Часті запитання", "Frequently asked questions")}</h2>
     <div class="lp-faq">
@@ -184,7 +190,7 @@ print("Hello,", name + "!")`)}</pre>
     ${cta(loggedIn)}
   </section>`;
 
-const chip = (k: string): string => `<a class="chip" href="${l("/ref/" + k)}">${badge(k, "sm")}<span><b>${courseName(k)}</b><small>${tr("довідник", "reference")} · ${cnt(C[k].lessons, "lesson")}</small></span></a>`;
+const chip = (k: string): string => `<a class="chip" href="${l("/ref/" + k)}">${badge(k, "sm")}<span><b>${courseName(k)}</b><small>${tr("довідник", "reference")}${C[k] ? ` · ${cnt(C[k].lessons, "lesson")}` : ""}</small></span></a>`;
 
 /* ---------- Каталог ---------- */
 
@@ -284,7 +290,7 @@ function dirHtml(key: string): string {
 }
 
 function refHtml(k: string, loggedIn: boolean): string {
-  const c = C[k], secs = refSections(k);
+  const c = refMeta(k), secs = refSections(k);
   return `
   ${crumbsHtml([[tr("Курси", "Courses"), "/courses"], [catTitle(c.cat), "/" + c.cat], [courseName(k), "/ref/" + k]])}
   <div class="course-head">${badge(k)}<div><h1>${courseName(k)}: ${tr("довідник", "reference")}</h1><p>${courseDesc(k)}</p></div></div>
@@ -293,7 +299,7 @@ function refHtml(k: string, loggedIn: boolean): string {
     ${secs.map((s, i) => `<section id="s${i}"><h2>${esc(s.t)}</h2>
       ${s.items.map((x) => `<h3>${esc(x.t)}</h3>${x.note ? `<p>${inline(x.note)}</p>` : ""}<pre class="code">${esc(x.code)}</pre>`).join("")}</section>`).join("")}
   </div>
-  <div class="callout"><b>${tr("Хочете вчитися крок за кроком?", "Want to learn step by step?")}</b> ${tr(`У кабінеті є ${cnt(c.lessons, "lesson")} по главах${c.base ? ` (${c.base} базових і ${c.lessons - c.base} просунутих, рівень можна перемикати в будь-який момент)` : ""} і завдання з перевіркою коду.`, `Your account has ${cnt(c.lessons, "lesson")} organised by chapter${c.base ? ` (${c.base} core and ${c.lessons - c.base} advanced, you can switch the level at any time)` : ""} and tasks with code checking.`)} ${loggedIn ? `<a href="/path/${k}">${tr(`Відкрити курс ${esc(courseName(k))}`, `Open the ${esc(courseName(k))} course`)}</a>` : `<button class="btn small" data-act="login">${tr("Увійти й почати", "Sign in and start")}</button>`}</div>`;
+  ${!C[k] ? `<div class="callout"><b>${tr("Курс уже готується.", "A course is on the way.")}</b> ${tr("Поки що доступний довідник, а уроки із завданнями з'являться згодом.", "For now only the reference is available; lessons and tasks will follow.")}</div>` : `<div class="callout"><b>${tr("Хочете вчитися крок за кроком?", "Want to learn step by step?")}</b> ${tr(`У кабінеті є ${cnt(c.lessons ?? 0, "lesson")} по главах${c.base ? ` (${c.base} базових і ${(c.lessons ?? 0) - (c.base ?? 0)} просунутих, рівень можна перемикати в будь-який момент)` : ""} і завдання з перевіркою коду.`, `Your account has ${cnt(c.lessons ?? 0, "lesson")} organised by chapter${c.base ? ` (${c.base} core and ${(c.lessons ?? 0) - (c.base ?? 0)} advanced, you can switch the level at any time)` : ""} and tasks with code checking.`)} ${loggedIn ? `<a href="/path/${k}">${tr(`Відкрити курс ${esc(courseName(k))}`, `Open the ${esc(courseName(k))} course`)}</a>` : `<button class="btn small" data-act="login">${tr("Увійти й почати", "Sign in and start")}</button>`}</div>`}`;
 }
 
 /* ---------- Реєстр сторінок ---------- */
@@ -352,7 +358,8 @@ function buildPages(lang: Lang): PageDef[] {
       desc: trim(T(`${catTitle(key)} українською: ${catDesc(key)} Мови й технології: ${c.courses.map(courseName).join(", ")}. Довідник без реєстрації.`, `${catTitle(key)}: ${catDesc(key)} Languages and technologies: ${c.courses.map(courseName).join(", ")}. Reference without sign-up.`)),
     });
   }
-  for (const [k, c] of Object.entries(C)) {
+  for (const k of refKeys()) {
+    const c = refMeta(k);
     pages.push({
       ...base, path: "/ref/" + k, kind: "ref", active: "courses",
       crumbs: [[T("Курси", "Courses"), "/courses"], [catTitle(c.cat), "/" + c.cat], [courseName(k), "/ref/" + k]], html: (li) => refHtml(k, li),
