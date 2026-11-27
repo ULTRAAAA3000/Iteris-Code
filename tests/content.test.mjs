@@ -76,7 +76,7 @@ await t("кожен із 162 уроків віддається ідентичн�
 });
 
 await t("урок із JS-завданням: завдання віддається повністю (тести потрібні браузеру)", async () => {
-  const r = await get(lessonApi, "/api/lesson?k=js&n=3", cookie);
+  const r = await get(lessonApi, "/api/lesson?k=js&n=10", cookie);
   assert.equal(r.data.task.id, "js-safe-city");
   assert.ok(r.data.task.tests.includes("getCity") && r.data.task.starter.length > 0);
 });
@@ -92,7 +92,7 @@ await t("урок із Go-завданням: очікувані перевір�
 });
 
 await t("урок без завдання: task = null", async () => {
-  const r = await get(lessonApi, "/api/lesson?k=php&n=8", cookie);   // PDO: у пісочниці немає бази даних, завдання немає
+  const r = await get(lessonApi, "/api/lesson?k=php&n=105", cookie);   // PDO: у пісочниці немає бази даних, завдання немає
   assert.equal(r.data.task, null);
 });
 

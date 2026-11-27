@@ -18,6 +18,17 @@ export interface Release {
 
 /** Випущене, від новішого до старішого. Додаючи запис, ставте його першим */
 export const RELEASES: readonly Release[] = [
+  { date: "27.11.2026", items: [
+    "Курси Java і JavaScript тепер повні: по 110 уроків у 12 главах і по завданню до кожного уроку з перевіркою вашого коду.",
+    "У Java і JavaScript є перемикач «Базовий / Просунутий»: 80 базових уроків і ще 30 просунутих, рівень можна змінити будь-коли.",
+    "Нові теми в Java: потоки й пули, колекції та generics, мережа без сокетів, архітектура сервісу, тестування й проєкти. У JavaScript: асинхронність, патерни, тестування в стилі Vitest, мережа й браузер, невеликі проєкти.",
+    "Java і JavaScript знову на головній сторінці поруч з іншими завершеними курсами."
+  ], en: [
+    "The Java and JavaScript courses are now complete: 110 lessons each in 12 chapters, with a task for every lesson and checking of your code.",
+    "Java and JavaScript now have the “Basic / Advanced” switch: 80 basic lessons plus 30 advanced ones, and you can change the level at any time.",
+    "New topics in Java: threads and pools, collections and generics, networking without sockets, service architecture, testing and projects. In JavaScript: asynchrony, patterns, Vitest-style testing, network and browser work, and small projects.",
+    "Java and JavaScript are back on the home page next to the other finished courses."
+  ] },
   { date: "24.11.2026", items: [
     "Курс HTML став значно більшим: 30 уроків по главах від першої сторінки до форм, семантики, доступності й SEO. Базовий рівень 23 уроки, ще 7 просунутих, а перемикати рівень можна будь-коли.",
     "До кожного уроку HTML додано практичне завдання з живою перевіркою сторінки: ви пишете розмітку, натискаєте «Запустити» й бачите, які вимоги виконано.",

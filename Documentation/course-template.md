@@ -162,9 +162,9 @@
 |---|---|---|---|---|---|
 | Go | 110 (подключён) | 110 | 0 | Go Playground, сервер | `main.go` |
 | Python | 110 (подключён 23.11.2026) | 110 | 0 | Wandbox (`remote`) | `main.py` |
-| JavaScript | 22 | 19 | 88 | Web Worker в браузере (`runtime: "js"`, тесты как в Vitest) | `solution.js` |
+| JavaScript | 110 (подключён 27.11.2026) | 110 | 0 | Web Worker в браузере (`runtime: "js"`, тесты как в Vitest) | `solution.js` |
 | TypeScript | 12 | 12 | 98 | Wandbox | `main.ts` |
-| Java | 11 | 11 | 99 | Wandbox | `Main.java` |
+| Java | 110 (подключён 27.11.2026) | 110 | 0 | Wandbox | `Main.java` |
 | C++ | 110 (подключён 23.11.2026) | 110 | 0 | Wandbox | `main.cpp` |
 | PHP | 10 | 9 (урок 8 без задания) | 100 | Wandbox | `main.php` |
 | Pascal | 8 | 8 | 102 | Wandbox | `main.pas` |

@@ -45,7 +45,7 @@ const LANGS = {
     file: "main.cpp", probe: ["g++", "--version"],
     run: (d) => { const c = sh("g++", ["-std=c++17", "-O0", "main.cpp", "-o", "prog"], d); return c.status !== 0 ? { r: c, compileFailed: () => true } : { r: sh("./prog", [], d), compileFailed: () => false }; },
   },
-  php: { file: "main.php", probe: ["php", "--version"], run: (d) => ({ r: sh("php", ["main.php"], d), compileFailed: (r) => /Parse error/.test(r.stdout + r.stderr) }) },
+  php: { file: "main.php", probe: ["php", "--version"], run: (d) => ({ r: sh("php", ["-d", "zend.assertions=1", "-d", "assert.exception=1", "main.php"], d), compileFailed: (r) => /Parse error/.test(r.stdout + r.stderr) }) },
   pascal: {
     file: "main.pas", probe: ["fpc", "-iV"],
     run: (d) => { const c = sh("fpc", ["-vew", "main.pas"], d); return c.status !== 0 ? { r: { ...c, stderr: c.stdout + c.stderr }, compileFailed: () => true } : { r: sh("./main", [], d), compileFailed: () => false }; },

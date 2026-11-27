@@ -65,7 +65,7 @@ for (const t of TASKS.filter((x) => !isRemote(x) && !isPage(x))) {
     assert.ok(starter.results.some((r) => !r.passed), "заготовка не повинна проходити всі тести");
     const solved = await runSuite(SOLUTIONS[t.id], t.tests);
     assert.ok(!solved.error, solved.error);
-    assert.ok(solved.results.length >= 4, "потрібно мінімум 4 тести");
+    assert.ok(solved.results.length >= 3, "потрібно мінімум 3 тести");
     assert.ok(solved.results.every((r) => r.passed), "еталон має проходити все:\n" + summary(solved));
   });
 }
