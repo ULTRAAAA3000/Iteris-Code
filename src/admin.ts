@@ -13,17 +13,26 @@ interface Stats {
   signups: DayCount[];
   dau: DayCount[];
   retention: { d1: { cohort: number; returned: number }; d7: { cohort: number; returned: number } };
-  courses: { course: string; chosen: number; learning: number; lessons: number; advanced: number }[];
+  courses: { course: string; chosen: number; learning: number; lessons: number; advanced: number; reach5: number; reach20: number }[];
+  tasks: TaskStat[];
   levels: { key: string; count: number }[];
   goals: { key: string; count: number }[];
   methods: { key: string; count: number }[];
   activity: { today: number; week: number; month: number; lessonsDone: number; submissions: number; passed: number; support: number; verified: number };
 }
 
+interface TaskStat { id: string; attempts: number; users: number; solved: number }
+
 interface AdminUser {
   email: string; name: string | null; nick: string | null; createdAt: string | null; lastActiveAt: string | null;
   method: "password" | "social"; verified: boolean;
   courses: string[]; level: string | null; progress: { course: string; lessons: number }[]; xp: number; lessons: number; tasks: number;
+}
+interface UserDetails extends AdminUser {
+  goal: number | null; advanced: string[];
+  recentXp: { amount: number; reason: string; ref: string; at: string | null }[];
+  recentTasks: { task: string; passed: boolean; at: string | null }[];
+  support: { topic: string; message: string; at: string | null }[];
 }
 interface UsersPage { total: number; users: AdminUser[] }
 
@@ -48,9 +57,20 @@ const hbars = (rows: { label: string; count: number }[], total: number): string 
 };
 
 export const coursesTableHtml = (rows: Stats["courses"]): string => rows.length
-  ? `<div class="adm-tbl-wrap"><table class="adm-tbl"><thead><tr><th>Мова</th><th>Обрали</th><th>Вчаться</th><th>Пройдено уроків</th><th>На просунутому</th></tr></thead><tbody>${rows.map((c) =>
-    `<tr><td class="adm-email">${escA(courseName(c.course))}</td><td>${c.chosen}</td><td>${c.learning}</td><td>${c.lessons}</td><td>${c.advanced}</td></tr>`).join("")}</tbody></table></div>`
+  ? `<div class="adm-tbl-wrap"><table class="adm-tbl"><thead><tr><th>Мова</th><th>Обрали</th><th>Вчаться</th><th>5+ уроків</th><th>20+ уроків</th><th>Пройдено уроків</th><th>На просунутому</th></tr></thead><tbody>${rows.map((c) =>
+    `<tr><td class="adm-email">${escA(courseName(c.course))}</td><td>${c.chosen}</td><td>${c.learning}</td><td>${c.reach5}</td><td>${c.reach20}</td><td>${c.lessons}</td><td>${c.advanced}</td></tr>`).join("")}</tbody></table></div>`
   : `<p class="adm-note">Поки ніхто не обрав мову.</p>`;
+
+/** Завдання: найпопулярніші за спробами і найважчі (де мало хто з тих, хто пробував, розв'язав; беремо лише завдання з ≥3 людьми) */
+const taskTable = (rows: TaskStat[]): string => rows.length
+  ? `<div class="adm-tbl-wrap"><table class="adm-tbl"><thead><tr><th>Завдання</th><th>Спроб</th><th>Людей</th><th>Розв'язали</th></tr></thead><tbody>${rows.map((t) =>
+    `<tr><td class="adm-email">${escA(t.id)}</td><td>${t.attempts}</td><td>${t.users}</td><td>${t.solved} <small>${pct(t.solved, t.users)}</small></td></tr>`).join("")}</tbody></table></div>`
+  : `<p class="adm-note">Поки немає даних.</p>`;
+export const tasksHtml = (tasks: TaskStat[]): string => {
+  const top = [...tasks].sort((a, b) => b.attempts - a.attempts).slice(0, 10);
+  const hard = tasks.filter((t) => t.users >= 3).sort((a, b) => a.solved / a.users - b.solved / b.users || b.users - a.users).slice(0, 10);
+  return `<section class="card"><h2>Завдання</h2><div class="adm-rets"><div><h3>Найбільше спроб</h3>${taskTable(top)}</div><div><h3>Найважчі (від 3 людей)</h3>${taskTable(hard)}</div></div></section>`;
+};
 
 export function adminStatsHtml(s: Stats): string {
   const f = s.funnel;
@@ -83,6 +103,7 @@ export function adminStatsHtml(s: Stats): string {
     </div></section>
     <section class="card"><h2>Що вивчають</h2><p class="adm-note">«Обрали» — мови з онбордингу. «Вчаться» — люди, які пройшли хоча б один урок. Різниця показує, що лише зацікавило, а що справді почали.</p>
       ${coursesTableHtml(s.courses)}</section>
+    ${tasksHtml(s.tasks ?? [])}
     <section class="card"><h2>Обрані мови</h2>${hbars(s.courses.filter((c) => c.chosen).sort((a, b) => b.chosen - a.chosen).map((c) => ({ label: courseName(c.course), count: c.chosen })), s.funnel.onboarded)}</section>
     <section class="card"><h2>Рівень і ціль</h2><div class="adm-rets">
       <div><h3>Рівень при старті</h3>${hbars(s.levels.map((l) => ({ label: LEVELS[l.key] ?? l.key, count: l.count })), s.funnel.onboarded)}</div>
@@ -104,12 +125,24 @@ const dateOf = (s: string | null): string => {
 
 /** Усі значення від користувачів (пошта, ім'я, нік) екрануємо: ім'я може містити розмітку */
 export const userRowHtml = (u: AdminUser): string =>
-  `<tr><td class="adm-email">${escA(u.email)}</td><td>${escA(u.name) || "—"}</td><td>${u.nick ? escA(u.nick) : "—"}</td>`
+  `<tr class="adm-user" data-email="${escA(u.email)}" tabindex="0"><td class="adm-email">${escA(u.email)}</td><td>${escA(u.name) || "—"}</td><td>${u.nick ? escA(u.nick) : "—"}</td>`
   + `<td>${u.method === "password" ? "Пошта й пароль" : "Google / GitHub"}</td>`
   + `<td>${u.verified ? "так" : "<b>ні</b>"}</td>`
   + `<td>${u.courses.length ? u.courses.map((k) => escA(courseName(k))).join(", ") : "—"}</td><td>${u.level ? escA(LEVELS[u.level] ?? u.level) : "—"}</td>`
   + `<td>${u.progress.length ? u.progress.slice(0, 3).map((p) => `${escA(courseName(p.course))} ${p.lessons}`).join(", ") : "—"}</td>`
   + `<td>${u.xp}</td><td>${u.lessons}</td><td>${u.tasks}</td><td>${dateOf(u.createdAt)}</td><td>${dateOf(u.lastActiveAt)}</td></tr>`;
+
+/** Картка акаунта. Усе від користувачів (ім'я, нік, тексти звернень) екрануємо */
+export const userCardHtml = (u: UserDetails): string => {
+  const list = (items: string[]): string => items.length ? `<ul class="adm-list">${items.map((i) => `<li>${i}</li>`).join("")}</ul>` : `<p class="adm-note">Поки немає.</p>`;
+  return `<div class="adm-card"><h3>${escA(u.email)}</h3>
+    <p class="adm-note">${escA(u.name) || "без імені"}${u.nick ? ` · @${escA(u.nick)}` : ""} · реєстрація ${dateOf(u.createdAt)} · остання активність ${dateOf(u.lastActiveAt)}${u.goal ? ` · ціль ${u.goal} на день` : ""}${u.advanced.length ? ` · просунутий: ${u.advanced.map((k) => escA(courseName(k))).join(", ")}` : ""}</p>
+    <div class="adm-rets">
+      <div><h3>Останній XP</h3>${list(u.recentXp.map((x) => `+${x.amount} ${escA(x.reason)} ${escA(x.ref)} <small>${dateOf(x.at)}</small>`))}</div>
+      <div><h3>Останні завдання</h3>${list(u.recentTasks.map((t) => `${t.passed ? "✓" : "✗"} ${escA(t.task)} <small>${dateOf(t.at)}</small>`))}</div>
+      <div><h3>Звернення</h3>${list(u.support.map((m) => `<b>${escA(m.topic)}</b> <small>${dateOf(m.at)}</small><br>${escA(m.message)}`))}</div>
+    </div></div>`;
+};
 
 export const usersSectionHtml = (): string => `
   <section class="card" id="adm-users"><h2>Акаунти</h2>
@@ -117,6 +150,8 @@ export const usersSectionHtml = (): string => `
     <select id="adm-course" class="adm-q" aria-label="Фільтр за мовою"><option value="">Усі мови</option>${Object.keys(C).map((k) => `<option value="${escA(k)}">${escA(C[k].name)}</option>`).join("")}</select>
     <div class="adm-tbl-wrap"><table class="adm-tbl"><thead><tr><th>Пошта</th><th>Ім'я</th><th>Нік</th><th>Вхід</th><th>Пошта підтверджена</th><th>Обрані мови</th><th>Рівень</th><th>Вчиться (уроків)</th><th>XP</th><th>Уроків</th><th>Завдань</th><th>Реєстрація</th><th>Остання активність</th></tr></thead><tbody id="adm-rows"></tbody></table></div>
     <p class="adm-note" id="adm-count">Завантаження…</p>
+    <p class="adm-note">Натисніть на рядок, щоб відкрити картку акаунта. <a id="adm-csv" href="/api/admin/export" download>Завантажити CSV</a> (з поточним пошуком і фільтром)</p>
+    <div id="adm-detail" aria-live="polite"></div>
     <button type="button" class="btn small" id="adm-more" style="display:none">Показати ще</button>
   </section>`;
 
@@ -127,9 +162,23 @@ async function mountUsers(root: HTMLElement): Promise<void> {
   const input = root.querySelector<HTMLInputElement>("#adm-q");
   if (!rows || !count || !more || !input) return;
   const sel = root.querySelector<HTMLSelectElement>("#adm-course");
+  const detail = root.querySelector<HTMLElement>("#adm-detail");
+  const csv = root.querySelector<HTMLAnchorElement>("#adm-csv");
   let q = "", course = "", shown = 0, token = 0;
+  const syncCsv = (): void => { if (csv) csv.href = `/api/admin/export?q=${encodeURIComponent(q)}&course=${encodeURIComponent(course)}`; };
+  const open = async (tr: HTMLElement): Promise<void> => {
+    const email = tr.dataset.email;
+    if (!email || !detail) return;
+    detail.innerHTML = `<p class="adm-note">Завантаження…</p>`;
+    const r = await api<UserDetails>(`/api/admin/user?email=${encodeURIComponent(email)}`);
+    detail.innerHTML = r.ok && r.data ? userCardHtml(r.data) : `<p class="adm-note">Не вдалося відкрити картку.</p>`;
+    detail.scrollIntoView?.({ block: "nearest" });
+  };
+  rows.addEventListener("click", (e) => { const tr = (e.target as HTMLElement).closest<HTMLElement>("tr.adm-user"); if (tr) void open(tr); });
+  rows.addEventListener("keydown", (e) => { if (e.key !== "Enter") return; const tr = (e.target as HTMLElement).closest<HTMLElement>("tr.adm-user"); if (tr) void open(tr); });
   const load = async (reset: boolean): Promise<void> => {
     const mine = ++token;   // відповідь на застарілий пошук ігноруємо
+    syncCsv();
     if (reset) { shown = 0; rows.innerHTML = ""; more.style.display = "none"; count.textContent = "Завантаження…"; }
     const r = await api<UsersPage>(`/api/admin/users?q=${encodeURIComponent(q)}&course=${encodeURIComponent(course)}&offset=${shown}`);
     if (mine !== token) return;

@@ -79,3 +79,57 @@ export async function listUsers(db: D1Database, opts: { q?: string; course?: str
     })),
   };
 }
+
+export interface UserDetails extends AdminUser {
+  goal: number | null;
+  /** Курси, де людина обрала просунутий рівень */
+  advanced: string[];
+  recentXp: { amount: number; reason: string; ref: string; at: string | null }[];
+  recentTasks: { task: string; passed: boolean; at: string | null }[];
+  support: { topic: string; message: string; at: string | null }[];
+}
+
+/** Картка одного акаунта: останні нарахування XP, відправки завдань (без коду) і звернення в підтримку. Пошук за точною поштою */
+export async function userDetails(db: D1Database, email: string): Promise<UserDetails | null> {
+  const mail = email.trim().toLowerCase().slice(0, 200);
+  if (!mail) return null;
+  const found = await db.prepare("SELECT id FROM users WHERE lower(email) = ?1").bind(mail).first<{ id: string }>();
+  if (!found) return null;
+  const page = await listUsers(db, { q: mail, limit: 5 });
+  const base = page.users.find((u) => u.email.toLowerCase() === mail);
+  if (!base) return null;
+  const id = found.id;
+  const all = async <T>(sql: string): Promise<T[]> => (await db.prepare(sql).bind(id).all<T>()).results ?? [];
+  const goal = await db.prepare("SELECT daily_goal AS g FROM user_goals WHERE user_id = ?1").bind(id).first<{ g: number }>();
+  return {
+    ...base,
+    goal: goal?.g ?? null,
+    advanced: (await all<{ course: string }>("SELECT course FROM user_course_levels WHERE user_id = ?1 AND level = 'adv' ORDER BY course")).map((r) => r.course),
+    recentXp: await all("SELECT amount, reason, ref, created_at AS at FROM xp_events WHERE user_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 15"),
+    recentTasks: (await all<{ task: string; passed: number; at: string | null }>("SELECT task_id AS task, is_passed AS passed, created_at AS at FROM task_submissions WHERE user_id = ?1 ORDER BY created_at DESC, rowid DESC LIMIT 15")).map((r) => ({ task: r.task, passed: r.passed === 1, at: r.at })),
+    support: (await all<{ topic: string; message: string; at: string | null }>("SELECT topic, substr(message, 1, 300) AS message, created_at AS at FROM support_messages WHERE user_id = ?1 ORDER BY created_at DESC LIMIT 5")),
+  };
+}
+
+/** Клітинка CSV: лапки подвоюємо, а текст, що починається з = + - @, робимо безпечним для Excel (захист від формул у чужому імені) */
+export const csvCell = (v: unknown): string => {
+  let s = v == null ? "" : String(v);
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[",\n\r;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+export const CSV_HEADER = ["email", "name", "nick", "method", "verified", "chosen_courses", "level", "learning", "xp", "lessons", "tasks", "created_at", "last_active_at"];
+export const csvRow = (u: AdminUser): string => [
+  u.email, u.name, u.nick, u.method, u.verified ? 1 : 0, u.courses.join(" "), u.level, u.progress.map((p) => `${p.course}:${p.lessons}`).join(" "), u.xp, u.lessons, u.tasks, u.createdAt, u.lastActiveAt,
+].map(csvCell).join(",");
+
+/** Усі акаунти за поточним пошуком і фільтром (до 5000 рядків) у форматі CSV */
+export async function usersCsv(db: D1Database, opts: { q?: string; course?: string } = {}): Promise<string> {
+  const lines = [CSV_HEADER.join(",")];
+  for (let offset = 0; offset < 5000; offset += MAX_PAGE) {
+    const page = await listUsers(db, { ...opts, offset, limit: MAX_PAGE });
+    for (const u of page.users) lines.push(csvRow(u));
+    if (offset + MAX_PAGE >= page.total) break;
+  }
+  return lines.join("\r\n") + "\r\n";
+}
