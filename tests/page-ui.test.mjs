@@ -57,11 +57,11 @@ const done = h.calls.find((c) => c.url === "/api/progress/complete");
 t("результат зберігається без proof (перевірка в браузері)", done?.body?.taskId === "html-skeleton" && done.body.passed === true && done.body.proof === undefined);
 t("у перегляді намальовано сторінку з рішення", h.$("#ws-preview").contentDocument.title === "Моя перша сторінка");
 
-const c = await page({ hash: "#/lesson/css/1" });
-t("урок CSS: вкладка style.css, готова розмітка в перегляді", c.$(".ws-tab")?.textContent === "style.css" && !!c.$("#ws-preview").contentDocument.querySelector("#title"));
+const c = await page({ hash: "#/lesson/css/10" });
+t("урок CSS: вкладка style.css, готова розмітка в перегляді", c.$(".ws-tab")?.textContent === "style.css" && !!c.$("#ws-preview").contentDocument.querySelector("h1"));
 c.setCode(SOLUTIONS["css-cascade"]);
 await sleep(450);
-t("живий перегляд: стилі з редактора застосовуються до сторінки", c.$("#ws-preview").contentDocument.querySelector("#title").ownerDocument.defaultView.getComputedStyle(c.$("#ws-preview").contentDocument.querySelector("#title")).color === "rgb(46, 125, 50)");
+t("живий перегляд: стилі з редактора застосовуються до сторінки", c.$("#ws-preview").contentDocument.querySelector("h1").ownerDocument.defaultView.getComputedStyle(c.$("#ws-preview").contentDocument.querySelector("h1")).color === "rgb(46, 125, 50)");
 await c.run();
 t("CSS: рішення проходить усі перевірки", c.term().includes("Пройдено 5 з 5") && !!c.$(".ws-win"));
 

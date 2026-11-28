@@ -141,13 +141,14 @@ await sleep(50);
 t("повторне перемальовування: вступні анімації не повторюються (клас again на .dash)", again.$(".dash")?.className.includes("again"));
 
 /* ---- шлях ---- */
-const jsN = LESSONS.php.length;
+const vis = LESSONS.php.map((l, i) => (l.adv ? 0 : i + 1)).filter(Boolean);   // за замовчуванням базовий рівень: просунуті уроки на шляху не показано
+const jsN = vis.length;
 const gGate = await page({ me: null, hash: "#/path/php", done: { php: [1, 2, 3] } });
 t("шлях: гостю закритий, замість нього запрошення увійти", gGate.html().includes("Уроки та завдання в кабінеті") && gGate.$$(".path-node").length === 0 && !gGate.calls.some((c) => c.url === "/api/courses"));
 const g = await page({ me: user, hash: "#/path/php", done: { php: [1, 2, 3] } });
 const nodes = g.$$(".path-node");
 t("шлях: по вузлу на кожен урок курсу, глави як заголовки, пройдені відмічені, поточний це перший непройдений", nodes.length === jsN && g.$$(".path-chap").length === chaptersOf(LESSONS.php).length && g.$$(".path-node.done").length === 3 && g.$$(".path-node.current").length === 1 && nodes[3].className.includes("current"));
-t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `/lesson/php/${i + 1}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
+t("шлях: блокувань немає, кожен вузол це посилання на свій урок", g.$$(".pn-dot").every((a, i) => a.getAttribute("href") === `/lesson/php/${vis[i]}`) && !g.html().includes("disabled") && !g.html().includes("lock"));
 t("шлях: поточний вузол має aria-current і підпис «Продовжити», кнопка веде на нього", g.$(".path-node.current .pn-dot").getAttribute("aria-current") === "step" && g.$(".path-here").textContent === "Продовжити" && !!g.$('.path-sum a.btn[href="/lesson/php/4"]'));
 t("шлях: вкладки курсів, активний позначено", g.$$(".path-tab").length >= 13 && g.$(".path-tab[aria-current=page]").textContent.includes("PHP"));
 const withTask = TASKS.find((x) => x.course === "php");
@@ -163,9 +164,9 @@ t("шлях: пункт «Шлях» є в основній навігації �
 
 const lv = await page({ me: user, dash: base, hash: "#/path/php", onboarding: { level: "intermediate", courses: ["php", "python"] } });
 await sleep(120);
-const startN = startLesson(LESSONS.php, "intermediate");
+const startN = vis.find((n) => n >= startLesson(LESSONS.php, "intermediate")), before = vis.filter((n) => n < startN).length;
 t("шлях (вхід): рівень завантажується один раз і перемальовує сторінку, позначено «Ваш старт»", lv.calls.filter((c) => c.url === "/api/onboarding" && c.method === "GET").length === 1 && lv.$$(".path-chap.start").length === 1 && lv.$(".path-chap.start .flag").textContent === "Ваш старт" && lv.html().includes("Середній"));
-t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `/lesson/php/${startN}` && startN > 1 && lv.$$(".path-node.before").length === startN - 1 && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
+t("шлях: без прогресу поточний урок це стартова глава рівня, попередні уроки позначені «before», але відкриті", lv.$(".path-node.current .pn-dot").getAttribute("href") === `/lesson/php/${startN}` && startN > 1 && lv.$$(".path-node.before").length === before && lv.$$(".path-node.before .pn-dot").every((a) => a.getAttribute("href")));
 t("шлях: курси онбордингу йдуть першими зі зірочкою", lv.$$(".path-tab")[0].textContent.includes("★ PHP") && lv.$$(".path-tab")[1].textContent.includes("★ Python"));
 
 /* ---- XP-ефекти ---- */
