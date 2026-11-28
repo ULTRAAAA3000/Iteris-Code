@@ -173,6 +173,14 @@ export function sitemap(site: string, date: string): string {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls}\n</urlset>\n`;
 }
 
+/** Закритий режим (staging і прев'ю гілок): жодної індексації. Вмикається в build.mjs змінною STAGING=1 або автоматично на гілці не main у Cloudflare Pages */
+export const CLOSED_ROBOTS = "# Закритий тестовий сайт: не індексувати.\nUser-agent: *\nDisallow: /\n";
+export const CLOSED_SITEMAP = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>\n';
+export const CLOSED_HEADERS = "/*\n  X-Robots-Tag: noindex, nofollow, noarchive\n";
+/** Плашка «STAGING» у кутку, щоб тестовий сайт не переплутати з основним; клікам не заважає */
+export const STAGING_RIBBON = '<div aria-hidden="true" style="position:fixed;left:0;bottom:0;z-index:2147483647;pointer-events:none;background:#b45309;color:#fff;font:700 11px/1 system-ui,sans-serif;letter-spacing:.08em;padding:5px 9px;border-top-right-radius:6px">STAGING</div>';
+export const withRibbon = (html: string): string => (html.includes("</body>") ? html.replace("</body>", `${STAGING_RIBBON}</body>`) : html + STAGING_RIBBON);
+
 export function robots(site: string): string {
   const rules = ["Allow: /", ...PRIVATE_PATHS.map((x) => `Disallow: ${x}`)].join("\n");
   return `# ${BRAND}: публічні сторінки відкриті для пошуковиків і ІІ-асистентів, кабінет, уроки й API закриті.

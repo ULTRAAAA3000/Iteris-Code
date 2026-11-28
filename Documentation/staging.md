@@ -1,6 +1,6 @@
 # Staging: закрытый сайт для тестов и порядок релизов
 
-> **Черновик** (17.11.2026). План внедрения, **делаем после старта MVP**. Идея и причины: [launch-strategy.md](launch-strategy.md). Настройка основного сайта: [SETUP.md](../SETUP.md). Некоторые шаги нужно проверить на практике (отмечены ⚠).
+> **Готовится** (28.11.2026). Репозиторная часть сделана (закрытый режим сборки, ветка `staging`, CI); шаги в Cloudflare выполняет владелец по чек-листу ниже (из песочницы разработки доступа к Cloudflare нет). Раньше это был черновик «после старта MVP». Идея и причины: [launch-strategy.md](launch-strategy.md). Настройка основного сайта: [SETUP.md](../SETUP.md). Некоторые шаги нужно проверить на практике (отмечены ⚠).
 
 ## 1. Схема
 
@@ -15,6 +15,12 @@
 
 Один проект Pages, две среды: Production (ветка `main`) и Preview (остальные ветки, в том числе `staging`).
 
+## 1.1 Что уже в репозитории
+
+- **Закрытый режим сборки** (`build.mjs`): включается `STAGING=1` или автоматически в Cloudflare Pages на любой ветке, кроме `main` (`CF_PAGES_BRANCH`). Тогда `robots.txt` = `Disallow: /`, `sitemap.xml` пустой, все ответы с `X-Robots-Tag: noindex, nofollow, noarchive`, в углу страницы плашка **STAGING**. Основной сайт сборкой `main` не меняется. Пункт 7 чек-листа ниже этим закрыт, отдельных файлов не нужно. Тест: `tests/staging.test.mjs`.
+- **Ветка `staging`** создана из `main`; CI (`.github/workflows/ci.yml`) гоняет сборку, типы и тесты на PR и на пуш в `main` и `staging`.
+- **Что не знает репозиторий** (делает владелец, пункты 2–6 и 8 ниже): база D1, переменные Preview, DNS, Cloudflare Access, OAuth-адреса.
+
 ## 2. Настройка (чек-лист)
 
 1. **Ветка.** Создать `staging` из `main`.
@@ -28,13 +34,21 @@
    - `ROOT_DOMAIN`, если нужен кабинет на поддомене staging.
 5. **Адрес.** ⚠ Custom domains в Pages привязываются к основной ветке, поэтому для ветки используется DNS: запись CNAME `staging` → `staging.<проект>.pages.dev`. Если не сработает, работаем по адресу `pages.dev` под защитой.
 6. **Закрыть доступ.** Cloudflare Zero Trust → Access → Applications: приложение на `staging.iteris-code.org` (и на `staging.<проект>.pages.dev`), правило «разрешить почты команды». Бесплатно до 50 человек.
-7. **Не индексировать.** Заголовок `X-Robots-Tag: noindex, nofollow` (в `_headers` для Preview или Cloudflare Transform Rules); `robots.txt` на staging с `Disallow: /`.
+7. **Не индексировать.** Сделано в сборке (см. 1.1): на ветке `staging` отдаются `robots.txt` с `Disallow: /` и заголовок `X-Robots-Tag`. Проверить: `curl -sI https://staging.iteris-code.org/ | grep -i robots` (за Access сначала войти).
 8. **Проверка:** без входа Access сайт не открывается; вход Google/GitHub возвращает на staging, а не на основной; запись в базу не попадает в основную.
 
 ## 3. Вход (OAuth)
 
 - **Google:** в том же OAuth-клиенте добавить второй адрес возврата `https://staging.iteris-code.org/` (адрес возврата в проекте = корень сайта со слешем).
 - **GitHub:** отдельная OAuth App для staging (в одном приложении адрес возврата только один), свои `GITHUB_CLIENT_ID/SECRET` в Preview.
+
+## 3.1 Синхронизация курсов и наполнения в staging
+
+Новые курсы пишутся ветками `feature-*`. Их сначала вливают в `staging` (PR в `staging`), проверяют там, затем та же ветка идёт PR в `main`. Если `main` ушёл вперёд (например, влиты курсы), `staging` подтягивают так:
+```bash
+git checkout staging && git merge origin/main && git push origin staging
+```
+Курсы, которые доделываются, вливают в `staging` по мере готовности; в `main` они уходят только после проверки.
 
 ## 4. Порядок релизов
 
