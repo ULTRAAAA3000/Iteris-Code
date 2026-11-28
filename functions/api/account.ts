@@ -3,8 +3,9 @@
 import type { Env } from "../../lib/env.ts";
 import { currentUser, json, sameOrigin, sessionCookies } from "../../lib/session.ts";
 
-// Таблиці з даними користувача (колонка user_id); payment_events лишилась від старої оплати й теж чиститься
-const USER_TABLES = ["user_progress", "task_submissions", "xp_events", "user_onboarding", "email_tokens", "payment_events"] as const;
+// Таблиці з даними користувача (колонка user_id); payment_events лишилась від старої оплати й теж чиститься.
+// Нова таблиця з user_id мусить потрапити сюди (вигрузка й видалення) і в тест tests/account.test.mjs: він перевіряє повноту за schema.sql
+const USER_TABLES = ["user_progress", "user_course_levels", "task_submissions", "xp_events", "user_goals", "user_onboarding", "email_tokens", "payment_events"] as const;
 // Службові поля, яких у вигрузці немає: хеш пароля й дані платіжки
 const HIDDEN = new Set(["password_hash", "portal_url", "subscription_id", "billing_updated_at"]);
 
@@ -19,6 +20,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const r = await env.DB.prepare(`SELECT * FROM ${t} WHERE user_id = ?1`).bind(u.id).all();
     data[t] = r.results ?? [];
   }
+  // Звернення до підтримки: за user_id, а також гостьові з тією самою ПІДТВЕРДЖЕНОЮ поштою; жалоби, які подав сам користувач
+  // (жалоби на нього не віддаємо: там особа того, хто поскаржився)
+  const mail = row?.email_verified ? String(row.email ?? "") : "";
+  data.support_messages = (await env.DB.prepare("SELECT * FROM support_messages WHERE user_id = ?1 OR (?2 != '' AND lower(email) = lower(?2))").bind(u.id, mail).all()).results ?? [];
+  data.reports = (await env.DB.prepare("SELECT * FROM reports WHERE reporter_id = ?1").bind(u.id).all()).results ?? [];
   return json(data, 200, { "Content-Disposition": 'attachment; filename="iteris-code-my-data.json"' });
 };
 
@@ -31,7 +37,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   if (b.confirm !== "delete") return json({ error: "confirm_required" }, 400);
 
   // Не покладаємось на каскад зовнішніх ключів: чистимо явно, потім сам акаунт
+  const row = await env.DB.prepare("SELECT email, email_verified, nick FROM users WHERE id = ?1").bind(u.id).first<{ email: string; email_verified: number; nick: string | null }>();
+  const mail = row?.email_verified ? row.email : "";
   const stmts = USER_TABLES.map((t) => env.DB.prepare(`DELETE FROM ${t} WHERE user_id = ?1`).bind(u.id));
+  stmts.push(env.DB.prepare("DELETE FROM support_messages WHERE user_id = ?1 OR (?2 != '' AND lower(email) = lower(?2))").bind(u.id, mail));
+  stmts.push(env.DB.prepare("DELETE FROM reports WHERE reporter_id = ?1 OR (?2 != '' AND nick = ?2)").bind(u.id, row?.nick ?? ""));
   stmts.push(env.DB.prepare("DELETE FROM users WHERE id = ?1").bind(u.id));
   await env.DB.batch(stmts);
   return json({ ok: true }, 200, { "Set-Cookie": sessionCookies("", 0, request, env) });

@@ -53,7 +53,28 @@ for (const u of ["a", "b"]) {
   sqlite.prepare("INSERT INTO user_progress (user_id, lesson_id) VALUES (?1, 'python/1')").run(u);
   sqlite.prepare("INSERT INTO xp_events (user_id, amount, reason, ref) VALUES (?1, 10, 'lesson', 'python/1')").run(u);
 }
+sqlite.prepare("UPDATE users SET nick = 'nick_a', email_verified = 1 WHERE id = 'a'").run();
+sqlite.prepare("INSERT INTO user_goals (user_id, daily_goal) VALUES ('a', 2), ('b', 3)").run();
+sqlite.prepare("INSERT INTO user_course_levels (user_id, course, level) VALUES ('a', 'go', 'adv'), ('b', 'go', 'base')").run();
+const sup = sqlite.prepare("INSERT INTO support_messages (id, user_id, name, email, topic, message) VALUES (?1, ?2, 'n', ?3, 'bug', 'text')");
+sup.run("s1", "a", "a@example.com"); sup.run("s2", null, "A@Example.com"); sup.run("s3", "b", "b@example.com");
+const rep = sqlite.prepare("INSERT INTO reports (id, reporter_id, nick, reason) VALUES (?1, ?2, ?3, 'spam')");
+rep.run("r1", "a", "other"); rep.run("r2", "b", "nick_a"); rep.run("r3", "b", "somebody");
 const ca = "session=" + (await createSession(env, "a"));
+
+// Повнота: кожна таблиця з user_id у schema.sql має бути в USER_TABLES або в явному списку нижче (вигрузка й видалення її не пропустять)
+await test("повнота: усі таблиці з user_id із schema.sql покриті вигрузкою й видаленням", () => {
+  const src = readFileSync(new URL("../functions/api/account.ts", import.meta.url), "utf8");
+  const listed = new Set([...src.match(/USER_TABLES = \[([^\]]*)\]/)[1].matchAll(/"(\w+)"/g)].map((m) => m[1]));
+  const own = new Set(["support_messages", "reports"]);   // свої запити (інша колонка або пошта): див. account.ts
+  const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table'").all().map((t) => t.name);
+  for (const t of tables) {
+    const cols = sqlite.prepare(`PRAGMA table_info(${t})`).all().map((c) => c.name);
+    if (!cols.includes("user_id") && !cols.includes("reporter_id")) continue;
+    assert.ok(listed.has(t) || own.has(t), `таблиця ${t} має user_id, але не покрита в account.ts`);
+    if (own.has(t)) assert.ok(src.includes(`FROM ${t}`) && src.includes(`DELETE FROM ${t}`), `${t}: немає вигрузки або видалення`);
+  }
+});
 
 await test("вигрузка даних: потрібен вхід, лише свої дані, без хеша пароля", async () => {
   assert.equal((await call(exportData, req("/api/account"))).status, 401);
@@ -64,6 +85,10 @@ await test("вигрузка даних: потрібен вхід, лише с�
   assert.ok(!("password_hash" in r.data.account));
   assert.equal(r.data.user_progress.length, 1);
   assert.equal(r.data.xp_events.length, 1);
+  assert.equal(r.data.user_goals.length, 1);
+  assert.equal(r.data.user_course_levels.length, 1);
+  assert.deepEqual(r.data.support_messages.map((m) => m.id).sort(), ["s1", "s2"]);   // своє й гостьове з тією самою поштою, чужого немає
+  assert.deepEqual(r.data.reports.map((m) => m.id), ["r1"]);                         // лише подані ним, без жалоби на нього
   assert.ok(!JSON.stringify(r.data).includes("b@example.com"));
 });
 await test("видалення: потрібні вхід, свій Origin і підтвердження", async () => {
@@ -79,7 +104,11 @@ await test("видалення: стирає акаунт і всі його д�
   assert.match(r.headers.get("Set-Cookie") ?? "", /Max-Age=0/);
   for (const t of ["user_progress", "xp_events"]) assert.equal(sqlite.prepare(`SELECT COUNT(*) c FROM ${t} WHERE user_id='a'`).get().c, 0);
   assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM users WHERE id='a'").get().c, 0);
+  for (const t of ["user_goals", "user_course_levels"]) assert.equal(sqlite.prepare(`SELECT COUNT(*) c FROM ${t} WHERE user_id='a'`).get().c, 0, t);
+  assert.deepEqual(sqlite.prepare("SELECT id FROM support_messages ORDER BY id").all().map((m) => m.id), ["s3"]);
+  assert.deepEqual(sqlite.prepare("SELECT id FROM reports ORDER BY id").all().map((m) => m.id), ["r3"]);   // подані ним і подані на його нік стерто
   assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM user_progress WHERE user_id='b'").get().c, 1);
+  assert.equal(sqlite.prepare("SELECT COUNT(*) c FROM user_goals WHERE user_id='b'").get().c, 1);
   assert.equal((await call(exportData, req("/api/account", { cookie: ca }))).status, 401);
 });
 await test("сторінки /privacy і /terms: є в реєстрі, мають компанію й адресу", () => {
