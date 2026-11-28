@@ -6,6 +6,7 @@ import { catDesc, catTitle, courseDesc, courseName } from "./i18n-data.ts";
 import { cnt, getLang, inLang, l, setPublicMatcher, tr, type Lang } from "./i18n.ts";
 import { contactHtml } from "./contact.ts";
 import { demoHtml } from "./demo.ts";
+import { homeLevelsHtml, homeMotivationHtml, homeRoutesHtml, homeStatsHtml, homeTaskHtml, homeTipsHtml, homeWhyHtml } from "./home-sections.ts";
 import { NEWS_PATH, newsHtml, newsTitle } from "./changelog.ts";
 import { privacyHtml, privacyTitle, termsHtml, termsTitle } from "./legal.ts";
 import { esc } from "./util.ts";
@@ -61,6 +62,10 @@ const faq = (): readonly (readonly [string, string])[] => tr<readonly (readonly 
   ["Чи можна вчитись із телефона?", "Так. Усі сторінки перевірено на екранах від 360 пікселів, а на телефоні замість важкого редактора відкривається простий."],
   ["Чи є проєкти за технічним завданням?", "Так. Ви отримуєте технічне завдання, складаєте невеликий продукт і бачите звіт «виконано X з N». Проєкти вже є в курсах JavaScript, Python, Java і Go, інші мови додаватимуться поступово."],
   ["Якою мовою уроки?", "Зараз усі уроки й завдання українською. Англійська версія готується: інтерфейс і публічні сторінки сайту вже доступні англійською, перемикач мови зверху."],
+  ["Що таке рівні «базовий» і «просунутий»?", "У великих курсах є два шляхи. Базовий містить усе, щоб упевнено почати. Просунутий додає глибші теми. Рівень можна змінити в будь-який момент, а номери уроків не змінюються."],
+  ["Хто бачить мій прогрес?", "Ніхто, якщо ви самі не вирішите інакше. Сторінка за вашим ніком за замовчуванням закрита, а відкрити її можна в налаштуваннях кабінету."],
+  ["Чи можна вчити кілька мов одночасно?", "Так. Прогрес і рівень зберігаються окремо для кожного курсу, тому можна перемикатись між мовами без втрат."],
+  ["Як завантажити свої дані або видалити акаунт?", "У кабінеті є кнопки «Завантажити мої дані» та «Видалити акаунт». Видалення стирає обліковий запис і весь прогрес."],
 ], [
   ["Is it really free?", "Yes. The reference is open to everyone, and lessons, tasks and your personal account are free for signed-in users. You never have to pay."],
   ["Where do I start if I have never programmed?", "After signing in, choose a language and the “Beginner” level: the platform puts you at the start of the path. Python, JavaScript or Go are good first languages."],
@@ -70,6 +75,10 @@ const faq = (): readonly (readonly [string, string])[] => tr<readonly (readonly 
   ["Can I learn from my phone?", "Yes. Every page is tested on screens from 360 pixels wide, and phones get a simple editor instead of the heavy one."],
   ["Are there projects based on a specification?", "Yes. You get a specification, build a small product and see a “done X of N” report. Projects already exist in the JavaScript, Python, Java and Go courses, and other languages will be added gradually."],
   ["What language are the lessons in?", "For now all lessons and tasks are in Ukrainian. An English version is on the way: the interface and the public pages of the site are already available in English, use the language switch at the top."],
+  ["What are the “base” and “advanced” levels?", "Big courses have two paths. The base path has everything you need to start confidently. The advanced path adds deeper topics. You can switch levels at any moment, and lesson numbers never change."],
+  ["Who can see my progress?", "Nobody, unless you decide otherwise. The page under your nickname is private by default, and you can switch it on in the account settings."],
+  ["Can I learn several languages at once?", "Yes. Progress and level are stored separately for each course, so you can switch between languages without losing anything."],
+  ["How do I download my data or delete my account?", "Your account page has “Download my data” and “Delete account” buttons. Deleting removes the account and all progress."],
 ]);
 
 export const homeHtml = (loggedIn: boolean): string => `
@@ -104,6 +113,8 @@ print("Hello,", name + "!")`)}</pre>
 
   ${demoHtml()}
 
+  ${homeStatsHtml()}
+
   <section aria-labelledby="how">
     <h2 class="section-title" id="how">${tr("Як проходить навчання", "How learning works")}</h2>
     <p class="section-sub">${tr("Чотири кроки, які повторюються від теми до теми. Від теорії до коду, який працює.", "Four steps that repeat from topic to topic. From theory to code that works.")}</p>
@@ -135,6 +146,12 @@ print("Hello,", name + "!")`)}</pre>
     </ol>
   </section>
 
+  ${homeWhyHtml()}
+
+  ${homeTaskHtml(cta(loggedIn))}
+
+  ${homeLevelsHtml()}
+
   <section aria-labelledby="path">
     <h2 class="section-title" id="path">${tr("Свій шлях, без блокувань", "Your own path, no locks")}</h2>
     <p class="section-sub">${tr("Курс розбито на глави. Платформа підкаже, з чого почати за вашим рівнем, але будь-який урок можна відкрити будь-коли.", "A course is split into chapters. The platform suggests where to start for your level, but you can open any lesson at any time.")}</p>
@@ -159,6 +176,8 @@ print("Hello,", name + "!")`)}</pre>
     </div>
   </section>
 
+  ${homeMotivationHtml()}
+
   <section aria-labelledby="langs">
     <h2 class="section-title" id="langs">${tr(`${nLanding} мов і технологій`, `${nLanding} languages and technologies`)}</h2>
     <p class="section-sub">${tr("Оберіть мову, щоб відкрити довідник. Уроки й завдання чекають у кабінеті.", "Choose a language to open its reference. Lessons and tasks are waiting in your account.")}</p>
@@ -170,6 +189,10 @@ print("Hello,", name + "!")`)}</pre>
       </div>`).join("")}
     </div>
   </section>
+
+  ${homeRoutesHtml()}
+
+  ${homeTipsHtml()}
 
   <section aria-labelledby="refonly">
     <h2 class="section-title" id="refonly">${tr("Ще в довіднику", "Also in the reference")}</h2>
