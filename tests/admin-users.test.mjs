@@ -6,7 +6,9 @@ import { DatabaseSync } from "node:sqlite";
 
 import { createSession } from "../lib/session.ts";
 import { ensureSchema } from "../lib/schema.ts";
-import { listUsers } from "../lib/admin-users.ts";
+import { listUsers, userDetails, usersCsv, csvCell } from "../lib/admin-users.ts";
+import { onRequestGet as userApi } from "../functions/api/admin/user.ts";
+import { onRequestGet as exportApi } from "../functions/api/admin/export.ts";
 import { onRequestGet as usersApi } from "../functions/api/admin/users.ts";
 
 const sqlite = new DatabaseSync(":memory:");
@@ -94,6 +96,47 @@ await test("API: адмін бачить список, інші й гості о
   assert.equal(ok.cache, "no-store");
   assert.deepEqual(JSON.parse(ok.body).users.map((u) => u.email), ["anna@x.example"]);
   assert.equal(JSON.parse((await call("session=" + (await createSession(env, "adm1")), "?offset=60")).body).users.length, 4);
+});
+await test("картка акаунта: XP, завдання без коду, звернення; невідома пошта — null", async () => {
+  sqlite.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES ('d1','u1','py-hello','SECRET-CODE',1)").run();
+  sqlite.prepare("INSERT INTO support_messages (id, user_id, name, email, topic, message) VALUES ('m1','u1','Анна','anna@x.example','bug','<b>не працює</b>')").run();
+  sqlite.prepare("INSERT INTO user_goals (user_id, daily_goal) VALUES ('u1', 3)").run();
+  const d = await userDetails(DB, " ANNA@x.example ");
+  assert.equal(d.email, "anna@x.example");
+  assert.equal(d.goal, 3);
+  assert.equal(d.recentXp.length, 2);
+  assert.deepEqual(d.recentTasks.map((t) => [t.task, t.passed]), [["py-hello", true]]);
+  assert.equal(d.support[0].topic, "bug");
+  assert.ok(!JSON.stringify(d).includes("SECRET"));
+  assert.equal(await userDetails(DB, "nobody@x.example"), null);
+  assert.equal(await userDetails(DB, ""), null);
+});
+await test("CSV: екранування, захист від формул, усі рядки, фільтр", async () => {
+  assert.equal(csvCell('=HYPERLINK("x")'), `"'=HYPERLINK(""x"")"`);
+  assert.equal(csvCell("+1"), "'+1");
+  assert.equal(csvCell("a,b"), '"a,b"');
+  assert.equal(csvCell(null), "");
+  assert.equal(csvCell(5), "5");
+  const all = (await usersCsv(DB)).trim().split("\r\n");
+  assert.ok(all[0].startsWith("email,name,nick"));
+  assert.equal(all.length, 1 + 64);   // 4 акаунти + 60 bulk
+  const c = (await usersCsv(DB, { course: "cpp" })).trim().split("\r\n");
+  assert.equal(c.length, 3);
+  assert.ok(!(await usersCsv(DB)).includes("SECRET-HASH"));
+});
+await test("API картки й CSV: адмін бачить, інші й гості отримують 404", async () => {
+  const call = async (fn, path, cookie) => { const r = await fn({ request: new Request("https://iteris-code.pages.dev" + path, { headers: cookie ? { Cookie: cookie } : {} }), env, params: {} }); return { status: r.status, type: r.headers.get("Content-Type"), cache: r.headers.get("Cache-Control"), body: await r.text() }; };
+  const adm = "session=" + (await createSession(env, "adm1")), rnd = "session=" + (await createSession(env, "u1"));
+  for (const [fn, path] of [[userApi, "/api/admin/user?email=anna@x.example"], [exportApi, "/api/admin/export"]]) {
+    for (const cookie of [null, rnd]) { const r = await call(fn, path, cookie); assert.equal(r.status, 404); assert.ok(!r.body.includes("@")); }
+  }
+  assert.equal((await call(userApi, "/api/admin/user?email=anna@x.example", adm)).status, 200);
+  assert.equal((await call(userApi, "/api/admin/user?email=zzz@x.example", adm)).status, 404);
+  const ex = await call(exportApi, "/api/admin/export?course=cpp", adm);
+  assert.equal(ex.status, 200);
+  assert.ok(ex.type.startsWith("text/csv"));
+  assert.equal(ex.cache, "no-store");
+  assert.ok(ex.body.includes("bob@x.example"));
 });
 
 console.log(`\nУсі перевірки списку акаунтів пройдено: ${passed}`);

@@ -14,6 +14,8 @@ export interface Stats {
   retention: { d1: Retention; d7: Retention };
   /** Що кому цікаво: скільки людей обрали курс в онбордингу, скільки справді вчаться (є пройдені уроки), скільки уроків пройдено, скільки на просунутому рівні */
   courses: CourseStat[];
+  /** До 200 завдань, спершу з найбільшою кількістю спроб */
+  tasks: TaskStat[];
   /** Розподіл за рівнем із онбордингу, денною ціллю, способом входу */
   levels: Bucket[];
   goals: Bucket[];
@@ -21,7 +23,9 @@ export interface Stats {
   /** Активність: унікальні люди за 1, 7 і 30 днів; усього пройдено уроків; відправок завдань і частка успішних; звернень у підтримку */
   activity: { today: number; week: number; month: number; lessonsDone: number; submissions: number; passed: number; support: number; verified: number };
 }
-export interface CourseStat { course: string; chosen: number; learning: number; lessons: number; advanced: number }
+export interface CourseStat { course: string; chosen: number; learning: number; lessons: number; advanced: number; reach5: number; reach20: number }
+/** Завдання: спроб усього, скільки людей пробувало й скільки розв'язали (успішна відправка хоча б раз) */
+export interface TaskStat { id: string; attempts: number; users: number; solved: number }
 export interface Bucket { key: string; count: number }
 
 // Дні активності користувача: будь-який урок, будь-яка відправка, будь-яке XP
@@ -63,14 +67,22 @@ export const parseCourses = (raw: string | null): string[] => {
 
 async function courseStats(db: D1Database): Promise<CourseStat[]> {
   const map = new Map<string, CourseStat>();
-  const get = (k: string): CourseStat => { let c = map.get(k); if (!c) { c = { course: k, chosen: 0, learning: 0, lessons: 0, advanced: 0 }; map.set(k, c); } return c; };
+  const get = (k: string): CourseStat => { let c = map.get(k); if (!c) { c = { course: k, chosen: 0, learning: 0, lessons: 0, advanced: 0, reach5: 0, reach20: 0 }; map.set(k, c); } return c; };
   for (const r of await rows<{ courses: string }>(db, "SELECT courses FROM user_onboarding")) for (const k of new Set(parseCourses(r.courses))) get(k).chosen++;
   for (const r of await rows<{ c: string; users: number; lessons: number }>(db,
     "SELECT substr(lesson_id, 1, instr(lesson_id, '/') - 1) AS c, COUNT(DISTINCT user_id) AS users, COUNT(*) AS lessons FROM user_progress WHERE instr(lesson_id, '/') > 1 GROUP BY c"))
     { const c = get(r.c); c.learning = r.users; c.lessons = r.lessons; }
   for (const r of await rows<{ course: string; n: number }>(db, "SELECT course, COUNT(*) AS n FROM user_course_levels WHERE level = 'adv' GROUP BY course")) get(r.course).advanced = r.n;
+  // Воронка: скільки людей дійшли до 5 і до 20 пройдених уроків курсу
+  for (const r of await rows<{ c: string; r5: number; r20: number }>(db,
+    `SELECT c, SUM(n >= 5) AS r5, SUM(n >= 20) AS r20 FROM (SELECT user_id, substr(lesson_id, 1, instr(lesson_id, '/') - 1) AS c, COUNT(*) AS n
+       FROM user_progress WHERE instr(lesson_id, '/') > 1 GROUP BY user_id, c) GROUP BY c`)) { const c = get(r.c); c.reach5 = r.r5; c.reach20 = r.r20; }
   return [...map.values()].sort((a, b) => (b.chosen + b.learning) - (a.chosen + a.learning) || a.course.localeCompare(b.course));
 }
+
+const taskStats = (db: D1Database): Promise<TaskStat[]> => rows<TaskStat>(db,
+  `SELECT task_id AS id, COUNT(*) AS attempts, COUNT(DISTINCT user_id) AS users, COUNT(DISTINCT CASE WHEN is_passed = 1 THEN user_id END) AS solved
+   FROM task_submissions WHERE task_id IS NOT NULL GROUP BY task_id ORDER BY attempts DESC, task_id LIMIT 200`);
 
 const buckets = async (db: D1Database, sql: string): Promise<Bucket[]> => (await rows<{ k: string | number | null; n: number }>(db, sql)).map((r) => ({ key: String(r.k ?? "—"), count: r.n }));
 
@@ -124,6 +136,7 @@ export async function computeStats(db: D1Database, days = 30): Promise<Stats> {
     dau: fill(dau.results ?? [], Math.min(days, 14), today),
     retention: { d1: await retention(1), d7: await retention(7) },
     courses: await courseStats(db),
+    tasks: await taskStats(db),
     levels: await buckets(db, "SELECT level AS k, COUNT(*) AS n FROM user_onboarding GROUP BY level ORDER BY n DESC"),
     goals: await buckets(db, "SELECT daily_goal AS k, COUNT(*) AS n FROM user_goals GROUP BY daily_goal ORDER BY daily_goal"),
     methods: await buckets(db, "SELECT CASE WHEN password_hash IS NULL THEN 'social' ELSE 'password' END AS k, COUNT(*) AS n FROM users GROUP BY k ORDER BY n DESC"),

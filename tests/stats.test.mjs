@@ -88,10 +88,22 @@ await test("мови: обрали (онбординг), вчаться (є ур
   sqlite.prepare("INSERT INTO user_course_levels (user_id, course, level) VALUES ('u1', 'js', 'adv')").run();
   const t = await computeStats(DB);
   const by = Object.fromEntries(t.courses.map((c) => [c.course, c]));
-  assert.deepEqual(by.js, { course: "js", chosen: 1, learning: 2, lessons: 4, advanced: 1 });
-  assert.deepEqual(by.python, { course: "python", chosen: 1, learning: 0, lessons: 0, advanced: 0 });
-  assert.deepEqual(by.go, { course: "go", chosen: 0, learning: 1, lessons: 1, advanced: 0 });
+  assert.deepEqual(by.js, { course: "js", chosen: 1, learning: 2, lessons: 4, advanced: 1, reach5: 0, reach20: 0 });
+  assert.deepEqual(by.python, { course: "python", chosen: 1, learning: 0, lessons: 0, advanced: 0, reach5: 0, reach20: 0 });
+  assert.deepEqual(by.go, { course: "go", chosen: 0, learning: 1, lessons: 1, advanced: 0, reach5: 0, reach20: 0 });
   assert.equal(t.courses[0].course, "js");   // найпопулярніші першими
+});
+await test("воронка: скільки людей дійшли до 5 і 20 уроків курсу; статистика завдань", async () => {
+  for (let i = 1; i <= 21; i++) lesson("u1", "go/" + (i + 1), 1);   // u1: 21 урок go, u4 вже має go/1
+  for (let i = 1; i <= 5; i++) lesson("u2", "go/" + (i + 30), 1);   // u2: 5 уроків go
+  const t = await computeStats(DB);
+  const go = t.courses.find((c) => c.course === "go");
+  assert.deepEqual([go.reach5, go.reach20], [2, 1]);
+  sqlite.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES ('f1','u1','hard',' ',0),('f2','u2','hard',' ',0),('f3','u1','hard',' ',1),('f4','u1','easy',' ',1)").run();
+  const tasks = Object.fromEntries((await computeStats(DB)).tasks.map((x) => [x.id, x]));
+  assert.deepEqual({ ...tasks.hard }, { id: "hard", attempts: 3, users: 2, solved: 1 });
+  assert.deepEqual({ ...tasks.easy }, { id: "easy", attempts: 1, users: 1, solved: 1 });
+  sqlite.exec("DELETE FROM task_submissions; DELETE FROM user_progress WHERE user_id IN ('u1','u2') AND lesson_id LIKE 'go/%'");   // прибираємо дані тесту
 });
 await test("розподіли й активність: рівні, способи входу, активні за 1/7/30 днів, відправки", async () => {
   sqlite.prepare("INSERT INTO task_submissions (id, user_id, task_id, code, is_passed) VALUES ('s1','u1','t',' ',1), ('s2','u1','t',' ',0)").run();

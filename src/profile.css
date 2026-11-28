@@ -107,3 +107,6 @@
 .adm-tbl th,.adm-tbl td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}.adm-tbl th{color:var(--muted);font-weight:700}
 .adm-email{font-weight:700}
 .adm h3{margin:0 0 8px;font-size:1rem}
+.adm-user{cursor:pointer}.adm-user:hover td,.adm-user:focus td{background:var(--paper)}
+.adm-card{margin-top:14px;padding:14px;border:2px solid var(--ink);border-radius:8px}.adm-card h3{margin:0 0 4px}
+.adm-list{margin:6px 0 0;padding-left:18px;font-size:.9rem}.adm-list li{margin:3px 0;overflow-wrap:anywhere}
