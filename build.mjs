@@ -22,6 +22,9 @@ const worker = await out("src/runner/worker.ts");
 const seoOut = (await build({ entryPoints: ["src/seo.ts"], bundle: true, format: "esm", platform: "node", target: "node22", write: false, logLevel: "error" })).outputFiles[0].text;
 const seo = await import("data:text/javascript;base64," + Buffer.from(seoOut).toString("base64"));
 // Адреса сайту для canonical, Open Graph і sitemap: змінна SITE_URL у Cloudflare, інакше основний домен
+// Закритий режим (staging і прев'ю): STAGING=1 вручну, а в Cloudflare Pages автоматично на будь-якій гілці, окрім виробничої (main).
+// Тоді: robots.txt забороняє все, sitemap порожній, усі відповіді з X-Robots-Tag: noindex, у кутку плашка STAGING.
+const CLOSED = process.env.STAGING === "1" || (!!process.env.CF_PAGES_BRANCH && process.env.CF_PAGES_BRANCH !== (process.env.PRODUCTION_BRANCH || "main"));
 const SITE = (process.env.SITE_URL || "https://iteris-code.pages.dev").replace(/\/+$/, "");
 
 // Якщо застосунок не запустився, показуємо причину замість порожньої сторінки
@@ -59,10 +62,10 @@ const seoOpts = { google: process.env.GOOGLE_SITE_VERIFICATION, bing: process.en
 const pages = seo.buildPages(template, SITE, seoOpts);
 for (const f of pages) {
   mkdirSync(dirname("dist/" + f.file), { recursive: true });
-  writeFileSync("dist/" + f.file, f.html);
+  writeFileSync("dist/" + f.file, CLOSED && f.file.endsWith(".html") ? seo.withRibbon(f.html) : f.html);
 }
-writeFileSync("dist/sitemap.xml", seo.sitemap(SITE, modified));
-writeFileSync("dist/robots.txt", seo.robots(SITE));
+writeFileSync("dist/sitemap.xml", CLOSED ? seo.CLOSED_SITEMAP : seo.sitemap(SITE, modified));
+writeFileSync("dist/robots.txt", CLOSED ? seo.CLOSED_ROBOTS : seo.robots(SITE));
 // llms.txt, llms-full.txt, Markdown-довідники (ref/*.md), manifest.webmanifest, .well-known/security.txt
 const textFiles = seo.textFiles(SITE, seoOpts);
 for (const f of textFiles) {
@@ -93,7 +96,7 @@ const SECURITY_HEADERS = `/*
   Strict-Transport-Security: max-age=31536000; includeSubDomains
   Content-Security-Policy: base-uri 'self'; object-src 'none'; frame-ancestors 'self'
 `;
-writeFileSync("dist/_headers", `${SECURITY_HEADERS}/
+writeFileSync("dist/_headers", `${SECURITY_HEADERS}${CLOSED ? seo.CLOSED_HEADERS.replace("/*\n", "") : ""}/
   Cache-Control: no-cache
 /index.html
   Cache-Control: no-cache
@@ -111,6 +114,7 @@ ${seo.seoHeaders()}/app.js
 /${worker}
   Cache-Control: public, max-age=31536000, immutable
 `);
+if (CLOSED) console.log("Закритий режим (staging): noindex, robots Disallow, плашка STAGING");
 console.log(`dist: ${app}, ${worker}, сторінок: ${pages.length}, файлів для ІІ та пошуку: ${textFiles.length + 2}`);
 
 // У Cloudflare Pages (CF_PAGES=1) дублюємо готові файли в корінь репозиторію.
