@@ -108,14 +108,14 @@ const redirected = await page({ me: user, dash, hash: "#/course/js" });
 t("сторінку списку уроків сховано: адреса /course/js веде на шлях цієї мови, списку немає", redirected.w.location.pathname === "/path/js" && !redirected.html().includes('class="lessons"') && !!redirected.$(".path"));
 const gateRedirect = await page({ me: null, hash: "#/course/js" });
 t("гість: /course/js теж веде на /path/js і бачить запрошення, а не список", gateRedirect.w.location.pathname === "/path/js" && gateRedirect.html().includes("Уроки та завдання в кабінеті"));
-const plain = await page({ me: user, dash, hash: "#/lesson/php/8" });
-t("урок без завдання (після входу): старий макет із боковим меню", plain.html().includes("lesson-layout") && !plain.html().includes('class="ws"') && plain.calls.some((c) => c.url === "/api/lesson?k=php&n=8"));
+const plain = await page({ me: user, dash, hash: "#/lesson/php/105" });
+t("урок без завдання (після входу): старий макет із боковим меню", plain.html().includes("lesson-layout") && !plain.html().includes('class="ws"') && plain.calls.some((c) => c.url === "/api/lesson?k=php&n=105"));
 t("урок: хлібні крихти ведуть на шлях, а не на список уроків; «Курси» не підсвічено", !plain.html().includes('href="/course/') && !!plain.$('.crumbs a[href="/path"]') && !!plain.$('.crumbs a[href="/path/php"]') && plain.$('#nav a[data-k="path"]')?.getAttribute("aria-current") === "page" && plain.$('#nav a[data-k="courses"]')?.getAttribute("aria-current") !== "page");
-const logged = await page({ me: user, dash, hash: "#/lesson/php/8" });
-t("урок: є кнопка «Повідомити про помилку»", logged.html().includes("/contact?topic=bug&amp;from=%2Flesson%2Fphp%2F8"));
+const logged = await page({ me: user, dash, hash: "#/lesson/php/105" });
+t("урок: є кнопка «Повідомити про помилку»", logged.html().includes("/contact?topic=bug&amp;from=%2Flesson%2Fphp%2F105"));
 logged.$("[data-toggle]").click();
 await sleep(30);
-t("урок: для користувача позначка синхронізується із сервером", logged.calls.some((c) => c.method === "POST" && c.url === "/api/progress" && c.body.lessonIds[0] === "php/8"));
+t("урок: для користувача позначка синхронізується із сервером", logged.calls.some((c) => c.method === "POST" && c.url === "/api/progress" && c.body.lessonIds[0] === "php/105"));
 
 /* ---- екран із завданням ---- */
 let ws = await page({ me: user, dash, hash: "#/lesson/js/10" });
